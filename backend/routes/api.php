@@ -51,6 +51,38 @@ Route::get('/debug-db', function() {
     }
 });
 
+// Diagnostic route to test login action and dump exceptions
+Route::get('/test-login-action', function() {
+    try {
+        $email = 'admin@smarttimes.in';
+        $password = 'admin123';
+        
+        $user = \App\Models\User::where('email', $email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'User not found in database.']);
+        }
+        
+        if (!\Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+            return response()->json(['error' => 'Password check failed.']);
+        }
+        
+        $token = $user->createToken('auth_token')->plainTextToken;
+        
+        return response()->json([
+            'status' => 'success',
+            'token' => $token,
+            'user' => $user
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'exception_caught',
+            'error_class' => get_class($e),
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
 // Public Authentication route
 Route::post('/login', [AuthController::class, 'login']);
 
