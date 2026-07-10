@@ -25,6 +25,11 @@ Route::get('/health', fn() => response()->json([
 
 // Diagnostic route to debug database connection and seeders
 Route::get('/debug-db', function() {
+    $logPath = storage_path('logs/laravel.log');
+    $logs = file_exists($logPath) ? file_get_contents($logPath) : 'Log file does not exist.';
+    if (strlen($logs) > 5000) {
+        $logs = substr($logs, -5000);
+    }
     try {
         \DB::connection()->getPdo();
         $tables = \DB::select('SHOW TABLES');
@@ -35,13 +40,9 @@ Route::get('/debug-db', function() {
             'tables' => $tables,
             'user_count' => $userCount,
             'users' => $users,
+            'logs' => $logs
         ]);
     } catch (\Exception $e) {
-        $logPath = storage_path('logs/laravel.log');
-        $logs = file_exists($logPath) ? file_get_contents($logPath) : 'Log file does not exist.';
-        if (strlen($logs) > 5000) {
-            $logs = substr($logs, -5000);
-        }
         return response()->json([
             'status' => 'error',
             'message' => $e->getMessage(),
