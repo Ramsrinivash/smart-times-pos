@@ -23,6 +23,33 @@ Route::get('/health', fn() => response()->json([
     'timestamp' => now()->toISOString()
 ]));
 
+// Diagnostic route to debug database connection and seeders
+Route::get('/debug-db', function() {
+    try {
+        \DB::connection()->getPdo();
+        $tables = \DB::select('SHOW TABLES');
+        $userCount = \DB::table('users')->count();
+        $users = \DB::table('users')->select('name', 'email', 'role')->get();
+        return response()->json([
+            'status' => 'connected',
+            'tables' => $tables,
+            'user_count' => $userCount,
+            'users' => $users,
+        ]);
+    } catch (\Exception $e) {
+        $logPath = storage_path('logs/laravel.log');
+        $logs = file_exists($logPath) ? file_get_contents($logPath) : 'Log file does not exist.';
+        if (strlen($logs) > 5000) {
+            $logs = substr($logs, -5000);
+        }
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'logs' => $logs
+        ], 500);
+    }
+});
+
 // Public Authentication route
 Route::post('/login', [AuthController::class, 'login']);
 
