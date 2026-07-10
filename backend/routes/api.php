@@ -83,8 +83,20 @@ Route::get('/test-login-action', function() {
     }
 });
 
-// Public Authentication route
-Route::post('/login', [AuthController::class, 'login']);
+// Public Authentication route (Wrapped in try/catch for live debugging)
+Route::post('/login', function(\Illuminate\Http\Request $request) {
+    try {
+        $controller = new \App\Http\Controllers\AuthController();
+        return $controller->login($request);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'exception_caught_on_login',
+            'error_class' => get_class($e),
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
 
 // Authenticated Routes (Requires Sanctum auth)
 Route::middleware('auth:sanctum')->group(function () {
