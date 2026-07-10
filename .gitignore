@@ -1,0 +1,12 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Test artifacts
+test_suite.js
+
+# Temp / build artifacts
+*.pdf

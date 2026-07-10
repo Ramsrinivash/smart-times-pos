@@ -1,0 +1,407 @@
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
+import Header from '../components/Layout/Header';
+import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle } from 'lucide-react';
+
+const ServiceRepair = () => {
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  
+  const [isExternal, setIsExternal] = useState(false);
+  const [externalBrand, setExternalBrand] = useState('');
+  const [externalModel, setExternalModel] = useState('');
+  const [externalSerial, setExternalSerial] = useState('');
+  
+  const [registeredWatches, setRegisteredWatches] = useState([]);
+  const [selectedWatchId, setSelectedWatchId] = useState('');
+
+  const [issue, setIssue] = useState('');
+  const [condition, setCondition] = useState('');
+  const [estimate, setEstimate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [selectedJobForCard, setSelectedJobForCard] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const filteredJobs = jobs.filter(job => {
+    const custName = job.customer?.name?.toLowerCase() || '';
+    const custPhone = job.customer?.phone || '';
+    const watchId = job.watch_id?.toLowerCase() || '';
+    const extSerial = job.watch_details?.serial?.toLowerCase() || '';
+    const jobStatus = job.status || '';
+    const query = searchQuery.toLowerCase();
+
+    const matchesQuery = custName.includes(query) || 
+                         custPhone.includes(query) || 
+                         watchId.includes(query) || 
+                         extSerial.includes(query) || 
+                         job.id.toLowerCase().includes(query);
+    const matchesStatus = !statusFilter || jobStatus === statusFilter;
+
+    return matchesQuery && matchesStatus;
+  });
+
+  const loadData = async () => {
+    try {
+      const custs = await api.getCustomers();
+      setCustomers(custs);
+      if (custs.length > 0 && !selectedCustomerId) setSelectedCustomerId(custs[0].id);
+
+      const items = await api.getInventory('', 'sold');
+      setRegisteredWatches(items);
+
+      const serviceJobs = await api.getServiceJobs();
+      setJobs(serviceJobs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSubmitIntake = async (e) => {
+    e.preventDefault();
+    if (!selectedCustomerId || (!isExternal && !selectedWatchId) || (isExternal && !externalBrand)) {
+      alert('Please fill out customer and watch details.');
+      return;
+    }
+
+    try {
+      const payload = {
+        customer_id: selectedCustomerId,
+        watch_id: isExternal ? null : selectedWatchId,
+        watch_details: isExternal ? { brand: externalBrand, model: externalModel, serial: externalSerial } : null,
+        issue_reported: issue,
+        drop_off_condition: condition,
+        estimated_cost: estimate,
+        expected_delivery_date: dueDate
+      };
+
+      const result = await api.addServiceJob(payload);
+      alert('Service Job Card created successfully.');
+      
+      // Auto open printable job card modal
+      const detailJob = jobs.find(j => j.id === result.id) || result;
+      // Fetch fresh list to include customer details
+      const freshJobs = await api.getServiceJobs();
+      setJobs(freshJobs);
+      const matched = freshJobs.find(j => j.id === result.id);
+      setSelectedJobForCard(matched);
+
+      // Reset form
+      setIssue('');
+      setCondition('');
+      setEstimate('');
+      setDueDate('');
+      setExternalBrand('');
+      setExternalModel('');
+      setExternalSerial('');
+    } catch (err) {
+      alert(err.message || 'Failed to create job card.');
+    }
+  };
+
+  const handleUpdateStatus = async (jobId, nextStatus) => {
+    try {
+      if (nextStatus === 'delivered') {
+        const inputCost = prompt('Enter final service charges to collect from customer (₹):');
+        if (inputCost === null) return;
+        const actualCost = Number(inputCost || 0);
+
+        const payMode = window.confirm('Payment received via UPI/Card? Click OK for UPI, Cancel for Cash.') ? 'upi' : 'cash';
+        const result = await api.addServiceBill(jobId, actualCost, payMode);
+        alert(`✅ Service delivered!\nBill Invoice: ${result.id}\nAmount: ₹${actualCost.toLocaleString()}\nPoints credited to customer.`);
+        loadData();
+        return;
+      }
+
+      await api.updateServiceJobStatus(jobId, nextStatus, null);
+      alert(`Job status updated to: ${nextStatus.replace('_', ' ')}`);
+      loadData();
+    } catch (err) {
+      alert(err.message || 'Status update failed.');
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
+      <Header searchPlaceholder="Search service jobs..." />
+      <div className="page-container">
+        <h1 className="page-title">Service & Repair / Warranty</h1>
+        <p className="page-subtitle">Generate Job Cards and track repair progress.</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: '1.5rem', flexWrap: 'wrap' }}>
+          
+          {/* Service Intake Form */}
+          <div className="card">
+            <h3 style={{ marginBottom: '1.25rem' }}>Repair Intake Form</h3>
+            <form onSubmit={handleSubmitIntake} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              <div className="form-group">
+                <label className="form-label">Customer Profile</label>
+                <select 
+                  className="form-control"
+                  value={selectedCustomerId}
+                  onChange={e => setSelectedCustomerId(e.target.value)}
+                >
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={isExternal} 
+                    onChange={e => setIsExternal(e.target.checked)} 
+                  />
+                  External Watch (Not purchased from showroom)
+                </label>
+              </div>
+
+              {isExternal ? (
+                <div style={{ border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)' }}>
+                  <h4 style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>External Watch Details</h4>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Brand Name *</label>
+                    <input type="text" className="form-control" placeholder="e.g. Tissot" value={externalBrand} onChange={e => setExternalBrand(e.target.value)} required />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Model Name</label>
+                    <input type="text" className="form-control" placeholder="e.g. Le Locle" value={externalModel} onChange={e => setExternalModel(e.target.value)} />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Serial / Watch ID</label>
+                    <input type="text" className="form-control" placeholder="e.g. TS-8902" value={externalSerial} onChange={e => setExternalSerial(e.target.value)} />
+                  </div>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Select Sold Showroom Watch</label>
+                  <select 
+                    className="form-control"
+                    value={selectedWatchId}
+                    onChange={e => setSelectedWatchId(e.target.value)}
+                  >
+                    <option value="">-- Choose Watch --</option>
+                    {registeredWatches.map(w => (
+                      <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Issue Reported *</label>
+                <textarea 
+                  className="form-control" 
+                  rows="3" 
+                  placeholder="Describe the complaint..." 
+                  value={issue}
+                  onChange={e => setIssue(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Drop-off Condition / Physical Checks</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="e.g. Scratches on bezel, missing link strap" 
+                  value={condition}
+                  onChange={e => setCondition(e.target.value)}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Estimated Repair Cost (₹)</label>
+                  <input type="number" className="form-control" placeholder="Estimate" value={estimate} onChange={e => setEstimate(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Expected Handover Date</label>
+                  <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Create Job Card
+              </button>
+            </form>
+          </div>
+
+          {/* Active Services List */}
+          <div className="card">
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ClipboardList size={18} /> Service Tracker
+            </h3>
+
+            {/* Service Search & Filters */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '0.85rem', padding: '0.4rem 0.75rem' }} 
+                placeholder="Search by customer name, phone, serial or JC number..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              <select
+                className="form-control"
+                style={{ width: '130px', fontSize: '0.85rem', padding: '0.4rem' }}
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="received">Received</option>
+                <option value="in_repair">In Repair</option>
+                <option value="ready">Ready</option>
+                <option value="delivered">Delivered</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', maxHeight: '600px' }}>
+              {filteredJobs.length > 0 ? (
+                filteredJobs.map(job => (
+                  <div key={job.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--border-color)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>JC: {job.id}</span>
+                      <span className={`badge badge-${
+                        job.status === 'received' ? 'danger' :
+                        job.status === 'in_repair' ? 'warning' :
+                        job.status === 'ready' ? 'success' : 'info'
+                      }`}>
+                        {job.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.9rem', margin: '0.2rem 0' }}>Customer: <strong>{job.customer?.name}</strong> ({job.customer?.phone})</p>
+                    <p style={{ fontSize: '0.9rem', margin: '0.2rem 0' }}>
+                      Watch: <strong>
+                        {job.watch_id ? `${job.watch?.brand} ${job.watch?.model}` : `${job.watch_details?.brand} ${job.watch_details?.model}`}
+                      </strong>
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.4rem 0' }}>Issue: "{job.issue_reported}"</p>
+                    
+                    {job.estimated_cost && <p style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>Estimate: ₹{job.estimated_cost.toLocaleString()}</p>}
+                    
+                    {/* Status modifications */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', flexWrap: 'wrap' }}>
+                      {job.status === 'received' && (
+                        <button onClick={() => handleUpdateStatus(job.id, 'in_repair')} className="btn btn-secondary btn-sm">
+                          Start Repair
+                        </button>
+                      )}
+                      {job.status === 'in_repair' && (
+                        <button onClick={() => handleUpdateStatus(job.id, 'ready')} className="btn btn-secondary btn-sm" style={{ borderColor: 'var(--success)', color: 'var(--success)' }}>
+                          Mark Ready
+                        </button>
+                      )}
+                      {job.status === 'ready' && (
+                        <button onClick={() => handleUpdateStatus(job.id, 'delivered')} className="btn btn-primary btn-sm">
+                          Deliver & Cash-In
+                        </button>
+                      )}
+                      
+                      <button 
+                        onClick={() => setSelectedJobForCard(job)} 
+                        className="btn btn-secondary btn-sm"
+                        style={{ border: '1px solid var(--border-color)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                        <Printer size={12} /> Job Card
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>No service jobs registered.</p>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Printable Job Card Modal */}
+        {selectedJobForCard && (
+          <div className="modal-overlay">
+            <div className="modal-content printable-area" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2.5rem' }}>
+              
+              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>SMART TIMES</h2>
+                    <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>Service & Repair Department</h4>
+                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>Royal Mall, Brigade Road, Bangalore • Call: +91 80 44445555 • info@smarttimes.in</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Service Job Card</h3>
+                    <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>JC Number: {selectedJobForCard.id}</p>
+                    <p style={{ margin: 0 }}>Date: {new Date().toISOString().split('T')[0]}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Customer Profile:</h4>
+                  <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{selectedJobForCard.customer?.name}</p>
+                  <p style={{ margin: '0.1rem 0' }}>Phone: {selectedJobForCard.customer?.phone}</p>
+                  <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer?.address || 'Local Customer'}</p>
+                </div>
+                <div>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Watch Details:</h4>
+                  <p style={{ margin: '0.1rem 0' }}>Brand/Model: <strong>
+                    {selectedJobForCard.watch_id ? `${selectedJobForCard.watch?.brand} ${selectedJobForCard.watch?.model}` : `${selectedJobForCard.watch_details?.brand} ${selectedJobForCard.watch_details?.model}`}
+                  </strong></p>
+                  <p style={{ margin: '0.1rem 0' }}>Serial / Piece ID: {selectedJobForCard.watch_id || selectedJobForCard.watch_details?.serial || 'N/A'}</p>
+                  <p style={{ margin: '0.1rem 0' }}>Drop-off Status: {selectedJobForCard.status.toUpperCase()}</p>
+                </div>
+              </div>
+
+              <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '4px', border: '1px solid #eee', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                <p style={{ margin: '0.2rem 0' }}><strong>Problem Reported:</strong> {selectedJobForCard.issue_reported}</p>
+                <p style={{ margin: '0.2rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition || 'Not specified'}</p>
+                <p style={{ margin: '0.2rem 0' }}><strong>Estimated cost:</strong> ₹{Number(selectedJobForCard.estimated_cost || 0).toLocaleString()}</p>
+                <p style={{ margin: '0.2rem 0' }}><strong>Expected Handover:</strong> {selectedJobForCard.expected_delivery_date || 'N/A'}</p>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: '#666', borderTop: '1px solid #ddd', paddingTop: '1rem', marginBottom: '2rem' }}>
+                <h4 style={{ margin: '0 0 0.25rem 0', color: '#333' }}>Service Terms & Disclaimers:</h4>
+                <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                  <li>All service charges are estimates. Actual costs might vary up to 15%.</li>
+                  <li>Showroom is not responsible for any damage to watches left unclaimed for more than 90 days.</li>
+                  <li>Warranty is applicable only on serviced machinery parts for a duration of 90 days.</li>
+                </ol>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginTop: '2rem' }} className="print-only">
+                <div style={{ borderTop: '1px solid #333', width: '150px', textAlign: 'center', paddingTop: '0.25rem' }}>Customer Signature</div>
+                <div style={{ borderTop: '1px solid #333', width: '150px', textAlign: 'center', paddingTop: '0.25rem' }}>Store Officer Sign</div>
+              </div>
+
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #ccc', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                <button onClick={handlePrint} className="btn btn-primary"><Printer size={14} /> Print Job Card</button>
+                <button onClick={() => setSelectedJobForCard(null)} className="btn btn-secondary">Close Dialog</button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+};
+
+export default ServiceRepair;

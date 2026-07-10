@@ -1,0 +1,30 @@
+/vendor/
+/node_modules/
+
+# Environment files — NEVER commit these
+.env
+.env.backup
+.env.production
+
+# Laravel cache & storage
+/bootstrap/cache/*.php
+/storage/*.key
+/storage/logs/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+
+# Composer
+composer.lock
+
+# Testing
+/coverage/
+.phpunit.result.cache
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
