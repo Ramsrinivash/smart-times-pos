@@ -16,6 +16,13 @@ use App\Http\Controllers\ReportController;
 |--------------------------------------------------------------------------
 */
 
+// Health check — used by Railway to verify the API is running
+Route::get('/health', fn() => response()->json([
+    'status' => 'ok',
+    'service' => 'Smart Times POS API',
+    'timestamp' => now()->toISOString()
+]));
+
 // Public Authentication route
 Route::post('/login', [AuthController::class, 'login']);
 
