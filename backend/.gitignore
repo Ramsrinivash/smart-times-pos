@@ -14,8 +14,8 @@
 /storage/framework/sessions/
 /storage/framework/views/
 
-# Composer
-composer.lock
+# Composer lock should be committed so Railway installs exact versions
+# composer.lock
 
 # Testing
 /coverage/
