@@ -73,7 +73,7 @@ Route::get('/test-login-action', function() {
             'token' => $token,
             'user' => $user
         ]);
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         return response()->json([
             'status' => 'exception_caught',
             'error_class' => get_class($e),
