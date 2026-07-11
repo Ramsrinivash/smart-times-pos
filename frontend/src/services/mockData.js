@@ -81,6 +81,10 @@ const logActivity = (db, userId, action, module, details) => {
   });
 };
 
+// Helper matching PHP's isset — checks value is defined and not null
+const isset = (val) => val !== undefined && val !== null;
+
+
 export const mockAPI = {
   // Settings
   getSettings: () => {
@@ -276,10 +280,8 @@ export const mockAPI = {
 
     data.items.forEach(item => {
       const qty = isset(item.quantity) ? Number(item.quantity) : 1;
-      // Helper function matching PHP's isset
-      function isset(val) { return val !== undefined && val !== null; }
-      
-      for (let q = 0; $q = q < qty; q++) {
+
+      for (let q = 0; q < qty; q++) {
         const watchId = (q === 0) ? item.id : `${item.id}-${q}`;
         
         const exists = db.watches.find(w => w.id === watchId);
@@ -747,7 +749,7 @@ export const mockAPI = {
     const todaySalesCount = todaySales.length;
     const todaySalesSum = todaySales.reduce((acc, s) => acc + s.net_amount, 0);
 
-    // Low stock: < 2 units in stock per model
+    // Low stock: < 3 units in stock per model (matches backend threshold)
     const stockCounts = {};
     db.watches.filter(w => w.status === 'in_stock').forEach(w => {
       const key = `${w.brand} — ${w.model}`;
@@ -755,7 +757,7 @@ export const mockAPI = {
     });
     const lowStockAlerts = Object.keys(stockCounts)
       .map(key => ({ model: key, count: stockCounts[key] }))
-      .filter(item => item.count < 2);
+      .filter(item => item.count < 3);
 
     const today = new Date(todayStr);
     const jobsDueToday = db.service_jobs.filter(j => j.expected_delivery_date === todayStr && j.status !== 'delivered').length;
@@ -774,15 +776,20 @@ export const mockAPI = {
     if (role === 'admin' || role === 'manager') {
       let profit = 0;
       todaySales.forEach(s => {
+        // net_amount already reflects all discounts; cost is summed from sale_items
         const items = db.sale_items.filter(si => si.sale_id === s.id);
-        items.forEach(si => {
-          profit += (si.price_sold - si.discount_amount - si.cost_price);
-        });
-        // Subtract bill-level discount from profit
-        profit -= (s.bill_discount_amount || 0);
+        const totalCost = items.reduce((acc, si) => acc + (si.cost_price || 0), 0);
+        profit += (s.net_amount - totalCost);
       });
       profitSnapshot = profit;
     }
+
+    // Today's birthdays
+    const todayMD = todayStr.slice(5); // MM-DD
+    const birthdaysToday = db.customers.filter(c => {
+      if (!c.dob) return false;
+      return c.dob.slice(5) === todayMD;
+    }).map(c => ({ id: c.id, name: c.name, phone: c.phone, dob: c.dob }));
 
     return {
       today_sales_count: todaySalesCount,
@@ -795,8 +802,10 @@ export const mockAPI = {
       pending_supplier_payments_sum: pendingPaymentsSum,
       outstanding_dues_total: outstandingDuesTotal,
       outstanding_dues_count: outstandingDuesCount,
+      birthdays_today: birthdaysToday,
       profit_snapshot: profitSnapshot
     };
+
   },
 
   // Reports

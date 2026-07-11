@@ -16,6 +16,7 @@ import WarrantyCards from './pages/WarrantyCards';
 import StockAdjustment from './pages/StockAdjustment';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import SupplierLedger from './pages/SupplierLedger';
 
 const ProtectedLayout = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -73,6 +74,13 @@ function App() {
             <Route path="/purchase" element={
               <ProtectedLayout allowedRoles={['admin', 'manager']}>
                 <Purchase />
+              </ProtectedLayout>
+            } />
+
+            {/* Supplier Ledger */}
+            <Route path="/supplier-ledger" element={
+              <ProtectedLayout allowedRoles={['admin', 'manager']}>
+                <SupplierLedger />
               </ProtectedLayout>
             } />
 

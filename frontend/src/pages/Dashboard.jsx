@@ -9,8 +9,13 @@ import {
   Wrench, 
   DollarSign, 
   Plus, 
+  RefreshCw,
+  Package,
+  Users,
+  Cake,
+  CheckCircle,
   Clock,
-  RefreshCw
+  CreditCard
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -34,7 +39,15 @@ const Dashboard = () => {
     fetchStats();
   }, [user.role]);
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading Dashboard metrics...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
+      <Header searchPlaceholder="Search dashboard..." />
+      <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)' }}>
+        <div style={{ width: 20, height: 20, border: '2px solid var(--primary-gold)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        Loading Dashboard metrics...
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
@@ -46,7 +59,7 @@ const Dashboard = () => {
           display: 'flex',
           alignItems: 'center',
           gap: '0.75rem',
-          padding: '1rem 1.25rem',
+          padding: '0.875rem 1.25rem',
           borderRadius: 'var(--radius-md)',
           background: useMock ? 'var(--warning-bg)' : 'var(--success-bg)',
           border: `1px solid ${useMock ? 'var(--warning)' : 'var(--success)'}`,
@@ -56,37 +69,36 @@ const Dashboard = () => {
           fontWeight: 500
         }}>
           <span style={{ 
-            width: '8px', 
-            height: '8px', 
-            borderRadius: '50%', 
+            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
             background: useMock ? 'var(--warning)' : 'var(--success)',
             boxShadow: `0 0 10px ${useMock ? 'var(--warning)' : 'var(--success)'}`
           }} />
           <span>
             {useMock 
-              ? "Running in Demonstration Mode (Mock Mode): All watch inventory changes, service jobs, CRM loyalty logs, and billing invoices are saved locally in your browser's storage." 
-              : "Running in Live Production Mode: Connected directly to the Smart Times MySQL Database API."}
+              ? "Running in Demonstration Mode (Mock): All data saved locally in your browser's storage." 
+              : "Running in Live Production Mode: Connected to Smart Times MySQL Database API."}
           </span>
         </div>
 
         <h1 className="page-title">Welcome back, {user.name}</h1>
         <p className="page-subtitle">Showroom performance overview for today.</p>
 
-        {/* KPIs Grid */}
-        <div className="dashboard-grid">
-          {/* Sales Card */}
-          <div className="card">
+        {/* KPIs Grid — Row 1 */}
+        <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
+
+          {/* Today's Sales */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/sales')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Today's Sales</span>
-                <h2 className="card-value">₹{(stats?.today_sales_sum || 0).toLocaleString()}</h2>
+                <h2 className="card-value">₹{(stats?.today_sales_sum || 0).toLocaleString('en-IN')}</h2>
               </div>
               <div style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
                 <TrendingUp size={24} />
               </div>
             </div>
             <div className="card-footer">
-              <span>{stats?.today_sales_count} invoice(s) generated today</span>
+              <span>{stats?.today_sales_count || 0} invoice(s) generated today</span>
             </div>
           </div>
 
@@ -96,8 +108,8 @@ const Dashboard = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <span className="card-title">Today's Profit Margin</span>
-                  <h2 className="card-value" style={{ color: 'var(--primary-gold)' }}>
-                    ₹{(stats?.profit_snapshot || 0).toLocaleString()}
+                  <h2 className="card-value" style={{ color: (stats?.profit_snapshot || 0) >= 0 ? 'var(--primary-gold)' : 'var(--error)' }}>
+                    ₹{(stats?.profit_snapshot || 0).toLocaleString('en-IN')}
                   </h2>
                 </div>
                 <div style={{ background: 'var(--primary-gold-glow)', color: 'var(--primary-gold)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
@@ -105,13 +117,13 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="card-footer">
-                <span>Direct margin calculation based on unit cost</span>
+                <span>Net revenue minus cost of goods sold today</span>
               </div>
             </div>
           )}
 
-          {/* Service status */}
-          <div className="card">
+          {/* Repairs Status */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/services')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Repairs Status</span>
@@ -122,22 +134,22 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="card-footer">
-              <span style={{ color: stats?.jobs_overdue > 0 ? 'var(--error)' : 'inherit' }}>
-                {stats?.jobs_overdue || 0} overdue job(s), {stats?.jobs_ready || 0} ready for pickup
+              <span style={{ color: (stats?.jobs_overdue || 0) > 0 ? 'var(--error)' : 'inherit' }}>
+                {stats?.jobs_overdue || 0} overdue, {stats?.jobs_ready || 0} ready for pickup
               </span>
             </div>
           </div>
 
-          {/* Outstanding Customer Dues */}
+          {/* Customer Outstanding Dues */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Customer Dues</span>
-                <h2 className="card-value" style={{ color: stats?.outstanding_dues_total > 0 ? 'var(--error)' : 'inherit' }}>
-                  ₹{(stats?.outstanding_dues_total || 0).toLocaleString()}
+                <h2 className="card-value" style={{ color: (stats?.outstanding_dues_total || 0) > 0 ? 'var(--error)' : 'inherit' }}>
+                  ₹{(stats?.outstanding_dues_total || 0).toLocaleString('en-IN')}
                 </h2>
               </div>
-              <div style={{ background: 'var(--error-bg, rgba(239,68,68,0.1))', color: 'var(--error)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
+              <div style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--error)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
                 <AlertTriangle size={24} />
               </div>
             </div>
@@ -145,66 +157,126 @@ const Dashboard = () => {
               <span>{stats?.outstanding_dues_count || 0} customer(s) with outstanding balances</span>
             </div>
           </div>
+
+          {/* Supplier Pending Payments (Admin/Manager only) */}
+          {(user.role === 'admin' || user.role === 'manager') && (
+            <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/supplier-ledger')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span className="card-title">Supplier Dues</span>
+                  <h2 className="card-value" style={{ color: (stats?.pending_supplier_payments_sum || 0) > 0 ? 'var(--warning)' : 'inherit' }}>
+                    ₹{(stats?.pending_supplier_payments_sum || 0).toLocaleString('en-IN')}
+                  </h2>
+                </div>
+                <div style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
+                  <CreditCard size={24} />
+                </div>
+              </div>
+              <div className="card-footer">
+                <span>{stats?.pending_supplier_payments_count || 0} purchase(s) pending payment → click to settle</span>
+              </div>
+            </div>
+          )}
         </div>
 
-
-        {/* Quick Actions and Alerts */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        {/* Row 2: Quick Actions + Alerts + Birthdays */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
           
-          {/* Quick Actions Shortcuts */}
+          {/* Quick Actions */}
           <div className="card" style={{ height: 'fit-content' }}>
             <h3 style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
               Quick Operations
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <button onClick={() => navigate('/sales')} className="btn btn-primary" style={{ height: '70px', fontSize: '0.9rem', flexDirection: 'column' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+              <button id="dash-new-sale" onClick={() => navigate('/sales')} className="btn btn-primary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px' }}>
                 <Plus size={18} /> New Sales Bill
               </button>
               {(user.role === 'admin' || user.role === 'manager') && (
-                <button onClick={() => navigate('/purchase')} className="btn btn-secondary" style={{ height: '70px', fontSize: '0.9rem', flexDirection: 'column', border: '1px solid var(--border-color)' }}>
-                  <Plus size={18} /> Record Purchase
+                <button id="dash-record-purchase" onClick={() => navigate('/purchase')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
+                  <Package size={18} /> Record Purchase
                 </button>
               )}
-              <button onClick={() => navigate('/services')} className="btn btn-secondary" style={{ height: '70px', fontSize: '0.9rem', flexDirection: 'column', border: '1px solid var(--border-color)' }}>
+              <button id="dash-new-service" onClick={() => navigate('/services')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
                 <Wrench size={18} /> New Service Job
               </button>
-              <button onClick={() => navigate('/exchanges')} className="btn btn-secondary" style={{ height: '70px', fontSize: '0.9rem', flexDirection: 'column', border: '1px solid var(--border-color)' }}>
+              <button id="dash-new-exchange" onClick={() => navigate('/exchanges')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
                 <RefreshCw size={18} /> New Exchange
+              </button>
+              <button id="dash-customers" onClick={() => navigate('/customers')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
+                <Users size={18} /> CRM Customers
+              </button>
+              <button id="dash-inventory" onClick={() => navigate('/inventory')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
+                <Package size={18} /> View Inventory
               </button>
             </div>
           </div>
 
-          {/* Alerts / Stock Logs */}
+          {/* Low Stock Alerts */}
           <div className="card" style={{ height: 'fit-content' }}>
             <h3 style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <AlertTriangle size={18} color="var(--warning)" /> Inventory Alerts
             </h3>
             {stats?.low_stock_alerts && stats.low_stock_alerts.length > 0 ? (
-              <ul style={{ listStyle: 'none' }}>
+              <ul style={{ listStyle: 'none', maxHeight: '220px', overflowY: 'auto' }}>
                 {stats.low_stock_alerts.map((alert, idx) => (
-                  <li 
-                    key={idx} 
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '0.75rem 0', 
-                      borderBottom: idx === stats.low_stock_alerts.length - 1 ? 'none' : '1px solid var(--border-color)' 
-                    }}
-                  >
+                  <li key={idx} style={{ 
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                    padding: '0.625rem 0', 
+                    borderBottom: idx === stats.low_stock_alerts.length - 1 ? 'none' : '1px solid var(--border-color)' 
+                  }}>
                     <div>
-                      <span style={{ fontWeight: 600 }}>{alert.model}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{alert.model}</span>
+                      {alert.brand && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginLeft: '0.5rem' }}>{alert.brand}</span>}
                     </div>
                     <span className="badge badge-danger">Low Stock ({alert.count})</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', padding: '1rem 0' }}>
-                No low stock warnings. All models well supplied!
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--success)', padding: '1rem 0' }}>
+                <CheckCircle size={20} />
+                <span style={{ fontSize: '0.9rem' }}>All models well supplied. No low stock warnings!</span>
+              </div>
             )}
           </div>
+
+          {/* Today's Birthdays */}
+          <div className="card" style={{ height: 'fit-content' }}>
+            <h3 style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Cake size={18} color="var(--primary-gold)" /> Today's Birthdays
+            </h3>
+            {stats?.birthdays_today && stats.birthdays_today.length > 0 ? (
+              <ul style={{ listStyle: 'none' }}>
+                {stats.birthdays_today.map((c, idx) => (
+                  <li key={c.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '0.625rem 0',
+                    borderBottom: idx === stats.birthdays_today.length - 1 ? 'none' : '1px solid var(--border-color)'
+                  }}>
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>🎂 {c.name}</span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>{c.phone}</span>
+                    </div>
+                    <a
+                      href={`https://wa.me/91${c.phone}?text=${encodeURIComponent(`Happy Birthday ${c.name}! 🎉 Wishing you a wonderful day from Smart Times Watch Showroom. Visit us for exclusive birthday offers!`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', textDecoration: 'none' }}
+                    >
+                      WhatsApp Wish
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', padding: '1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={18} />
+                No customer birthdays today.
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
     </div>

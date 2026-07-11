@@ -1,0 +1,22 @@
+{
+  "name": "Smart Times POS",
+  "short_name": "SmartTimes",
+  "description": "Smart Times Watch Showroom Management — Point of Sale, Inventory & Service",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#d4af37",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-IN",
+  "screenshots": []
+}

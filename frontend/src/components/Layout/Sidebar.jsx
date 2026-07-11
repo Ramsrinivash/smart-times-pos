@@ -15,6 +15,7 @@ import {
   RotateCcw,
   ShieldCheck,
   PackageMinus,
+  CreditCard,
   X
 } from 'lucide-react';
 
@@ -40,6 +41,7 @@ const Sidebar = () => {
     { to: '/inventory',              label: 'Inventory',         icon: Watch,           roles: ['admin', 'manager', 'sales'] },
     { to: '/inventory/adjustments',  label: 'Stock Adjustment',  icon: PackageMinus,    roles: ['admin', 'manager'] },
     { to: '/purchase',               label: 'Purchase Ledger',   icon: ShoppingBag,     roles: ['admin', 'manager'] },
+    { to: '/supplier-ledger',         label: 'Supplier Ledger',   icon: CreditCard,      roles: ['admin', 'manager'] },
     { to: '/sales',                  label: 'Sales POS',         icon: Calculator,      roles: ['admin', 'manager', 'sales'] },
     { to: '/returns',                label: 'Sales Returns',     icon: RotateCcw,       roles: ['admin', 'manager', 'sales'] },
     { to: '/exchanges',              label: 'Exchanges',         icon: RefreshCw,       roles: ['admin', 'manager', 'sales'] },

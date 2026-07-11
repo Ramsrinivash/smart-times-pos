@@ -1,4 +1,5 @@
 import { mockAPI } from './mockData';
+import { syncQueue } from '../utils/syncQueue';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -89,10 +90,6 @@ export const api = {
     if (USE_MOCK) return mockAPI.updateWatch(watchId, data);
     return request(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) });
   },
-  adjustStock: async (watchId, status) => {
-    if (USE_MOCK) return mockAPI.adjustStock(watchId, status);
-    return request('/inventory/adjust', { method: 'POST', body: JSON.stringify({ watch_id: watchId, status }) });
-  },
 
   // Purchases
   getPurchases: async () => {
@@ -101,6 +98,10 @@ export const api = {
   },
   addPurchase: async (data) => {
     if (USE_MOCK) return mockAPI.addPurchase(data);
+    if (!navigator.onLine) {
+      syncQueue.add('addPurchase', data);
+      return { queued: true, message: 'Offline: Purchase queued for sync when online.' };
+    }
     return request('/purchase', { method: 'POST', body: JSON.stringify(data) });
   },
   updatePurchasePayment: async (id, paymentStatus) => {
@@ -119,6 +120,10 @@ export const api = {
   },
   addSale: async (data) => {
     if (USE_MOCK) return mockAPI.addSale(data);
+    if (!navigator.onLine) {
+      syncQueue.add('addSale', data);
+      return { queued: true, message: 'Offline: Sale queued for sync when online.' };
+    }
     return request('/sales', { method: 'POST', body: JSON.stringify(data) });
   },
 
@@ -143,6 +148,10 @@ export const api = {
   },
   addServiceJob: async (data) => {
     if (USE_MOCK) return mockAPI.addServiceJob(data);
+    if (!navigator.onLine) {
+      syncQueue.add('addServiceJob', data);
+      return { queued: true, message: 'Offline: Service job queued for sync when online.' };
+    }
     return request('/services', { method: 'POST', body: JSON.stringify(data) });
   },
   updateServiceJobStatus: async (id, status, actualCost = null) => {

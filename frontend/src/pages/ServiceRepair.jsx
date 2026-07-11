@@ -27,6 +27,7 @@ const ServiceRepair = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [hideDelivered, setHideDelivered] = useState(true);
 
   const filteredJobs = jobs.filter(job => {
     const custNameField = job.customer?.name?.toLowerCase() || '';
@@ -42,9 +43,12 @@ const ServiceRepair = () => {
                          extSerial.includes(query) || 
                          job.id.toLowerCase().includes(query);
     const matchesStatus = !statusFilter || jobStatus === statusFilter;
+    const matchesHide = !hideDelivered || jobStatus !== 'delivered';
 
-    return matchesQuery && matchesStatus;
+    return matchesQuery && matchesStatus && matchesHide;
   });
+
+  const deliveredCount = jobs.filter(j => j.status === 'delivered').length;
 
   const loadData = async () => {
     try {
@@ -331,6 +335,14 @@ const ServiceRepair = () => {
                 <option value="ready">Ready</option>
                 <option value="delivered">Delivered</option>
               </select>
+              <button
+                onClick={() => setHideDelivered(h => !h)}
+                className={`btn ${hideDelivered ? 'btn-secondary' : 'btn-primary'}`}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}
+                title={hideDelivered ? 'Show delivered jobs' : 'Hide delivered jobs'}
+              >
+                {hideDelivered ? `Show Delivered (${deliveredCount})` : '🙈 Hide Delivered'}
+              </button>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', maxHeight: '600px' }}>

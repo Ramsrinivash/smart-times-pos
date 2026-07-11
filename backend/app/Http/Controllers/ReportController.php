@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use App\Models\Watch;
+use App\Models\Customer;
 use App\Models\ServiceJob;
 use App\Models\Purchase;
 use Illuminate\Http\Request;
@@ -47,6 +48,16 @@ class ReportController extends Controller
             $profitSnap = $todaySalesSum - $totalCost;
         }
 
+        // Outstanding customer dues
+        $outstandingDuesTotal = (double) Customer::where('outstanding_dues', '>', 0)->sum('outstanding_dues');
+        $outstandingDuesCount = Customer::where('outstanding_dues', '>', 0)->count();
+
+        // Today's birthdays
+        $todayMD = Carbon::now()->format('m-d');
+        $birthdaysToday = Customer::whereRaw("DATE_FORMAT(dob, '%m-%d') = ?", [$todayMD])
+            ->whereNotNull('dob')
+            ->get(['id', 'name', 'phone', 'dob']);
+
         return response()->json([
             'today_sales_count' => $todaySalesCount,
             'today_sales_sum' => $todaySalesSum,
@@ -56,6 +67,9 @@ class ReportController extends Controller
             'jobs_ready' => $jobsReady,
             'pending_supplier_payments_count' => $pendingPaymentsCount,
             'pending_supplier_payments_sum' => $pendingPaymentsSum,
+            'outstanding_dues_total' => $outstandingDuesTotal,
+            'outstanding_dues_count' => $outstandingDuesCount,
+            'birthdays_today' => $birthdaysToday,
             'profit_snapshot' => $profitSnap
         ]);
     }
