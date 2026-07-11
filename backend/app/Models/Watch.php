@@ -28,7 +28,8 @@ class Watch extends Model
         'selling_price',
         'gst_rate',
         'status',
-        'image_urls'
+        'image_urls',
+        'hsn_code'
     ];
 
     protected $casts = [

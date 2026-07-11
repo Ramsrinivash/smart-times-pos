@@ -28,7 +28,8 @@ const Purchase = () => {
       quantity: 1,
       cost_price: '', 
       selling_price: '', 
-      gst_rate: 18 
+      gst_rate: 18,
+      hsn_code: '9102'
     }
   ]);
 
@@ -50,7 +51,8 @@ const Purchase = () => {
             movement_type: w.movement_type || 'Quartz',
             mrp: w.mrp,
             selling_price: w.selling_price,
-            gst_rate: w.gst_rate
+            gst_rate: w.gst_rate,
+            hsn_code: w.hsn_code || '9102'
           };
         }
       });
@@ -95,7 +97,8 @@ const Purchase = () => {
       quantity: 1,
       cost_price: '', 
       selling_price: '', 
-      gst_rate: 18 
+      gst_rate: 18,
+      hsn_code: '9102'
     }]);
   };
 
@@ -116,7 +119,8 @@ const Purchase = () => {
       quantity: 1,
       cost_price: '', 
       selling_price: '', 
-      gst_rate: 18 
+      gst_rate: 18,
+      hsn_code: '9102'
     }] : next);
   };
 
@@ -166,6 +170,7 @@ const Purchase = () => {
     next[index].mrp = model.mrp;
     next[index].selling_price = model.selling_price;
     next[index].gst_rate = model.gst_rate;
+    next[index].hsn_code = model.hsn_code || '9102';
 
     // Recalculate cost price
     const mrpVal = Number(model.mrp || 0);
@@ -219,7 +224,8 @@ const Purchase = () => {
         quantity: 1,
         cost_price: '', 
         selling_price: '', 
-        gst_rate: 18 
+        gst_rate: 18,
+        hsn_code: '9102'
       }]);
     } catch (err) {
       alert(err.message || 'Failed to record purchase batch.');
@@ -337,20 +343,21 @@ const Purchase = () => {
                 <p style={{ fontWeight: 500, margin: 0 }}>Please click "Save Supplier Details" above to activate the Itemized Inventory Pieces table.</p>
               </div>
             ) : (
-              <table style={{ minWidth: '1500px', borderCollapse: 'collapse' }}>
+              <table style={{ minWidth: '1600px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                    <th style={{ width: '160px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Autofill Model</th>
-                    <th style={{ width: '180px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Watch Serial / ID *</th>
-                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Brand *</th>
-                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Model *</th>
-                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>MRP (₹) *</th>
-                    <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Disc %</th>
-                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Scheme %</th>
-                    <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Qty *</th>
-                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Cost Price *</th>
-                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Selling Price *</th>
-                    <th style={{ width: '95px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>GST %</th>
+                    <th style={{ width: '150px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Autofill Model</th>
+                    <th style={{ width: '160px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Watch Serial / ID *</th>
+                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Brand *</th>
+                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Model *</th>
+                    <th style={{ width: '100px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>HSN *</th>
+                    <th style={{ width: '100px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>MRP (₹) *</th>
+                    <th style={{ width: '80px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Disc %</th>
+                    <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Scheme %</th>
+                    <th style={{ width: '80px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Qty *</th>
+                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Cost Price *</th>
+                    <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Selling Price *</th>
+                    <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>GST %</th>
                     <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left' }}>Spec (Type) *</th>
                     <th style={{ width: '50px', padding: '0.75rem 0.5rem' }}></th>
                   </tr>
@@ -400,6 +407,17 @@ const Purchase = () => {
                           placeholder="e.g. Presage"
                           value={item.model}
                           onChange={(e) => handleItemChange(index, 'model', e.target.value)}
+                          required
+                          style={{ height: '36px' }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="9102"
+                          value={item.hsn_code}
+                          onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
                           required
                           style={{ height: '36px' }}
                         />

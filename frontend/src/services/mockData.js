@@ -301,7 +301,8 @@ export const mockAPI = {
           selling_price: Number(item.selling_price),
           gst_rate: Number(item.gst_rate || 18),
           status: 'in_stock',
-          image_urls: item.image_urls || []
+          image_urls: item.image_urls || [],
+          hsn_code: item.hsn_code || '9102'
         };
         db.watches.push(newWatch);
         totalVal += newWatch.cost_price;

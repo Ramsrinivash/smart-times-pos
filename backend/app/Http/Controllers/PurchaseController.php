@@ -38,6 +38,7 @@ class PurchaseController extends Controller
             'items.*.selling_price' => 'required|numeric|min:0',
             'items.*.gst_rate' => 'required|numeric|min:0', // Dynamic GST rate from invoice
             'items.*.quantity' => 'nullable|integer|min:1',
+            'items.*.hsn_code' => 'nullable|string',
             'items.*.image_urls' => 'nullable|array',
         ]);
 
@@ -80,6 +81,7 @@ class PurchaseController extends Controller
                         'gst_rate' => $item['gst_rate'],
                         'status' => 'in_stock',
                         'image_urls' => $item['image_urls'] ?? null,
+                        'hsn_code' => $item['hsn_code'] ?? '9102',
                     ]);
 
                     $totalAmount += $item['cost_price'];

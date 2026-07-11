@@ -588,7 +588,7 @@ const Reports = () => {
                   ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
                   gstData.flatMap(s => s.items.map(si => [
                     s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                    si.watch_id, '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
+                    si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
                   ])),
                   'gst_report'
                 )}><Download size={13} /> Export CSV</button>
@@ -596,7 +596,7 @@ const Reports = () => {
                   ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
                   gstData.flatMap(s => s.items.map(si => [
                     s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                    si.watch_id, '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
+                    si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
                   ])),
                   'gst_report', 'GST Report'
                 )}><Download size={13} /> Export Excel</button>

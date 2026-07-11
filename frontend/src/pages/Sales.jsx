@@ -537,7 +537,7 @@ const Sales = () => {
                   {createdInvoice.items?.map(item => (
                     <tr key={item.watch_id} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>{item.watch_id}</td>
-                      <td style={{ padding: '0.75rem' }}>{item.watch?.brand} - {item.watch?.model}</td>
+                      <td style={{ padding: '0.75rem' }}>{item.watch?.brand} - {item.watch?.model} (HSN: {item.watch?.hsn_code || '9102'})</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.price_sold.toLocaleString()}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.discount_amount.toLocaleString()}</td>
                       {createdInvoice.invoice_type === 'gst' && <td style={{ padding: '0.75rem', textAlign: 'right' }}>{item.gst_rate}%</td>}
@@ -554,15 +554,30 @@ const Sales = () => {
                 <div>
                   {createdInvoice.invoice_type === 'gst' && (
                     <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '4px', border: '1px solid #eee' }}>
-                      <h4 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>GST HSN Breakdown (HSN: 9102)</h4>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                        <span>CGST (9%)</span>
-                        <span>₹{(createdInvoice.gst_amount / 2).toFixed(2)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginTop: '0.2rem' }}>
-                        <span>SGST (9%)</span>
-                        <span>₹{(createdInvoice.gst_amount / 2).toFixed(2)}</span>
-                      </div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>GST HSN Breakdown</h4>
+                      {(() => {
+                        const hsnBreakdown = {};
+                        createdInvoice.items?.forEach(si => {
+                          const hsn = si.watch?.hsn_code || '9102';
+                          if (!hsnBreakdown[hsn]) {
+                            hsnBreakdown[hsn] = 0;
+                          }
+                          hsnBreakdown[hsn] += Number(si.gst_amount || 0);
+                        });
+                        return Object.entries(hsnBreakdown).map(([hsn, gstAmt]) => (
+                          <div key={hsn} style={{ marginBottom: '0.5rem', borderBottom: '1px dashed #eee', paddingBottom: '0.25rem' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>HSN: {hsn}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem' }}>
+                              <span>CGST (9%)</span>
+                              <span>₹{(gstAmt / 2).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem', marginTop: '0.1rem' }}>
+                              <span>SGST (9%)</span>
+                              <span>₹{(gstAmt / 2).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
                   {createdInvoice.points_redeemed > 0 && (
