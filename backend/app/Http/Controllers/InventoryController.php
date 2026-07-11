@@ -13,7 +13,7 @@ class InventoryController extends Controller
         $query = Watch::query();
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 

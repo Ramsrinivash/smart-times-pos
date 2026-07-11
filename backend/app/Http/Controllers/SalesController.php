@@ -48,20 +48,13 @@ class SalesController extends Controller
             $customer = Customer::findOrFail($request->customer_id);
             $user = $request->user();
             
-            // Financial year calculation
-            $now = Carbon::now();
-            $year = $now->year;
-            $fy = ($now->month >= 4) ? substr($year, 2) . substr($year + 1, 2) : substr($year - 1, 2) . substr($year, 2);
-
-            // Series generation
-            $prefix = ($request->invoice_type === 'gst') ? "WS-GST-{$fy}-" : "WS-RETL-{$fy}-";
-            $lastInvoice = Sale::where('id', 'like', "{$prefix}%")->orderBy('id', 'desc')->first();
+            // Generate clean sequential unique invoice ID (e.g. 0001, 0002...)
+            $lastInvoice = Sale::whereRaw('id REGEXP "^[0-9]+$"')->orderByRaw('CAST(id AS UNSIGNED) DESC')->first();
             $nextNum = 1;
             if ($lastInvoice) {
-                $parts = explode('-', $lastInvoice->id);
-                $nextNum = ((int) end($parts)) + 1;
+                $nextNum = ((int) $lastInvoice->id) + 1;
             }
-            $invoiceId = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            $invoiceId = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
             $subtotal = 0;
             $totalDiscount = 0;

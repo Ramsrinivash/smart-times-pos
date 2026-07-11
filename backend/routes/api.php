@@ -9,6 +9,7 @@ use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -141,6 +142,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/services', [ServiceController::class, 'store']);
     Route::get('/services/{id}', [ServiceController::class, 'show']);
     Route::put('/services/{id}/status', [ServiceController::class, 'updateStatus']);
+    Route::post('/services/bill', [ServiceController::class, 'addBill']);
+
+    // Settings Routes
+    Route::get('/settings', [SettingsController::class, 'show']);
+    Route::put('/settings', [SettingsController::class, 'update']);
 
     // Reports Route (Role Restricted)
     Route::middleware('role:admin,manager')->group(function () {

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
-import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle } from 'lucide-react';
+import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle, UserCheck } from 'lucide-react';
 
 const ServiceRepair = () => {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
   
   const [isExternal, setIsExternal] = useState(false);
   const [externalBrand, setExternalBrand] = useState('');
@@ -19,6 +21,7 @@ const ServiceRepair = () => {
   const [condition, setCondition] = useState('');
   const [estimate, setEstimate] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [selectedJobForCard, setSelectedJobForCard] = useState(null);
 
@@ -26,15 +29,15 @@ const ServiceRepair = () => {
   const [statusFilter, setStatusFilter] = useState('');
 
   const filteredJobs = jobs.filter(job => {
-    const custName = job.customer?.name?.toLowerCase() || '';
-    const custPhone = job.customer?.phone || '';
+    const custNameField = job.customer?.name?.toLowerCase() || '';
+    const custPhoneField = job.customer?.phone || '';
     const watchId = job.watch_id?.toLowerCase() || '';
     const extSerial = job.watch_details?.serial?.toLowerCase() || '';
     const jobStatus = job.status || '';
     const query = searchQuery.toLowerCase();
 
-    const matchesQuery = custName.includes(query) || 
-                         custPhone.includes(query) || 
+    const matchesQuery = custNameField.includes(query) || 
+                         custPhoneField.includes(query) || 
                          watchId.includes(query) || 
                          extSerial.includes(query) || 
                          job.id.toLowerCase().includes(query);
@@ -47,7 +50,6 @@ const ServiceRepair = () => {
     try {
       const custs = await api.getCustomers();
       setCustomers(custs);
-      if (custs.length > 0 && !selectedCustomerId) setSelectedCustomerId(custs[0].id);
 
       const items = await api.getInventory('', 'sold');
       setRegisteredWatches(items);
@@ -63,43 +65,67 @@ const ServiceRepair = () => {
     loadData();
   }, []);
 
+  // CRM customer auto-lookup by phone
+  useEffect(() => {
+    if (custPhone.length >= 10) {
+      const matched = customers.find(c => c.phone.trim() === custPhone.trim());
+      if (matched) {
+        setCustName(matched.name);
+        setSelectedCustomerId(matched.id);
+      } else {
+        setSelectedCustomerId('');
+      }
+    } else {
+      setSelectedCustomerId('');
+    }
+  }, [custPhone, customers]);
+
   const handleSubmitIntake = async (e) => {
     e.preventDefault();
-    if (!selectedCustomerId || (!isExternal && !selectedWatchId) || (isExternal && !externalBrand)) {
-      alert('Please fill out customer and watch details.');
+    if (!custName || !custPhone || (!isExternal && !selectedWatchId) || (isExternal && !externalBrand)) {
+      alert('Please fill out customer name, phone and watch details.');
       return;
     }
 
     try {
+      let finalCustomerId = selectedCustomerId;
+      if (!finalCustomerId) {
+        // Automatically register customer in CRM first
+        const newCust = await api.addCustomer({ name: custName, phone: custPhone });
+        finalCustomerId = newCust.id;
+      }
+
       const payload = {
-        customer_id: selectedCustomerId,
+        customer_id: finalCustomerId,
         watch_id: isExternal ? null : selectedWatchId,
         watch_details: isExternal ? { brand: externalBrand, model: externalModel, serial: externalSerial } : null,
         issue_reported: issue,
         drop_off_condition: condition,
         estimated_cost: estimate,
-        expected_delivery_date: dueDate
+        expected_delivery_date: dueDate,
+        received_date: receivedDate
       };
 
       const result = await api.addServiceJob(payload);
       alert('Service Job Card created successfully.');
       
       // Auto open printable job card modal
-      const detailJob = jobs.find(j => j.id === result.id) || result;
-      // Fetch fresh list to include customer details
       const freshJobs = await api.getServiceJobs();
       setJobs(freshJobs);
       const matched = freshJobs.find(j => j.id === result.id);
-      setSelectedJobForCard(matched);
+      setSelectedJobForCard(matched || result);
 
       // Reset form
       setIssue('');
       setCondition('');
       setEstimate('');
       setDueDate('');
+      setCustName('');
+      setCustPhone('');
       setExternalBrand('');
       setExternalModel('');
       setExternalSerial('');
+      loadData();
     } catch (err) {
       alert(err.message || 'Failed to create job card.');
     }
@@ -145,17 +171,53 @@ const ServiceRepair = () => {
             <h3 style={{ marginBottom: '1.25rem' }}>Repair Intake Form</h3>
             <form onSubmit={handleSubmitIntake} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
+              {/* Customer Details Form */}
+              <div style={{ border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)' }}>
+                <h4 style={{ fontSize: '0.85rem', color: 'var(--primary-gold)', margin: 0 }}>Customer Info *</h4>
+                
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Phone Number *</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="e.g. 9876543210" 
+                    value={custPhone} 
+                    onChange={e => setCustPhone(e.target.value)} 
+                    required 
+                  />
+                </div>
+                
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Customer Name *</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Customer Name" 
+                    value={custName} 
+                    onChange={e => setCustName(e.target.value)} 
+                    required 
+                  />
+                </div>
+
+                {custPhone.length >= 10 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'var(--primary-gold-glow)', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <UserCheck size={12} />
+                      {selectedCustomerId ? 'Registered CRM Profile' : 'New CRM Profile'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="form-group">
-                <label className="form-label">Customer Profile</label>
-                <select 
-                  className="form-control"
-                  value={selectedCustomerId}
-                  onChange={e => setSelectedCustomerId(e.target.value)}
-                >
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-                  ))}
-                </select>
+                <label className="form-label">Received Date *</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={receivedDate} 
+                  onChange={e => setReceivedDate(e.target.value)} 
+                  required 
+                />
               </div>
 
               <div className="form-group">
@@ -171,7 +233,7 @@ const ServiceRepair = () => {
 
               {isExternal ? (
                 <div style={{ border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)' }}>
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>External Watch Details</h4>
+                  <h4 style={{ fontSize: '0.85rem', color: 'var(--primary-gold)', margin: 0 }}>External Watch Details</h4>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Brand Name *</label>
                     <input type="text" className="form-control" placeholder="e.g. Tissot" value={externalBrand} onChange={e => setExternalBrand(e.target.value)} required />
@@ -294,7 +356,7 @@ const ServiceRepair = () => {
                     </p>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.4rem 0' }}>Issue: "{job.issue_reported}"</p>
                     
-                    {job.estimated_cost && <p style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>Estimate: ₹{job.estimated_cost.toLocaleString()}</p>}
+                    {job.estimated_cost && <p style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>Estimate: ₹{Number(job.estimated_cost).toLocaleString()}</p>}
                     
                     {/* Status modifications */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', flexWrap: 'wrap' }}>
@@ -347,7 +409,7 @@ const ServiceRepair = () => {
                   <div style={{ textAlign: 'right' }}>
                     <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Service Job Card</h3>
                     <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>JC Number: {selectedJobForCard.id}</p>
-                    <p style={{ margin: 0 }}>Date: {new Date().toISOString().split('T')[0]}</p>
+                    <p style={{ margin: 0 }}>Date: {selectedJobForCard.received_date || new Date().toISOString().split('T')[0]}</p>
                   </div>
                 </div>
               </div>
@@ -359,46 +421,48 @@ const ServiceRepair = () => {
                   <p style={{ margin: '0.1rem 0' }}>Phone: {selectedJobForCard.customer?.phone}</p>
                   <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer?.address || 'Local Customer'}</p>
                 </div>
-                <div>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Watch Details:</h4>
-                  <p style={{ margin: '0.1rem 0' }}>Brand/Model: <strong>
-                    {selectedJobForCard.watch_id ? `${selectedJobForCard.watch?.brand} ${selectedJobForCard.watch?.model}` : `${selectedJobForCard.watch_details?.brand} ${selectedJobForCard.watch_details?.model}`}
-                  </strong></p>
-                  <p style={{ margin: '0.1rem 0' }}>Serial / Piece ID: {selectedJobForCard.watch_id || selectedJobForCard.watch_details?.serial || 'N/A'}</p>
-                  <p style={{ margin: '0.1rem 0' }}>Drop-off Status: {selectedJobForCard.status.toUpperCase()}</p>
+                <div style={{ textAlign: 'right' }}>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Watch Description:</h4>
+                  <p style={{ margin: '0.1rem 0' }}>
+                    Watch: <strong>
+                      {selectedJobForCard.watch_id 
+                        ? `${selectedJobForCard.watch?.brand} ${selectedJobForCard.watch?.model}` 
+                        : `${selectedJobForCard.watch_details?.brand} ${selectedJobForCard.watch_details?.model}`
+                      }
+                    </strong>
+                  </p>
+                  <p style={{ margin: '0.1rem 0' }}>
+                    Serial: {selectedJobForCard.watch_id || selectedJobForCard.watch_details?.serial || 'N/A'}
+                  </p>
                 </div>
               </div>
 
-              <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '4px', border: '1px solid #eee', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-                <p style={{ margin: '0.2rem 0' }}><strong>Problem Reported:</strong> {selectedJobForCard.issue_reported}</p>
-                <p style={{ margin: '0.2rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition || 'Not specified'}</p>
-                <p style={{ margin: '0.2rem 0' }}><strong>Estimated cost:</strong> ₹{Number(selectedJobForCard.estimated_cost || 0).toLocaleString()}</p>
-                <p style={{ margin: '0.2rem 0' }}><strong>Expected Handover:</strong> {selectedJobForCard.expected_delivery_date || 'N/A'}</p>
+              <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <p style={{ margin: '0.25rem 0' }}><strong>Job Status:</strong> {selectedJobForCard.status.toUpperCase()}</p>
+                <p style={{ margin: '0.25rem 0' }}><strong>Issue Reported:</strong> "{selectedJobForCard.issue_reported}"</p>
+                {selectedJobForCard.drop_off_condition && <p style={{ margin: '0.25rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition}</p>}
+                {selectedJobForCard.estimated_cost && <p style={{ margin: '0.25rem 0', color: '#d4af37', fontWeight: 600 }}><strong>Estimated Charges:</strong> ₹{Number(selectedJobForCard.estimated_cost).toLocaleString()}</p>}
+                {selectedJobForCard.expected_delivery_date && <p style={{ margin: '0.25rem 0' }}><strong>Expected Delivery:</strong> {selectedJobForCard.expected_delivery_date}</p>}
               </div>
 
-              <div style={{ fontSize: '0.75rem', color: '#666', borderTop: '1px solid #ddd', paddingTop: '1rem', marginBottom: '2rem' }}>
-                <h4 style={{ margin: '0 0 0.25rem 0', color: '#333' }}>Service Terms & Disclaimers:</h4>
-                <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
-                  <li>All service charges are estimates. Actual costs might vary up to 15%.</li>
-                  <li>Showroom is not responsible for any damage to watches left unclaimed for more than 90 days.</li>
-                  <li>Warranty is applicable only on serviced machinery parts for a duration of 90 days.</li>
-                </ol>
+              <div style={{ borderTop: '1px solid #ccc', paddingTop: '1rem', fontSize: '0.75rem', color: '#666' }}>
+                <h5 style={{ margin: '0 0 0.25rem 0', textTransform: 'uppercase' }}>Terms & Service Agreement:</h5>
+                <p style={{ margin: '0.1rem 0' }}>1. Repairs are warrantied for 90 days from hand-over date.</p>
+                <p style={{ margin: '0.1rem 0' }}>2. Please produce this card at delivery. Unclaimed items after 30 days are subject to storage fees.</p>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginTop: '2rem' }} className="print-only">
-                <div style={{ borderTop: '1px solid #333', width: '150px', textAlign: 'center', paddingTop: '0.25rem' }}>Customer Signature</div>
-                <div style={{ borderTop: '1px solid #333', width: '150px', textAlign: 'center', paddingTop: '0.25rem' }}>Store Officer Sign</div>
-              </div>
-
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #ccc', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-                <button onClick={handlePrint} className="btn btn-primary"><Printer size={14} /> Print Job Card</button>
-                <button onClick={() => setSelectedJobForCard(null)} className="btn btn-secondary">Close Dialog</button>
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Printer size={16} /> Print Job Card
+                </button>
+                <button onClick={() => setSelectedJobForCard(null)} className="btn btn-secondary">
+                  Close
+                </button>
               </div>
 
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

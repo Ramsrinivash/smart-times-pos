@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
-import { Search, ShoppingCart, Trash2, Printer, Share2, Plus, UserPlus, Image as ImageIcon } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Printer, Share2, Plus, UserCheck, Image as ImageIcon } from 'lucide-react';
 
 const Sales = () => {
   const { user } = useAuth();
@@ -10,9 +10,9 @@ const Sales = () => {
   // State
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   
   const [searchSerial, setSearchSerial] = useState('');
   const [cart, setCart] = useState([]);
@@ -32,11 +32,6 @@ const Sales = () => {
     try {
       const data = await api.getCustomers();
       setCustomers(data);
-      if (data.length > 0 && !selectedCustomerId) {
-        // Set default to walk-in if exists
-        const walkin = data.find(c => c.phone === '9999999999');
-        setSelectedCustomerId(walkin ? walkin.id : data[0].id);
-      }
     } catch (err) {
       console.error(err);
     }
@@ -56,23 +51,23 @@ const Sales = () => {
     loadSettings();
   }, []);
 
-  const activeCustomer = customers.find(c => c.id === Number(selectedCustomerId));
-
-  // Quick Add Customer
-  const handleAddCustomer = async (e) => {
-    e.preventDefault();
-    if (!newCustName || !newCustPhone) return;
-    try {
-      const c = await api.addCustomer({ name: newCustName, phone: newCustPhone });
-      await loadCustomers();
-      setSelectedCustomerId(c.id);
-      setNewCustName('');
-      setNewCustPhone('');
-      setShowAddCustomer(false);
-    } catch (err) {
-      alert(err.message || 'Failed to create customer.');
+  // Check if Phone Number exists in CRM, and auto-load customer profile
+  useEffect(() => {
+    if (custPhone.length >= 10) {
+      const matched = customers.find(c => c.phone.trim() === custPhone.trim());
+      if (matched) {
+        setCustName(matched.name);
+        setLoyaltyPoints(matched.points_balance || 0);
+        setSelectedCustomerId(matched.id);
+      } else {
+        setSelectedCustomerId('');
+        setLoyaltyPoints(0);
+      }
+    } else {
+      setSelectedCustomerId('');
+      setLoyaltyPoints(0);
     }
-  };
+  }, [custPhone, customers]);
 
   // Add item to cart
   const handleAddWatch = async () => {
@@ -120,7 +115,7 @@ const Sales = () => {
   };
 
   // Totals calculations
-  const subtotal = cart.reduce((acc, item) => acc + item.selling_price, 0);
+  const subtotal = cart.reduce((acc, item) => acc + Number(item.selling_price), 0);
   const totalItemDiscounts = cart.reduce((acc, item) => acc + item.discount_amount, 0);
   const afterItemDisc = subtotal - totalItemDiscounts;
 
@@ -130,7 +125,7 @@ const Sales = () => {
   const computedBillDisc = billDiscPct > 0 ? (afterItemDisc * billDiscPct / 100) : billDiscFlat;
   
   // Redeem points value
-  const pointsToRedeem = Math.min(redeemPoints, activeCustomer?.points_balance || 0);
+  const pointsToRedeem = Math.min(redeemPoints, loyaltyPoints || 0);
   const pointsVal = pointsToRedeem; // 1 point = Rs 1
   
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
@@ -143,15 +138,27 @@ const Sales = () => {
     return acc + itemGst;
   }, 0);
 
-  // Handle Checkout
-  const handleCheckout = async () => {
+  // Handle Checkout (with optional print + WhatsApp share redirect)
+  const handleCheckout = async (shouldPrintAndShare = false) => {
     if (cart.length === 0) {
       alert('Your cart is empty.');
       return;
     }
+    if (!custName || !custPhone) {
+      alert('Customer Name and Phone Number are required to generate a bill.');
+      return;
+    }
+
     try {
+      let finalCustomerId = selectedCustomerId;
+      if (!finalCustomerId) {
+        // Automatically create a new customer on the fly
+        const newCust = await api.addCustomer({ name: custName, phone: custPhone });
+        finalCustomerId = newCust.id;
+      }
+
       const payload = {
-        customer_id: selectedCustomerId,
+        customer_id: finalCustomerId,
         invoice_type: invoiceType,
         payment_mode: paymentMode,
         redeem_points: pointsToRedeem,
@@ -171,14 +178,26 @@ const Sales = () => {
       const detailInvoice = await api.getSale(result.id);
       setCreatedInvoice(detailInvoice);
       
-      // Clear cart
+      // Clear checkout inputs
       setCart([]);
       setRedeemPoints(0);
       setBillDiscountAmount(0);
       setBillDiscountPercent(0);
       setIsCreditSale(false);
       setNotes('');
-      loadCustomers(); // Reload customer to update points balance
+      setCustName('');
+      setCustPhone('');
+      loadCustomers(); // Reload customer list to update points balance
+
+      if (shouldPrintAndShare) {
+        // Trigger print immediately and open WhatsApp Web link
+        setTimeout(() => {
+          window.print();
+          const waText = `Dear ${detailInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${detailInvoice.id} amounting ₹${detailInvoice.net_amount} is ready.`;
+          const waUrl = `https://wa.me/${detailInvoice.customer?.phone}?text=${encodeURIComponent(waText)}`;
+          window.open(waUrl, '_blank');
+        }, 500);
+      }
     } catch (err) {
       alert(err.message || 'Checkout failed.');
     }
@@ -219,54 +238,46 @@ const Sales = () => {
               </div>
             </div>
 
-            {/* Shopping Cart List */}
-            <div className="card">
+            {/* Cart Table */}
+            <div className="card" style={{ flex: 1 }}>
               <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShoppingCart size={18} /> Cart Items
+                <ShoppingCart size={18} /> Sales Cart
               </h3>
-              
+
               {cart.length > 0 ? (
                 <div style={{ overflowX: 'auto' }}>
                   <table>
                     <thead>
                       <tr>
-                        <th>Photo</th>
-                        <th>Serial No</th>
-                        <th>Item</th>
-                        <th>Price (₹)</th>
-                        <th style={{ width: '130px' }}>Discount (₹)</th>
-                        <th>Net (₹)</th>
-                        <th style={{ width: '60px' }}></th>
+                        <th>Watch ID</th>
+                        <th>Description</th>
+                        <th>Original Price</th>
+                        <th style={{ width: '110px' }}>Discount (₹)</th>
+                        <th>Net Total</th>
+                        <th style={{ width: '50px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
                       {cart.map(item => (
                         <tr key={item.watch_id}>
-                          <td>
-                            {item.image_urls && item.image_urls.length > 0 ? (
-                              <img src={item.image_urls[0]} alt={item.model} style={{ width: '35px', height: '35px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
-                            ) : (
-                              <div style={{ width: '35px', height: '35px', background: 'var(--surface-card)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><ImageIcon size={14} /></div>
-                            )}
-                          </td>
                           <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{item.watch_id}</td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{item.brand}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.model}</div>
-                          </td>
-                          <td>₹{item.selling_price.toLocaleString()}</td>
+                          <td>{item.brand} {item.model}</td>
+                          <td>₹{Number(item.selling_price).toLocaleString()}</td>
                           <td>
                             <input 
                               type="number" 
                               className="form-control" 
-                              style={{ padding: '0.4rem' }}
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
                               value={item.discount_amount}
                               onChange={(e) => handleDiscountChange(item.watch_id, e.target.value)}
+                              min="0"
+                              max={item.selling_price}
                             />
                           </td>
                           <td>₹{(item.selling_price - item.discount_amount).toLocaleString()}</td>
-                          <td>
+                          <td style={{ textAlign: 'center' }}>
                             <button 
+                              type="button" 
                               onClick={() => handleRemoveFromCart(item.watch_id)}
                               className="btn btn-danger btn-sm"
                               style={{ padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -290,62 +301,49 @@ const Sales = () => {
           {/* Right Container - Customer & Billing Math */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* Customer info card */}
+            {/* Customer Details Form Card */}
             <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3>Customer Ledger</h3>
-                <button 
-                  onClick={() => setShowAddCustomer(!showAddCustomer)} 
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', gap: '0.3rem', border: '1px solid var(--border-color)' }}
-                >
-                  <UserPlus size={14} /> Quick Add
-                </button>
-              </div>
+              <h3 style={{ marginBottom: '0.5rem' }}>Customer Profile *</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                Enter phone number to lookup or register a new customer profile.
+              </p>
 
-              {showAddCustomer ? (
-                <form onSubmit={handleAddCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Customer Name</label>
-                    <input type="text" className="form-control" value={newCustName} onChange={e => setNewCustName(e.target.value)} required />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Phone Number</label>
-                    <input type="text" className="form-control" value={newCustPhone} onChange={e => setNewCustPhone(e.target.value)} required />
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                    <button type="button" onClick={() => setShowAddCustomer(false)} className="btn btn-secondary btn-sm">Cancel</button>
-                    <button type="submit" className="btn btn-primary btn-sm">Create Profile</button>
-                  </div>
-                </form>
-              ) : null}
-
-              <div className="form-group">
-                <label className="form-label">Select Customer Profile</label>
-                <select 
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Phone Number *</label>
+                <input 
+                  type="text" 
                   className="form-control" 
-                  value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
-                >
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-                  ))}
-                </select>
+                  placeholder="e.g. 9876543210" 
+                  value={custPhone}
+                  onChange={(e) => setCustPhone(e.target.value)}
+                  required
+                />
               </div>
 
-              {activeCustomer && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--primary-gold-glow)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Customer Name *</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="e.g. Ram Srinivash" 
+                  value={custName}
+                  onChange={(e) => setCustName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {custPhone.length >= 10 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--primary-gold-glow)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
                   <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Loyalty Account</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Loyalty Balance</span>
                     <div style={{ fontWeight: 600, color: 'var(--primary-gold)' }}>
-                      {activeCustomer.points_balance} pts available
+                      {loyaltyPoints} pts available
                     </div>
                   </div>
-                  {activeCustomer.tags && (
-                    <span className="badge badge-success" style={{ alignSelf: 'center' }}>
-                      {activeCustomer.tags}
-                    </span>
-                  )}
+                  <span className="badge badge-success" style={{ alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <UserCheck size={12} />
+                    {selectedCustomerId ? 'Registered CRM' : 'New Profile'}
+                  </span>
                 </div>
               )}
             </div>
@@ -376,125 +374,142 @@ const Sales = () => {
                   placeholder="Points to redeem..." 
                   value={redeemPoints}
                   onChange={(e) => setRedeemPoints(Math.max(0, Number(e.target.value || 0)))}
-                  max={activeCustomer?.points_balance || 0}
+                  max={loyaltyPoints || 0}
                 />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  1 Point = ₹1.00 Discount. Max redeemable: {loyaltyPoints} pts.
+                </span>
               </div>
 
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.85rem', background: 'var(--surface-card)' }}>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: 600 }}>Bill-Level Discount</p>
-                <div className="form-row" style={{ margin: 0 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.78rem' }}>Flat Discount (₹)</label>
-                    <input type="number" className="form-control" min="0" value={billDiscountAmount} onChange={e => { setBillDiscountAmount(Number(e.target.value || 0)); setBillDiscountPercent(0); }} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.78rem' }}>OR Discount (%)</label>
-                    <input type="number" className="form-control" min="0" max="100" value={billDiscountPercent} onChange={e => { setBillDiscountPercent(Number(e.target.value || 0)); setBillDiscountAmount(0); }} />
-                  </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Bill Discount (₹)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    placeholder="Rupees off" 
+                    value={billDiscountAmount} 
+                    onChange={(e) => {
+                      setBillDiscountAmount(Math.max(0, Number(e.target.value || 0)));
+                      setBillDiscountPercent(0);
+                    }}
+                    disabled={billDiscountPercent > 0}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Bill Discount (%)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    placeholder="Percent off" 
+                    value={billDiscountPercent} 
+                    onChange={(e) => {
+                      setBillDiscountPercent(Math.max(0, Number(e.target.value || 0)));
+                      setBillDiscountAmount(0);
+                    }}
+                    disabled={billDiscountAmount > 0}
+                  />
                 </div>
               </div>
 
-              <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={isCreditSale} onChange={e => setIsCreditSale(e.target.checked)} />
-                  <span style={{ fontSize: '0.85rem' }}>Credit Sale (Amount added to customer outstanding dues)</span>
-                </label>
-              </div>
-
               <div className="form-group">
-                <label className="form-label">Payment mode</label>
+                <label className="form-label">Payment Mode</label>
                 <select className="form-control" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
-                  <option value="cash">Cash</option>
-                  <option value="card">Credit/Debit Card</option>
-                  <option value="upi">UPI / Scanner</option>
-                  <option value="bank_transfer">Direct Bank Transfer</option>
-                  <option value="split">Split / Part Payment</option>
+                  <option value="cash">Cash Payment</option>
+                  <option value="upi">UPI / GPay / PhonePe</option>
+                  <option value="card">Credit / Debit Card</option>
+                  <option value="split">Split (Cash + UPI)</option>
+                  <option value="credit">Store Credit / Book Debt</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Sales Remarks</label>
-                <input type="text" className="form-control" placeholder="Add invoice notes..." value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <label className="form-label">Internal Invoice Notes</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Optional billing remarks..." 
+                  value={notes} 
+                  onChange={(e) => setNotes(e.target.value)} 
+                />
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-color)', margin: '1.5rem 0', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Subtotal (MRP)</span>
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                  <span>Gross Total:</span>
                   <span>₹{subtotal.toLocaleString()}</span>
                 </div>
-                {totalItemDiscounts > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)' }}>
-                    <span>Item Discounts</span>
-                    <span>-₹{totalItemDiscounts.toLocaleString()}</span>
-                  </div>
-                )}
-                {computedBillDisc > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)' }}>
-                    <span>Bill Discount {billDiscPct > 0 ? `(${billDiscPct}%)` : '(Flat)'}</span>
-                    <span>-₹{computedBillDisc.toLocaleString()}</span>
-                  </div>
-                )}
-                {pointsVal > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)' }}>
-                    <span>Points Redemption ({pointsToRedeem} pts)</span>
-                    <span>-₹{pointsVal.toLocaleString()}</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--error)' }}>
+                  <span>Total Discount:</span>
+                  <span>-₹{totalDiscount.toLocaleString()}</span>
+                </div>
                 {invoiceType === 'gst' && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                    <span>GST Included</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span>Included GST (18%):</span>
                     <span>₹{totalGst.toFixed(2)}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, marginTop: '0.5rem', color: 'var(--primary-gold)', borderTop: '2px solid var(--border-color)', paddingTop: '0.5rem' }}>
-                  <span>Net Payable</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-gold)', marginTop: '0.25rem' }}>
+                  <span>Net Amount Due:</span>
                   <span>₹{netAmount.toLocaleString()}</span>
                 </div>
               </div>
 
-              <button onClick={handleCheckout} className="btn btn-primary" style={{ width: '100%', padding: '0.8rem' }}>
-                Generate Invoice Receipt
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
+                {/* Single Quick Checkout, Print & WhatsApp Button */}
+                <button 
+                  type="button" 
+                  onClick={() => handleCheckout(true)} 
+                  className="btn btn-primary" 
+                  style={{ padding: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: 700 }}
+                >
+                  <Printer size={18} /> Pay, Print & WhatsApp Share
+                </button>
+                
+                {/* Traditional Simple Checkout Button */}
+                <button 
+                  type="button" 
+                  onClick={() => handleCheckout(false)} 
+                  className="btn btn-secondary" 
+                  style={{ padding: '0.75rem', width: '100%', fontWeight: 600 }}
+                >
+                  Record Bill Only (Standard Cashout)
+                </button>
+              </div>
             </div>
+
           </div>
+
         </div>
 
-        {/* Printable Invoice Overlay Modal */}
+        {/* Printable Invoice Receipt Modal */}
         {createdInvoice && (
           <div className="modal-overlay">
-            <div className="modal-content printable-area" style={{ maxWidth: '800px', background: '#ffffff', color: '#000000', padding: '3rem', borderRadius: '4px' }}>
+            <div className="modal-content printable-area" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2.5rem' }}>
               
-              {/* Invoice print header */}
-              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+              {/* Receipt Header */}
+              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <h2 style={{ color: '#d4af37', fontFamily: 'var(--font-title)', fontSize: '2rem', margin: 0, textTransform: 'uppercase' }}>
-                      {settings?.store_name || 'SMART TIMES'}
-                    </h2>
-                    <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: '#333', fontWeight: 600 }}>
-                      {settings?.tagline || 'TITAN - SONATA - FASTRACK - TIMEX - LENCO - SMART WATCHES'}
-                    </p>
+                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
+                    <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>{settings?.tagline || 'Showroom Invoice'}</h4>
                     <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
-                      {settings?.address || '108, Pennagaram Main Road, Dharmapuri - 636701'}
+                      {settings?.address || 'Royal Mall, Brigade Road, Bangalore • Call: +91 80 44445555'}
                     </p>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#555', fontWeight: 500 }}>
-                      GSTIN: {settings?.gstin || '33EJBPA4537C1ZW'} | Cell: {settings?.phone || '97512 85945'}
-                    </p>
+                    {settings?.gstin && <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>GSTIN: {settings.gstin}</p>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>
-                      {createdInvoice.invoice_type === 'gst' ? 'Tax Invoice' : 'Retail Bill'}
-                    </h3>
-                    <p style={{ margin: '0.2rem 0', fontWeight: 600 }}>Invoice: {createdInvoice.id}</p>
+                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Tax Invoice</h3>
+                    <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>Bill Invoice No: {createdInvoice.id}</p>
                     <p style={{ margin: 0 }}>Date: {createdInvoice.invoice_date}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Bill to section */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                <div>
-                  <h4 style={{ textTransform: 'uppercase', color: '#555', marginBottom: '0.5rem' }}>Billed To:</h4>
+              {/* Customer and Payment details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Billed To:</h4>
                   <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{createdInvoice.customer?.name}</p>
                   <p style={{ margin: '0.1rem 0' }}>Phone: {createdInvoice.customer?.phone}</p>
                   <p style={{ margin: '0.1rem 0' }}>{createdInvoice.customer?.address || 'Counter Sale'}</p>
@@ -509,7 +524,7 @@ const Sales = () => {
               {/* Items list */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd' }}>
+                  <tr style={{ borderBottom: '2px solid #333' }}>
                     <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Watch ID / Serial</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Model Description</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Unit Price (₹)</th>
@@ -576,22 +591,17 @@ const Sales = () => {
               <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #ccc', paddingTop: '1.5rem', marginTop: '2rem' }}>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <a 
-                    href={`https://wa.me/${createdInvoice.customer?.phone}?text=Dear%20${createdInvoice.customer?.name},%20thank%20you%20for%20shopping%20at%20Smart%20Times.%20Your%20invoice%20${createdInvoice.id}%20amounting%20%E2%82%B9${createdInvoice.net_amount}%20is%20ready.`} 
+                    href={`https://wa.me/${createdInvoice.customer?.phone}?text=${encodeURIComponent(`Dear ${createdInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${createdInvoice.id} amounting ₹${createdInvoice.net_amount} is ready.`)}`} 
                     target="_blank" 
                     rel="noreferrer" 
                     className="btn btn-secondary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                   >
                     <Share2 size={16} /> WhatsApp Alert
                   </a>
-                  <a 
-                    href={`mailto:${createdInvoice.customer?.email}?subject=Smart%20Times%20Invoice%20${createdInvoice.id}&body=Dear%20${createdInvoice.customer?.name},%20please%20find%20your%20Smart%20Times%20invoice%20attached.`} 
-                    className="btn btn-secondary"
-                  >
-                    Send Email Copy
-                  </a>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button onClick={handlePrint} className="btn btn-primary">
+                  <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <Printer size={16} /> Print Receipt
                   </button>
                   <button onClick={() => setCreatedInvoice(null)} className="btn btn-secondary">

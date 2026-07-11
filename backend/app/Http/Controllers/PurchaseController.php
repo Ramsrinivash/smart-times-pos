@@ -24,7 +24,7 @@ class PurchaseController extends Controller
             'invoice_number' => 'nullable|string',
             'remarks' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.id' => 'required|string|unique:watches,id', // Watch ID / Serial
+            'items.*.id' => 'required|string', // We will validate uniqueness manually in the loop
             'items.*.brand' => 'required|string',
             'items.*.model' => 'required|string',
             'items.*.category' => 'nullable|string',
@@ -37,6 +37,7 @@ class PurchaseController extends Controller
             'items.*.cost_price' => 'required|numeric|min:0', // Store unit cost
             'items.*.selling_price' => 'required|numeric|min:0',
             'items.*.gst_rate' => 'required|numeric|min:0', // Dynamic GST rate from invoice
+            'items.*.quantity' => 'nullable|integer|min:1',
             'items.*.image_urls' => 'nullable|array',
         ]);
 
@@ -52,26 +53,37 @@ class PurchaseController extends Controller
             $totalAmount = 0;
 
             foreach ($request->items as $item) {
-                Watch::create([
-                    'id' => $item['id'],
-                    'purchase_id' => $purchase->id,
-                    'brand' => $item['brand'],
-                    'model' => $item['model'],
-                    'category' => $item['category'] ?? null,
-                    'gender' => $item['gender'] ?? null,
-                    'strap_type' => $item['strap_type'] ?? null,
-                    'dial_color' => $item['dial_color'] ?? null,
-                    'movement_type' => $item['movement_type'] ?? null,
-                    'mrp' => $item['mrp'],
-                    'discount_percent' => $item['discount_percent'] ?? 0.00,
-                    'cost_price' => $item['cost_price'],
-                    'selling_price' => $item['selling_price'],
-                    'gst_rate' => $item['gst_rate'],
-                    'status' => 'in_stock',
-                    'image_urls' => $item['image_urls'] ?? null,
-                ]);
+                $qty = isset($item['quantity']) ? (int) $item['quantity'] : 1;
+                
+                for ($q = 0; $q < $qty; $q++) {
+                    $watchId = ($q === 0) ? $item['id'] : $item['id'] . '-' . $q;
+                    
+                    // Check for duplicate watch ID to prevent constraint violation
+                    if (Watch::where('id', $watchId)->exists()) {
+                        throw new \Exception("A watch piece with Serial ID '{$watchId}' already exists in inventory.");
+                    }
 
-                $totalAmount += $item['cost_price'];
+                    Watch::create([
+                        'id' => $watchId,
+                        'purchase_id' => $purchase->id,
+                        'brand' => $item['brand'],
+                        'model' => $item['model'],
+                        'category' => $item['category'] ?? null,
+                        'gender' => $item['gender'] ?? null,
+                        'strap_type' => $item['strap_type'] ?? null,
+                        'dial_color' => $item['dial_color'] ?? null,
+                        'movement_type' => $item['movement_type'] ?? null,
+                        'mrp' => $item['mrp'],
+                        'discount_percent' => $item['discount_percent'] ?? 0.00,
+                        'cost_price' => $item['cost_price'],
+                        'selling_price' => $item['selling_price'],
+                        'gst_rate' => $item['gst_rate'],
+                        'status' => 'in_stock',
+                        'image_urls' => $item['image_urls'] ?? null,
+                    ]);
+
+                    $totalAmount += $item['cost_price'];
+                }
             }
 
             $purchase->total_amount = $totalAmount;

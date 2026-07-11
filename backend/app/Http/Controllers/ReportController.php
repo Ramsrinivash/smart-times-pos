@@ -40,12 +40,11 @@ class ReportController extends Controller
 
         $profitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
-            $profitResult = DB::table('sale_items')
+            $totalCost = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.invoice_date', $today)
-                ->select(DB::raw('SUM(sale_items.price_sold - sale_items.discount_amount - sale_items.cost_price) as profit'))
-                ->first();
-            $profitSnap = $profitResult ? (double) $profitResult->profit : 0.00;
+                ->sum('sale_items.cost_price');
+            $profitSnap = $todaySalesSum - $totalCost;
         }
 
         return response()->json([

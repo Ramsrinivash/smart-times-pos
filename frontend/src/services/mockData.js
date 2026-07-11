@@ -275,29 +275,37 @@ export const mockAPI = {
     let totalVal = 0;
 
     data.items.forEach(item => {
-      const exists = db.watches.find(w => w.id === item.id);
-      if (exists) throw new Error(`Watch with serial number "${item.id}" already exists in inventory.`);
+      const qty = isset(item.quantity) ? Number(item.quantity) : 1;
+      // Helper function matching PHP's isset
+      function isset(val) { return val !== undefined && val !== null; }
+      
+      for (let q = 0; $q = q < qty; q++) {
+        const watchId = (q === 0) ? item.id : `${item.id}-${q}`;
+        
+        const exists = db.watches.find(w => w.id === watchId);
+        if (exists) throw new Error(`Watch with serial number "${watchId}" already exists in inventory.`);
 
-      const newWatch = {
-        id: item.id,
-        purchase_id: newPurchaseId,
-        brand: item.brand,
-        model: item.model,
-        category: item.category || '',
-        gender: item.gender || '',
-        strap_type: item.strap_type || '',
-        dial_color: item.dial_color || '',
-        movement_type: item.movement_type || '',
-        mrp: Number(item.mrp),
-        discount_percent: Number(item.discount_percent || 0),
-        cost_price: Number(item.cost_price),
-        selling_price: Number(item.selling_price),
-        gst_rate: Number(item.gst_rate || 18),
-        status: 'in_stock',
-        image_urls: item.image_urls || []
-      };
-      db.watches.push(newWatch);
-      totalVal += newWatch.cost_price;
+        const newWatch = {
+          id: watchId,
+          purchase_id: newPurchaseId,
+          brand: item.brand,
+          model: item.model,
+          category: item.category || '',
+          gender: item.gender || '',
+          strap_type: item.strap_type || '',
+          dial_color: item.dial_color || '',
+          movement_type: item.movement_type || '',
+          mrp: Number(item.mrp),
+          discount_percent: Number(item.discount_percent || 0),
+          cost_price: Number(item.cost_price),
+          selling_price: Number(item.selling_price),
+          gst_rate: Number(item.gst_rate || 18),
+          status: 'in_stock',
+          image_urls: item.image_urls || []
+        };
+        db.watches.push(newWatch);
+        totalVal += newWatch.cost_price;
+      }
     });
 
     const newPurchase = {
@@ -311,7 +319,7 @@ export const mockAPI = {
     };
 
     db.purchases.push(newPurchase);
-    logActivity(db, userId, 'CREATE', 'Purchase', `Recorded purchase from ${data.supplier_name} — ${data.items.length} unit(s)`);
+    logActivity(db, userId, 'CREATE', 'Purchase', `Recorded purchase from ${data.supplier_name} — Total Val: ₹${totalVal}`);
     saveDB(db);
     return { ...newPurchase, watches: db.watches.filter(w => w.purchase_id === newPurchaseId) };
   },
@@ -368,16 +376,7 @@ export const mockAPI = {
     const customer = db.customers.find(c => c.id === Number(data.customer_id));
     if (!customer) throw new Error('Customer profile not found.');
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const fy = month >= 4 ? `${String(year).substring(2)}${String(year + 1).substring(2)}` : `${String(year - 1).substring(2)}${String(year).substring(2)}`;
-
-    const gstPrefix = `${settings.gst_invoice_prefix}-${fy}-`;
-    const retlPrefix = `${settings.nongst_invoice_prefix}-${fy}-`;
-    const prefix = data.invoice_type === 'gst' ? gstPrefix : retlPrefix;
-    const typeSales = db.sales.filter(s => s.id.startsWith(prefix));
-    const invoiceId = `${prefix}${String(typeSales.length + 1).padStart(4, '0')}`;
+    const invoiceId = String(db.sales.length + 1).padStart(4, '0');
 
     let subtotal = 0;
     let totalItemDiscounts = 0;
@@ -698,11 +697,7 @@ export const mockAPI = {
 
   addServiceJob: (data, userId = 3) => {
     const db = loadDB();
-    const settings = db.settings;
-    const now = new Date();
-    const prefix = `${settings.job_card_prefix}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-`;
-    const nextNum = db.service_jobs.filter(j => j.id.startsWith(prefix)).length + 1;
-    const jobCardId = `${prefix}${String(nextNum).padStart(4, '0')}`;
+    const jobCardId = 'JC-' + String(db.service_jobs.length + 1).padStart(4, '0');
 
     const newJob = {
       id: jobCardId,
