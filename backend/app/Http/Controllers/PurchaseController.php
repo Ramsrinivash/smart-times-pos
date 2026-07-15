@@ -43,8 +43,12 @@ class PurchaseController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
+            // Case-insensitive check to deduplicate supplier names in the database
+            $existingPurchase = Purchase::whereRaw('LOWER(supplier_name) = ?', [strtolower($request->supplier_name)])->first();
+            $supplierName = $existingPurchase ? $existingPurchase->supplier_name : $request->supplier_name;
+
             $purchase = Purchase::create([
-                'supplier_name' => $request->supplier_name,
+                'supplier_name' => $supplierName,
                 'purchase_date' => $request->purchase_date,
                 'invoice_number' => $request->invoice_number,
                 'remarks' => $request->remarks,

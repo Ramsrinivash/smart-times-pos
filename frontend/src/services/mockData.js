@@ -278,6 +278,10 @@ export const mockAPI = {
     const newPurchaseId = db.purchases.length + 1;
     let totalVal = 0;
 
+    // Case-insensitive supplier deduplication
+    const existingSupplierName = db.purchases.find(p => p.supplier_name.toLowerCase() === data.supplier_name.toLowerCase())?.supplier_name;
+    const finalSupplierName = existingSupplierName || data.supplier_name;
+
     data.items.forEach(item => {
       const qty = isset(item.quantity) ? Number(item.quantity) : 1;
 
@@ -313,7 +317,7 @@ export const mockAPI = {
 
     const newPurchase = {
       id: newPurchaseId,
-      supplier_name: data.supplier_name,
+      supplier_name: finalSupplierName,
       purchase_date: data.purchase_date,
       invoice_number: data.invoice_number || '',
       total_amount: totalVal,
@@ -322,7 +326,7 @@ export const mockAPI = {
     };
 
     db.purchases.push(newPurchase);
-    logActivity(db, userId, 'CREATE', 'Purchase', `Recorded purchase from ${data.supplier_name} — Total Val: ₹${totalVal}`);
+    logActivity(db, userId, 'CREATE', 'Purchase', `Recorded purchase from ${finalSupplierName} — Total Val: ₹${totalVal}`);
     saveDB(db);
     return { ...newPurchase, watches: db.watches.filter(w => w.purchase_id === newPurchaseId) };
   },

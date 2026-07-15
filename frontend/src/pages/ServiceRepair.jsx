@@ -8,19 +8,9 @@ const ServiceRepair = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
-  
-  const [isExternal, setIsExternal] = useState(false);
-  const [externalBrand, setExternalBrand] = useState('');
-  const [externalModel, setExternalModel] = useState('');
-  const [externalSerial, setExternalSerial] = useState('');
+  const [settings, setSettings] = useState(null);
   
   const [registeredWatches, setRegisteredWatches] = useState([]);
-  const [selectedWatchId, setSelectedWatchId] = useState('');
-
-  const [issue, setIssue] = useState('');
-  const [condition, setCondition] = useState('');
-  const [estimate, setEstimate] = useState('');
-  const [dueDate, setDueDate] = useState('');
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [selectedJobForCard, setSelectedJobForCard] = useState(null);
@@ -28,6 +18,48 @@ const ServiceRepair = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [hideDelivered, setHideDelivered] = useState(true);
+
+  // Dynamic list of watches to service
+  const [watchesToService, setWatchesToService] = useState([
+    {
+      isExternal: false,
+      selectedWatchId: '',
+      externalBrand: '',
+      externalModel: '',
+      externalSerial: '',
+      issue: '',
+      condition: '',
+      estimate: '',
+      dueDate: ''
+    }
+  ]);
+
+  const handleAddWatchToService = () => {
+    setWatchesToService([
+      ...watchesToService,
+      {
+        isExternal: false,
+        selectedWatchId: '',
+        externalBrand: '',
+        externalModel: '',
+        externalSerial: '',
+        issue: '',
+        condition: '',
+        estimate: '',
+        dueDate: ''
+      }
+    ]);
+  };
+
+  const handleRemoveWatchFromService = (index) => {
+    setWatchesToService(watchesToService.filter((_, idx) => idx !== index));
+  };
+
+  const handleWatchToServiceChange = (index, field, value) => {
+    const next = [...watchesToService];
+    next[index][field] = value;
+    setWatchesToService(next);
+  };
 
   const filteredJobs = jobs.filter(job => {
     const custNameField = job.customer?.name?.toLowerCase() || '';
@@ -60,6 +92,9 @@ const ServiceRepair = () => {
 
       const serviceJobs = await api.getServiceJobs();
       setJobs(serviceJobs);
+
+      const s = await api.getSettings();
+      setSettings(s);
     } catch (err) {
       console.error(err);
     }
@@ -86,9 +121,18 @@ const ServiceRepair = () => {
 
   const handleSubmitIntake = async (e) => {
     e.preventDefault();
-    if (!custName || !custPhone || (!isExternal && !selectedWatchId) || (isExternal && !externalBrand)) {
-      alert('Please fill out customer name, phone and watch details.');
+    if (!custName || !custPhone) {
+      alert('Please fill out customer name and phone.');
       return;
+    }
+
+    // Validate each watch details
+    for (let i = 0; i < watchesToService.length; i++) {
+      const w = watchesToService[i];
+      if ((!w.isExternal && !w.selectedWatchId) || (w.isExternal && !w.externalBrand) || !w.issue) {
+        alert(`Please fill out all mandatory fields (Brand/Watch ID and Issue) for Watch #${i + 1}.`);
+        return;
+      }
     }
 
     try {
@@ -96,39 +140,51 @@ const ServiceRepair = () => {
       if (!finalCustomerId) {
         // Automatically register customer in CRM first
         const newCust = await api.addCustomer({ name: custName, phone: custPhone });
-        finalCustomerId = newCust.id;
+        finalCustomerId = newCust.customer ? newCust.customer.id : newCust.id;
       }
 
-      const payload = {
-        customer_id: finalCustomerId,
-        watch_id: isExternal ? null : selectedWatchId,
-        watch_details: isExternal ? { brand: externalBrand, model: externalModel, serial: externalSerial } : null,
-        issue_reported: issue,
-        drop_off_condition: condition,
-        estimated_cost: estimate,
-        expected_delivery_date: dueDate,
-        received_date: receivedDate
-      };
+      const createdJobs = [];
+      for (const w of watchesToService) {
+        const payload = {
+          customer_id: finalCustomerId,
+          watch_id: w.isExternal ? null : w.selectedWatchId,
+          watch_details: w.isExternal ? { brand: w.externalBrand, model: w.externalModel, serial: w.externalSerial } : null,
+          issue_reported: w.issue,
+          drop_off_condition: w.condition,
+          estimated_cost: w.estimate || null,
+          expected_delivery_date: w.dueDate || null,
+          received_date: receivedDate
+        };
 
-      const result = await api.addServiceJob(payload);
-      alert('Service Job Card created successfully.');
-      
-      // Auto open printable job card modal
+        const result = await api.addServiceJob(payload);
+        createdJobs.push(result);
+      }
+
+      alert(`Successfully created ${createdJobs.length} Service Job Card(s).`);
+
+      // Auto open printable job card modal for the first created job
       const freshJobs = await api.getServiceJobs();
       setJobs(freshJobs);
-      const matched = freshJobs.find(j => j.id === result.id);
-      setSelectedJobForCard(matched || result);
+      const matched = freshJobs.find(j => j.id === createdJobs[0].id);
+      setSelectedJobForCard(matched || createdJobs[0]);
 
       // Reset form
-      setIssue('');
-      setCondition('');
-      setEstimate('');
-      setDueDate('');
       setCustName('');
       setCustPhone('');
-      setExternalBrand('');
-      setExternalModel('');
-      setExternalSerial('');
+      setSelectedCustomerId('');
+      setWatchesToService([
+        {
+          isExternal: false,
+          selectedWatchId: '',
+          externalBrand: '',
+          externalModel: '',
+          externalSerial: '',
+          issue: '',
+          condition: '',
+          estimate: '',
+          dueDate: ''
+        }
+      ]);
       loadData();
     } catch (err) {
       alert(err.message || 'Failed to create job card.');
@@ -224,85 +280,112 @@ const ServiceRepair = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={isExternal} 
-                    onChange={e => setIsExternal(e.target.checked)} 
-                  />
-                  External Watch (Not purchased from showroom)
-                </label>
-              </div>
-
-              {isExternal ? (
-                <div style={{ border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)' }}>
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--primary-gold)', margin: 0 }}>External Watch Details</h4>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Brand Name *</label>
-                    <input type="text" className="form-control" placeholder="e.g. Tissot" value={externalBrand} onChange={e => setExternalBrand(e.target.value)} required />
+              {watchesToService.map((watch, index) => (
+                <div key={index} style={{ border: '1px solid var(--border-color)', padding: '1.25rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--surface-card)', marginBottom: '1rem', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.9rem', color: 'var(--primary-gold)', margin: 0 }}>Watch #{index + 1} Details</h4>
+                    {watchesToService.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveWatchFromService(index)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
+
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Model Name</label>
-                    <input type="text" className="form-control" placeholder="e.g. Le Locle" value={externalModel} onChange={e => setExternalModel(e.target.value)} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={watch.isExternal} 
+                        onChange={e => handleWatchToServiceChange(index, 'isExternal', e.target.checked)} 
+                      />
+                      External Watch (Not purchased from showroom)
+                    </label>
                   </div>
+
+                  {watch.isExternal ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '3px solid var(--primary-gold)', paddingLeft: '0.75rem', marginTop: '0.5rem' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Brand Name *</label>
+                        <input type="text" className="form-control" placeholder="e.g. Tissot" value={watch.externalBrand} onChange={e => handleWatchToServiceChange(index, 'externalBrand', e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Model Name</label>
+                        <input type="text" className="form-control" placeholder="e.g. Le Locle" value={watch.externalModel} onChange={e => handleWatchToServiceChange(index, 'externalModel', e.target.value)} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Serial / Watch ID</label>
+                        <input type="text" className="form-control" placeholder="e.g. TS-8902" value={watch.externalSerial} onChange={e => handleWatchToServiceChange(index, 'externalSerial', e.target.value)} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Select Sold Showroom Watch *</label>
+                      <select 
+                        className="form-control"
+                        value={watch.selectedWatchId}
+                        onChange={e => handleWatchToServiceChange(index, 'selectedWatchId', e.target.value)}
+                        required
+                      >
+                        <option value="">-- Choose Watch --</option>
+                        {registeredWatches.map(w => (
+                          <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Serial / Watch ID</label>
-                    <input type="text" className="form-control" placeholder="e.g. TS-8902" value={externalSerial} onChange={e => setExternalSerial(e.target.value)} />
+                    <label className="form-label">Issue Reported *</label>
+                    <textarea 
+                      className="form-control" 
+                      rows="2" 
+                      placeholder="Describe the complaint..." 
+                      value={watch.issue}
+                      onChange={e => handleWatchToServiceChange(index, 'issue', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Drop-off Condition / Physical Checks</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="e.g. Scratches on bezel, missing link" 
+                      value={watch.condition}
+                      onChange={e => handleWatchToServiceChange(index, 'condition', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-row" style={{ margin: 0 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Estimated Cost (₹)</label>
+                      <input type="number" className="form-control" placeholder="Estimate" value={watch.estimate} onChange={e => handleWatchToServiceChange(index, 'estimate', e.target.value)} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Expected Date</label>
+                      <input type="date" className="form-control" value={watch.dueDate} onChange={e => handleWatchToServiceChange(index, 'dueDate', e.target.value)} />
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="form-group">
-                  <label className="form-label">Select Sold Showroom Watch</label>
-                  <select 
-                    className="form-control"
-                    value={selectedWatchId}
-                    onChange={e => setSelectedWatchId(e.target.value)}
-                  >
-                    <option value="">-- Choose Watch --</option>
-                    {registeredWatches.map(w => (
-                      <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              ))}
 
-              <div className="form-group">
-                <label className="form-label">Issue Reported *</label>
-                <textarea 
-                  className="form-control" 
-                  rows="3" 
-                  placeholder="Describe the complaint..." 
-                  value={issue}
-                  onChange={e => setIssue(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Drop-off Condition / Physical Checks</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="e.g. Scratches on bezel, missing link strap" 
-                  value={condition}
-                  onChange={e => setCondition(e.target.value)}
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Estimated Repair Cost (₹)</label>
-                  <input type="number" className="form-control" placeholder="Estimate" value={estimate} onChange={e => setEstimate(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Expected Handover Date</label>
-                  <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={handleAddWatchToService}
+                className="btn btn-secondary"
+                style={{ width: '100%', marginBottom: '1rem', border: '1px dashed var(--primary-gold)', color: 'var(--primary-gold)' }}
+              >
+                + Add Another Watch to Service
+              </button>
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Create Job Card
+                Create Job Card(s)
               </button>
             </form>
           </div>
@@ -414,9 +497,11 @@ const ServiceRepair = () => {
               <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>SMART TIMES</h2>
+                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
                     <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>Service & Repair Department</h4>
-                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>Royal Mall, Brigade Road, Bangalore • Call: +91 80 44445555 • info@smarttimes.in</p>
+                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
+                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701.'} • Call: {settings?.phone || '97512 85945, 86672 88021'} • {settings?.email || 'info@smarttimes.in'}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Service Job Card</h3>
@@ -431,7 +516,9 @@ const ServiceRepair = () => {
                   <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Customer Profile:</h4>
                   <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{selectedJobForCard.customer?.name}</p>
                   <p style={{ margin: '0.1rem 0' }}>Phone: {selectedJobForCard.customer?.phone}</p>
-                  <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer?.address || 'Local Customer'}</p>
+                  {selectedJobForCard.customer?.address && (
+                    <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer.address}</p>
+                  )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Watch Description:</h4>

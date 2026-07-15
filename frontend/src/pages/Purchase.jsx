@@ -62,6 +62,22 @@ const Purchase = () => {
     }
   };
 
+  const [existingSuppliers, setExistingSuppliers] = useState([]);
+
+  const loadExistingSuppliers = async () => {
+    try {
+      const data = await api.getPurchases();
+      const uniqueSuppliers = [...new Set(data.map(p => p.supplier_name).filter(Boolean))];
+      setExistingSuppliers(uniqueSuppliers);
+    } catch (err) {
+      console.error('Failed to load existing suppliers:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadExistingSuppliers();
+  }, []);
+
   useEffect(() => {
     if (isSupplierSaved) {
       loadExistingModels();
@@ -209,6 +225,7 @@ const Purchase = () => {
       setInvoiceNumber('');
       setRemarks('');
       setIsSupplierSaved(false);
+      loadExistingSuppliers();
       setItems([{ 
         id: '', 
         brand: '', 
@@ -270,6 +287,7 @@ const Purchase = () => {
                 <label className="form-label">Supplier Name *</label>
                 <input 
                   type="text" 
+                  list="suppliers-list"
                   className="form-control" 
                   placeholder="e.g. TimeTech Distributors" 
                   value={supplierName}
@@ -277,6 +295,11 @@ const Purchase = () => {
                   disabled={isSupplierSaved}
                   required
                 />
+                <datalist id="suppliers-list">
+                  {existingSuppliers.map((sup, idx) => (
+                    <option key={idx} value={sup} />
+                  ))}
+                </datalist>
               </div>
               <div className="form-group">
                 <label className="form-label">Purchase Date *</label>

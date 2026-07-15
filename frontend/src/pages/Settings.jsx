@@ -9,10 +9,10 @@ const Settings = () => {
 
   // Showroom profile
   const [storeName, setStoreName] = useState('Smart Times');
-  const [tagline, setTagline] = useState('Time is Precious');
-  const [gstin, setGstin] = useState('29AAAAA0000A1Z5');
-  const [address, setAddress] = useState('Royal Mall, Brigade Road, Bangalore - 560001');
-  const [phone, setPhone] = useState('+91 80 44445555');
+  const [tagline, setTagline] = useState('TITAN - SONATA - FASTRACK - TIMEX - LENCO - SMART WATCHES');
+  const [gstin, setGstin] = useState('33EJBPA4537C1ZW');
+  const [address, setAddress] = useState('108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701.');
+  const [phone, setPhone] = useState('97512 85945, 86672 88021');
   const [email, setEmail] = useState('info@smarttimes.in');
 
   // Invoice numbering

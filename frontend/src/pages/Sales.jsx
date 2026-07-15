@@ -154,7 +154,7 @@ const Sales = () => {
       if (!finalCustomerId) {
         // Automatically create a new customer on the fly
         const newCust = await api.addCustomer({ name: custName, phone: custPhone });
-        finalCustomerId = newCust.id;
+        finalCustomerId = newCust.customer ? newCust.customer.id : newCust.id;
       }
 
       const payload = {
@@ -494,7 +494,7 @@ const Sales = () => {
                     <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
                     <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>{settings?.tagline || 'Showroom Invoice'}</h4>
                     <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
-                      {settings?.address || 'Royal Mall, Brigade Road, Bangalore • Call: +91 80 44445555'}
+                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701. • Call: 97512 85945, 86672 88021'}
                     </p>
                     {settings?.gstin && <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>GSTIN: {settings.gstin}</p>}
                   </div>

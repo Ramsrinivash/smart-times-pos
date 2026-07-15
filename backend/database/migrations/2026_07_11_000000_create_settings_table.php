@@ -34,10 +34,10 @@ return new class extends Migration
         // Insert a default settings record
         \DB::table('settings')->insert([
             'store_name' => 'Smart Times',
-            'tagline' => 'Time is Precious',
-            'gstin' => '29AAAAA0000A1Z5',
-            'address' => 'Royal Mall, Brigade Road, Bangalore - 560001',
-            'phone' => '+91 80 44445555',
+            'tagline' => 'TITAN - SONATA - FASTRACK - TIMEX - LENCO - SMART WATCHES',
+            'gstin' => '33EJBPA4537C1ZW',
+            'address' => '108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701.',
+            'phone' => '97512 85945, 86672 88021',
             'email' => 'info@smarttimes.in',
             'gst_invoice_prefix' => 'ST-GST',
             'nongst_invoice_prefix' => 'ST-RETL',
@@ -47,7 +47,7 @@ return new class extends Migration
             'loyalty_earn_rate' => 1,
             'loyalty_redeem_rate' => 1,
             'loyalty_expiry_months' => 12,
-            'job_card_terms' => '1. Standard repair warranty applies.\n2. Goods once sold cannot be returned.\n3. Please produce job card during delivery.'
+            'job_card_terms' => "1. All service charges are estimates. Actual costs might vary up to 15%.\n2. Smart Times is not responsible for watches left unclaimed for more than 90 days.\n3. Warranty on serviced parts is 90 days from delivery date."
         ]);
     }
 
