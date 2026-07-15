@@ -91,6 +91,14 @@ const Purchase = () => {
       return;
     }
     setIsSupplierSaved(true);
+    
+    // Add the saved supplier to state immediately so it appears in the dropdown list if edited/revisited
+    const trimmed = supplierName.trim();
+    const lowerName = trimmed.toLowerCase();
+    const exists = existingSuppliers.some(s => s.toLowerCase() === lowerName);
+    if (!exists) {
+      setExistingSuppliers([...existingSuppliers, trimmed]);
+    }
   };
 
   const handleEditSupplier = () => {

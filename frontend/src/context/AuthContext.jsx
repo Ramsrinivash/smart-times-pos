@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('watch_user');
-    const storedToken = localStorage.getItem('watch_auth_token');
+    const storedUser = sessionStorage.getItem('watch_user');
+    const storedToken = sessionStorage.getItem('watch_auth_token');
     if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
     }
@@ -21,8 +21,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.login(email, password);
       setUser(response.user);
-      localStorage.setItem('watch_user', JSON.stringify(response.user));
-      localStorage.setItem('watch_auth_token', response.access_token);
+      sessionStorage.setItem('watch_user', JSON.stringify(response.user));
+      sessionStorage.setItem('watch_auth_token', response.access_token);
       return response.user;
     } catch (error) {
       setUser(null);
@@ -34,8 +34,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('watch_user');
-    localStorage.removeItem('watch_auth_token');
+    sessionStorage.removeItem('watch_user');
+    sessionStorage.removeItem('watch_auth_token');
   };
 
   return (
