@@ -124,7 +124,8 @@ export const api = {
       syncQueue.add('addSale', data);
       return { queued: true, message: 'Offline: Sale queued for sync when online.' };
     }
-    return request('/sales', { method: 'POST', body: JSON.stringify(data) });
+    const res = await request('/sales', { method: 'POST', body: JSON.stringify(data) });
+    return res.sale || res;
   },
 
   // Exchanges

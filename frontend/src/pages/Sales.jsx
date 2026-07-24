@@ -183,7 +183,8 @@ const Sales = () => {
       const result = await api.addSale(payload, user.id);
       
       // Load details of the invoice to show printable receipt
-      const detailInvoice = await api.getSale(result.id);
+      const saleId = result.sale ? result.sale.id : (result.id || result);
+      const detailInvoice = await api.getSale(saleId);
       setCreatedInvoice(detailInvoice);
       
       // Clear checkout inputs

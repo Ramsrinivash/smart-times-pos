@@ -379,6 +379,7 @@ export const mockAPI = {
 
   addSale: (data, userId = 3) => {
     const db = loadDB();
+    const now = new Date();
     const settings = db.settings;
     const customer = db.customers.find(c => c.id === Number(data.customer_id));
     if (!customer) throw new Error('Customer profile not found.');
