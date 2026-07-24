@@ -19,6 +19,9 @@ const ServiceRepair = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [hideDelivered, setHideDelivered] = useState(true);
 
+  // SweetAlert custom modal state
+  const [sweetAlert, setSweetAlert] = useState(null);
+
   // Dynamic list of watches to service
   const [watchesToService, setWatchesToService] = useState([
     {
@@ -26,7 +29,7 @@ const ServiceRepair = () => {
       selectedWatchId: '',
       externalBrand: '',
       externalModel: '',
-      externalSerial: '',
+      externalGender: 'Unisex',
       issue: '',
       condition: '',
       estimate: '',
@@ -42,7 +45,7 @@ const ServiceRepair = () => {
         selectedWatchId: '',
         externalBrand: '',
         externalModel: '',
-        externalSerial: '',
+        externalGender: 'Unisex',
         issue: '',
         condition: '',
         estimate: '',
@@ -81,6 +84,10 @@ const ServiceRepair = () => {
   });
 
   const deliveredCount = jobs.filter(j => j.status === 'delivered').length;
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const readyTodayCount = jobs.filter(j => j.status === 'ready' && j.expected_delivery_date === todayStr).length;
+  const overdueCount = jobs.filter(j => j.status !== 'delivered' && j.expected_delivery_date && j.expected_delivery_date < todayStr).length;
+  const totalReadyCount = jobs.filter(j => j.status === 'ready').length;
 
   const loadData = async () => {
     try {
@@ -148,7 +155,7 @@ const ServiceRepair = () => {
         const payload = {
           customer_id: finalCustomerId,
           watch_id: w.isExternal ? null : w.selectedWatchId,
-          watch_details: w.isExternal ? { brand: w.externalBrand, model: w.externalModel, serial: w.externalSerial } : null,
+          watch_details: w.isExternal ? { brand: w.externalBrand, model: w.externalModel, gender: w.externalGender || 'Unisex' } : null,
           issue_reported: w.issue,
           drop_off_condition: w.condition,
           estimated_cost: w.estimate || null,
@@ -160,7 +167,12 @@ const ServiceRepair = () => {
         createdJobs.push(result);
       }
 
-      alert(`Successfully created ${createdJobs.length} Service Job Card(s).`);
+      // SweetAlert custom pop-up success modal
+      setSweetAlert({
+        title: 'Job Registered!',
+        text: `Successfully registered ${createdJobs.length} watch repair service job card(s).`,
+        type: 'success'
+      });
 
       // Auto open printable job card modal for the first created job
       const freshJobs = await api.getServiceJobs();
@@ -178,7 +190,7 @@ const ServiceRepair = () => {
           selectedWatchId: '',
           externalBrand: '',
           externalModel: '',
-          externalSerial: '',
+          externalGender: 'Unisex',
           issue: '',
           condition: '',
           estimate: '',
@@ -187,7 +199,11 @@ const ServiceRepair = () => {
       ]);
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to create job card.');
+      setSweetAlert({
+        title: 'Error',
+        text: err.message || 'Failed to create job card.',
+        type: 'error'
+      });
     }
   };
 
@@ -200,16 +216,28 @@ const ServiceRepair = () => {
 
         const payMode = window.confirm('Payment received via UPI/Card? Click OK for UPI, Cancel for Cash.') ? 'upi' : 'cash';
         const result = await api.addServiceBill(jobId, actualCost, payMode);
-        alert(`✅ Service delivered!\nBill Invoice: ${result.id}\nAmount: ₹${actualCost.toLocaleString()}\nPoints credited to customer.`);
+        setSweetAlert({
+          title: 'Service Delivered!',
+          text: `Service billed and delivered successfully. Bill Invoice No: ${result.id || result}. Total collected: ₹${actualCost.toLocaleString()}.`,
+          type: 'success'
+        });
         loadData();
         return;
       }
 
       await api.updateServiceJobStatus(jobId, nextStatus, null);
-      alert(`Job status updated to: ${nextStatus.replace('_', ' ')}`);
+      setSweetAlert({
+        title: 'Status Updated',
+        text: `Job Card status successfully updated to: ${nextStatus.toUpperCase().replace('_', ' ')}.`,
+        type: 'success'
+      });
       loadData();
     } catch (err) {
-      alert(err.message || 'Status update failed.');
+      setSweetAlert({
+        title: 'Update Failed',
+        text: err.message || 'Failed to update job status.',
+        type: 'error'
+      });
     }
   };
 
@@ -223,6 +251,37 @@ const ServiceRepair = () => {
       <div className="page-container">
         <h1 className="page-title">Service & Repair / Warranty</h1>
         <p className="page-subtitle">Generate Job Cards and track repair progress.</p>
+
+        {/* Statistics Panels */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
+            <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', color: 'var(--success)' }}>
+              <Wrench size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Ready to Deliver Today</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{readyTodayCount}</div>
+            </div>
+          </div>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
+            <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', color: 'var(--error)' }}>
+              <Calendar size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Overdue Repair Jobs</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: overdueCount > 0 ? 'var(--error)' : 'var(--text-primary)' }}>{overdueCount}</div>
+            </div>
+          </div>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
+            <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(212,175,55,0.15)', color: 'var(--primary-gold)' }}>
+              <CheckCircle size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Total Ready (Pending Pickup)</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-gold)' }}>{totalReadyCount}</div>
+            </div>
+          </div>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: '1.5rem', flexWrap: 'wrap' }}>
           
@@ -318,8 +377,17 @@ const ServiceRepair = () => {
                         <input type="text" className="form-control" placeholder="e.g. Le Locle" value={watch.externalModel} onChange={e => handleWatchToServiceChange(index, 'externalModel', e.target.value)} />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Serial / Watch ID</label>
-                        <input type="text" className="form-control" placeholder="e.g. TS-8902" value={watch.externalSerial} onChange={e => handleWatchToServiceChange(index, 'externalSerial', e.target.value)} />
+                        <label className="form-label">Watch Gender *</label>
+                        <select 
+                          className="form-control" 
+                          value={watch.externalGender || 'Unisex'} 
+                          onChange={e => handleWatchToServiceChange(index, 'externalGender', e.target.value)}
+                          required
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Unisex">Unisex</option>
+                        </select>
                       </div>
                     </div>
                   ) : (
@@ -492,36 +560,55 @@ const ServiceRepair = () => {
         {/* Printable Job Card Modal */}
         {selectedJobForCard && (
           <div className="modal-overlay">
-            <div className="modal-content printable-area" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2.5rem' }}>
+            <div className="modal-content printable-area job-card-print-container" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2rem', boxSizing: 'border-box' }}>
+              <style>{`
+                @media print {
+                  body {
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                  }
+                  .job-card-print-container {
+                    height: 135mm !important;
+                    max-height: 135mm !important;
+                    border: none !important;
+                    box-sizing: border-box !important;
+                    padding: 1rem !important;
+                    page-break-after: avoid !important;
+                  }
+                  .no-print {
+                    display: none !important;
+                  }
+                }
+              `}</style>
               
-              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ borderBottom: '2px solid #333', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
-                    <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>Service & Repair Department</h4>
-                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
-                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701.'} • Call: {settings?.phone || '97512 85945, 86672 88021'} • {settings?.email || 'info@smarttimes.in'}
+                    <h2 style={{ color: '#d4af37', fontSize: '1.6rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
+                    <h4 style={{ margin: '0.1rem 0 0', color: '#444', fontSize: '0.9rem' }}>Service & Repair Department</h4>
+                    <p style={{ margin: '0.1rem 0', fontSize: '0.75rem', color: '#555' }}>
+                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Church), DHARMAPURI - 636 701.'} • Call: {settings?.phone || '97512 85945, 86672 88021'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Service Job Card</h3>
-                    <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>JC Number: {selectedJobForCard.id}</p>
-                    <p style={{ margin: 0 }}>Date: {selectedJobForCard.received_date || new Date().toISOString().split('T')[0]}</p>
+                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333', fontSize: '1.25rem' }}>Service Job Card</h3>
+                    <p style={{ margin: '0.1rem 0', fontWeight: 600, fontSize: '0.85rem' }}>JC Number: {selectedJobForCard.id}</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Date: {selectedJobForCard.received_date || new Date().toISOString().split('T')[0]}</p>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
                 <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Customer Profile:</h4>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Customer Profile:</h4>
                   <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{selectedJobForCard.customer?.name}</p>
                   <p style={{ margin: '0.1rem 0' }}>Phone: {selectedJobForCard.customer?.phone}</p>
-                  {selectedJobForCard.customer?.address && (
+                  {selectedJobForCard.customer?.address && selectedJobForCard.customer.address !== 'Local Customer' && (
                     <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer.address}</p>
                   )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Watch Description:</h4>
+                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Watch Description:</h4>
                   <p style={{ margin: '0.1rem 0' }}>
                     Watch: <strong>
                       {selectedJobForCard.watch_id 
@@ -531,26 +618,40 @@ const ServiceRepair = () => {
                     </strong>
                   </p>
                   <p style={{ margin: '0.1rem 0' }}>
-                    Serial: {selectedJobForCard.watch_id || selectedJobForCard.watch_details?.serial || 'N/A'}
+                    {selectedJobForCard.watch_id 
+                      ? `Serial: ${selectedJobForCard.watch_id}` 
+                      : `Gender: ${selectedJobForCard.watch_details?.gender || 'Unisex'}`
+                    }
                   </p>
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                <p style={{ margin: '0.25rem 0' }}><strong>Job Status:</strong> {selectedJobForCard.status.toUpperCase()}</p>
-                <p style={{ margin: '0.25rem 0' }}><strong>Issue Reported:</strong> "{selectedJobForCard.issue_reported}"</p>
-                {selectedJobForCard.drop_off_condition && <p style={{ margin: '0.25rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition}</p>}
-                {selectedJobForCard.estimated_cost && <p style={{ margin: '0.25rem 0', color: '#d4af37', fontWeight: 600 }}><strong>Estimated Charges:</strong> ₹{Number(selectedJobForCard.estimated_cost).toLocaleString()}</p>}
-                {selectedJobForCard.expected_delivery_date && <p style={{ margin: '0.25rem 0' }}><strong>Expected Delivery:</strong> {selectedJobForCard.expected_delivery_date}</p>}
+              <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
+                <p style={{ margin: '0.2rem 0' }}><strong>Job Status:</strong> {selectedJobForCard.status.toUpperCase()}</p>
+                <p style={{ margin: '0.2rem 0' }}><strong>Issue Reported:</strong> "{selectedJobForCard.issue_reported}"</p>
+                {selectedJobForCard.drop_off_condition && <p style={{ margin: '0.2rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition}</p>}
+                {selectedJobForCard.estimated_cost && <p style={{ margin: '0.2rem 0', color: '#d4af37', fontWeight: 600 }}><strong>Estimated Charges:</strong> ₹{Number(selectedJobForCard.estimated_cost).toLocaleString()}</p>}
+                {selectedJobForCard.expected_delivery_date && <p style={{ margin: '0.2rem 0' }}><strong>Expected Delivery:</strong> {selectedJobForCard.expected_delivery_date}</p>}
               </div>
 
-              <div style={{ borderTop: '1px solid #ccc', paddingTop: '1rem', fontSize: '0.75rem', color: '#666' }}>
-                <h5 style={{ margin: '0 0 0.25rem 0', textTransform: 'uppercase' }}>Terms & Service Agreement:</h5>
-                <p style={{ margin: '0.1rem 0' }}>1. Repairs are warrantied for 90 days from hand-over date.</p>
-                <p style={{ margin: '0.1rem 0' }}>2. Please produce this card at delivery. Unclaimed items after 30 days are subject to storage fees.</p>
+              <div style={{ borderTop: '1px solid #ccc', paddingTop: '0.5rem', fontSize: '0.72rem', color: '#666' }}>
+                <h5 style={{ margin: '0 0 0.2rem 0', textTransform: 'uppercase', fontSize: '0.75rem' }}>Terms & Service Agreement:</h5>
+                <p style={{ margin: '0.1rem 0' }}>1. Service repairs carry a 6 Months (180 Days) warranty period on replaced parts/labor.</p>
+                <p style={{ margin: '0.1rem 0' }}>2. If water damage or tampering occurs, this service warranty is void.</p>
+                <p style={{ margin: '0.1rem 0' }}>3. Please produce this card at delivery. Unclaimed items after 90 days are subject to disposal.</p>
               </div>
 
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+              {/* Signatures Section */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', fontSize: '0.75rem' }}>
+                <div style={{ borderTop: '1px dashed #333', width: '130px', textAlign: 'center', paddingTop: '0.2rem' }}>
+                  Customer Signature
+                </div>
+                <div style={{ borderTop: '1px dashed #333', width: '130px', textAlign: 'center', paddingTop: '0.2rem' }}>
+                  Technician / Store Sign
+                </div>
+              </div>
+
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '0.75rem' }}>
                 <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                   <Printer size={16} /> Print Job Card
                 </button>
@@ -559,6 +660,23 @@ const ServiceRepair = () => {
                 </button>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* SweetAlert Custom Modal Overlay */}
+        {sweetAlert && (
+          <div className="modal-overlay" style={{ zIndex: 99999 }}>
+            <div className="card" style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem' }}>
+              <h3 style={{ color: sweetAlert.type === 'error' ? 'var(--error)' : 'var(--success)', marginBottom: '0.5rem' }}>
+                {sweetAlert.title}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                {sweetAlert.text}
+              </p>
+              <button onClick={() => setSweetAlert(null)} className="btn btn-primary">
+                OK
+              </button>
             </div>
           </div>
         )}

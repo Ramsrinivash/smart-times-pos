@@ -431,6 +431,7 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
               <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
                 <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Billed To:</h4>
                 <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{selectedInvoice.customer?.name}</p>
+                <p style={{ margin: '0.1rem 0' }}>Customer ID: #{selectedInvoice.customer?.id || 'N/A'}</p>
                 <p style={{ margin: '0.1rem 0' }}>Phone: {selectedInvoice.customer?.phone}</p>
                 <p style={{ margin: '0.1rem 0' }}>{selectedInvoice.customer?.address || 'Counter Sale'}</p>
               </div>
@@ -518,6 +519,22 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, borderTop: '2px solid #333', paddingTop: '0.5rem', color: '#d4af37' }}>
                   <span>Grand Net Total</span>
                   <span>₹{selectedInvoice.net_amount.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Signature Section */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3.5rem', fontSize: '0.85rem' }}>
+              <div style={{ textAlign: 'left' }}>
+                <p style={{ margin: 0 }}>Salesperson: <strong>{selectedInvoice.user?.name || 'Staff'}</strong></p>
+                <div style={{ borderTop: '1px dashed #333', width: '150px', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
+                  Salesperson Signature
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ margin: 0 }}>For <strong>{settings?.store_name || 'SMART TIMES'}</strong></p>
+                <div style={{ borderTop: '1px dashed #333', width: '150px', marginLeft: 'auto', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
+                  Authorized Signatory
                 </div>
               </div>
             </div>

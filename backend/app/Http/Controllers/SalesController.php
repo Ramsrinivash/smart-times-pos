@@ -42,6 +42,9 @@ class SalesController extends Controller
             'items.*.watch_id' => 'required|exists:watches,id',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
             'redeem_points' => 'nullable|integer|min:0',
+            'bill_discount_amount' => 'nullable|numeric|min:0',
+            'bill_discount_percent' => 'nullable|numeric|min:0',
+            'is_credit_sale' => 'nullable|boolean',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -91,6 +94,15 @@ class SalesController extends Controller
                 $totalGst += $itemGstAmount;
             }
 
+            // Calculate bill discount
+            $billDiscFlat = (double) ($request->bill_discount_amount ?? 0.00);
+            $billDiscPercent = (double) ($request->bill_discount_percent ?? 0.00);
+            $billDiscAmount = $billDiscFlat;
+            if ($billDiscPercent > 0) {
+                $billDiscAmount = ($subtotal - $totalDiscount) * ($billDiscPercent / 100);
+            }
+            $totalDiscount += $billDiscAmount;
+
             // Reward Points conversion
             $pointsRedeemed = $request->redeem_points ?? 0;
             $pointsValue = 0.00;
@@ -105,6 +117,8 @@ class SalesController extends Controller
             $netAmount = $subtotal - $totalDiscount;
             if ($netAmount < 0) $netAmount = 0;
 
+            $isCreditSale = filter_var($request->is_credit_sale ?? false, FILTER_VALIDATE_BOOLEAN);
+
             $sale = Sale::create([
                 'id' => $invoiceId,
                 'customer_id' => $customer->id,
@@ -118,8 +132,14 @@ class SalesController extends Controller
                 'points_value' => $pointsValue,
                 'net_amount' => $netAmount,
                 'payment_mode' => $request->payment_mode,
+                'is_credit_sale' => $isCreditSale,
                 'notes' => $request->notes,
             ]);
+
+            // Save credit to customer outstanding dues
+            if ($isCreditSale && $netAmount > 0) {
+                $customer->outstanding_dues = ($customer->outstanding_dues ?? 0.00) + $netAmount;
+            }
 
             foreach ($itemsData as $item) {
                 $watch = $item['watch'];

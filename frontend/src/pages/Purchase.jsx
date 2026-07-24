@@ -374,7 +374,7 @@ const Purchase = () => {
                 <p style={{ fontWeight: 500, margin: 0 }}>Please click "Save Supplier Details" above to activate the Itemized Inventory Pieces table.</p>
               </div>
             ) : (
-              <table style={{ minWidth: '1600px', borderCollapse: 'collapse' }}>
+              <table style={{ minWidth: '1750px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                     <th style={{ width: '150px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Autofill Model</th>
@@ -389,7 +389,8 @@ const Purchase = () => {
                     <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Cost Price *</th>
                     <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Selling Price *</th>
                     <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>GST %</th>
-                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left' }}>Spec (Type) *</th>
+                    <th style={{ width: '130px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Spec (Type) *</th>
+                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Gender *</th>
                     <th style={{ width: '50px', padding: '0.75rem 0.5rem' }}></th>
                   </tr>
                 </thead>
@@ -540,6 +541,18 @@ const Purchase = () => {
                           {specOptions.map((opt, oidx) => (
                             <option key={oidx} value={opt}>{opt}</option>
                           ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <select 
+                          className="form-control"
+                          value={item.gender || 'Unisex'}
+                          onChange={(e) => handleItemChange(index, 'gender', e.target.value)}
+                          style={{ height: '36px' }}
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Unisex">Unisex</option>
                         </select>
                       </td>
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>

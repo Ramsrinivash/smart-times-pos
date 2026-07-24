@@ -24,6 +24,11 @@ const Sales = () => {
   const [isCreditSale, setIsCreditSale] = useState(false);
   const [notes, setNotes] = useState('');
 
+  // Search suggestions states
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const searchInputContainerRef = React.useRef(null);
+
   // Helper to sanitize numeric inputs to prevent leading zeros while supporting decimals
   const cleanNumberInput = (val) => {
     if (val === '') return '';
@@ -59,6 +64,37 @@ const Sales = () => {
     loadSettings();
   }, []);
 
+  // Debounced search for watch suggestions
+  useEffect(() => {
+    if (!searchSerial || searchSerial.trim().length < 2) {
+      setSearchSuggestions([]);
+      setShowSearchSuggestions(false);
+      return;
+    }
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const inventory = await api.getInventory(searchSerial.trim(), 'in_stock');
+        setSearchSuggestions(inventory.slice(0, 8));
+        setShowSearchSuggestions(inventory.length > 0);
+      } catch (err) {
+        console.error('Failed to fetch watch suggestions:', err);
+      }
+    }, 200);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchSerial]);
+
+  // Click outside to close search suggestions dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchInputContainerRef.current && !searchInputContainerRef.current.contains(e.target)) {
+        setShowSearchSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Check if Phone Number exists in CRM, and auto-load customer profile
   useEffect(() => {
     if (custPhone.length >= 10) {
@@ -78,32 +114,37 @@ const Sales = () => {
   }, [custPhone, customers]);
 
   // Add item to cart
+  const handleSelectSuggestion = (watch) => {
+    if (cart.some(item => item.watch_id === watch.id)) {
+      alert('Watch already added to cart.');
+      return;
+    }
+    setCart([...cart, {
+      watch_id: watch.id,
+      brand: watch.brand,
+      model: watch.model,
+      selling_price: watch.selling_price,
+      gst_rate: watch.gst_rate,
+      discount_amount: '',
+      image_urls: watch.image_urls || []
+    }]);
+    setSearchSerial('');
+    setShowSearchSuggestions(false);
+  };
+
   const handleAddWatch = async () => {
     if (!searchSerial) return;
     try {
-      const inventory = await api.getInventory(searchSerial, 'in_stock');
-      const watch = inventory.find(w => w.id.toLowerCase() === searchSerial.toLowerCase());
+      const inventory = await api.getInventory(searchSerial.trim(), 'in_stock');
+      const watch = inventory.find(w => w.id.toLowerCase() === searchSerial.toLowerCase().trim());
       
-      if (!watch) {
+      if (watch) {
+        handleSelectSuggestion(watch);
+      } else if (inventory.length > 0) {
+        handleSelectSuggestion(inventory[0]);
+      } else {
         alert('Watch Serial Number not found in stock.');
-        return;
       }
-
-      if (cart.some(item => item.watch_id === watch.id)) {
-        alert('Watch already added to cart.');
-        return;
-      }
-
-      setCart([...cart, {
-        watch_id: watch.id,
-        brand: watch.brand,
-        model: watch.model,
-        selling_price: watch.selling_price,
-        gst_rate: watch.gst_rate,
-        discount_amount: '',
-        image_urls: watch.image_urls || []
-      }]);
-      setSearchSerial('');
     } catch (err) {
       console.error(err);
     }
@@ -231,17 +272,74 @@ const Sales = () => {
             {/* Search items bar */}
             <div className="card">
               <h3 style={{ marginBottom: '1rem' }}>Scan or Enter Watch Serial</h3>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="e.g. RLX-SUB-90812" 
-                  value={searchSerial}
-                  onChange={(e) => setSearchSerial(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddWatch()}
-                  style={{ fontFamily: 'monospace' }}
-                />
-                <button type="button" onClick={handleAddWatch} className="btn btn-primary">
+              <div ref={searchInputContainerRef} style={{ display: 'flex', gap: '0.75rem', position: 'relative', width: '100%' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Search by brand, model, or scan serial..." 
+                    value={searchSerial}
+                    onChange={(e) => setSearchSerial(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddWatch()}
+                    onFocus={() => {
+                      if (searchSuggestions.length > 0) setShowSearchSuggestions(true);
+                    }}
+                    style={{ fontFamily: 'monospace', width: '100%' }}
+                  />
+                  {showSearchSuggestions && searchSuggestions.length > 0 && (
+                    <div 
+                      className="suggestions-dropdown" 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'var(--surface-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                        zIndex: 9999,
+                        marginTop: '0.5rem',
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        padding: '0.25rem 0',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <style>{`
+                        .pos-suggestion-item {
+                          display: flex;
+                          justify-content: space-between;
+                          align-items: center;
+                          padding: 0.6rem 1rem;
+                          cursor: pointer;
+                          transition: background-color var(--transition-fast);
+                          border-bottom: 1px solid var(--border-color);
+                        }
+                        .pos-suggestion-item:hover {
+                          background-color: var(--surface-card) !important;
+                        }
+                        .pos-suggestion-item:last-child {
+                          border-bottom: none;
+                        }
+                      `}</style>
+                      {searchSuggestions.map(w => (
+                        <div 
+                          key={w.id} 
+                          onClick={() => handleSelectSuggestion(w)}
+                          className="pos-suggestion-item"
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{w.brand} {w.model}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>ID: {w.id} | Spec: {w.category}</div>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary-gold)' }}>₹{Number(w.selling_price).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button type="button" onClick={handleAddWatch} className="btn btn-primary" style={{ height: '42px' }}>
                   Add Watch
                 </button>
               </div>
@@ -516,18 +614,18 @@ const Sales = () => {
                 </div>
               </div>
 
-              {/* Customer and Payment details */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
                 <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
                   <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Billed To:</h4>
                   <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{createdInvoice.customer?.name}</p>
+                  <p style={{ margin: '0.1rem 0' }}>Customer ID: #{createdInvoice.customer?.id || 'N/A'}</p>
                   <p style={{ margin: '0.1rem 0' }}>Phone: {createdInvoice.customer?.phone}</p>
                   <p style={{ margin: '0.1rem 0' }}>{createdInvoice.customer?.address || 'Counter Sale'}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <h4 style={{ textTransform: 'uppercase', color: '#555', marginBottom: '0.5rem' }}>Payment Info:</h4>
                   <p style={{ margin: '0.1rem 0' }}>Mode: <strong>{createdInvoice.payment_mode.toUpperCase()}</strong></p>
-                  <p style={{ margin: '0.1rem 0' }}>Salesperson: {user.name}</p>
+                  <p style={{ margin: '0.1rem 0' }}>Salesperson: {user?.name || 'Staff'}</p>
                 </div>
               </div>
 
@@ -608,6 +706,22 @@ const Sales = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, borderTop: '2px solid #333', paddingTop: '0.5rem', color: '#d4af37' }}>
                     <span>Grand Net Total</span>
                     <span>₹{createdInvoice.net_amount.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature Section */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3.5rem', fontSize: '0.85rem' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ margin: 0 }}>Salesperson: <strong>{createdInvoice.user?.name || user?.name}</strong></p>
+                  <div style={{ borderTop: '1px dashed #333', width: '150px', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
+                    Salesperson Signature
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0 }}>For <strong>{settings?.store_name || 'SMART TIMES'}</strong></p>
+                  <div style={{ borderTop: '1px dashed #333', width: '150px', marginLeft: 'auto', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
+                    Authorized Signatory
                   </div>
                 </div>
               </div>

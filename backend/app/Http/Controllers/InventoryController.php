@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Watch;
+use App\Models\StockAdjustment;
 use Illuminate\Http\Request;
 
 class InventoryController extends Controller
@@ -43,20 +44,35 @@ class InventoryController extends Controller
     {
         $request->validate([
             'watch_id' => 'required|exists:watches,id',
-            'status' => 'required|in:in_stock,sold,exchanged_returned,refurbishing',
+            'status' => 'required|in:in_stock,sold,exchanged_returned,refurbishing,damaged,display,reserved',
+            'reason' => 'required|string',
             'remarks' => 'nullable|string'
         ]);
 
         $watch = Watch::findOrFail($request->watch_id);
+        $oldStatus = $watch->status;
         $watch->status = $request->status;
-        
-        // Audit log or remarks logic can be added here
-        
         $watch->save();
+
+        // Log the stock adjustment
+        StockAdjustment::create([
+            'watch_id' => $watch->id,
+            'user_id' => $request->user()->id,
+            'old_status' => $oldStatus,
+            'new_status' => $request->status,
+            'reason' => $request->reason,
+            'remarks' => $request->remarks,
+        ]);
 
         return response()->json([
             'message' => 'Stock status adjusted successfully',
             'watch' => $watch
         ]);
+    }
+
+    public function getAdjustmentLogs(Request $request)
+    {
+        $logs = StockAdjustment::with(['watch', 'user'])->latest()->get();
+        return response()->json($logs);
     }
 }

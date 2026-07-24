@@ -40,6 +40,13 @@ class CustomerController extends Controller
             }
         }
 
+        if ($request->has('dob') && $request->dob === '') {
+            $request->merge(['dob' => null]);
+        }
+        if ($request->has('anniversary') && $request->anniversary === '') {
+            $request->merge(['anniversary' => null]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone',
