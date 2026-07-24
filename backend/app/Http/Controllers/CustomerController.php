@@ -26,6 +26,20 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('phone')) {
+            $existing = Customer::where('phone', trim($request->phone))->first();
+            if ($existing) {
+                if ($request->filled('name') && $existing->name !== $request->name) {
+                    $existing->name = $request->name;
+                    $existing->save();
+                }
+                return response()->json([
+                    'message' => 'Customer profile already exists, returned existing profile',
+                    'customer' => $existing
+                ], 200);
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone',

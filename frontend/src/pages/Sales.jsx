@@ -18,11 +18,19 @@ const Sales = () => {
   const [cart, setCart] = useState([]);
   const [invoiceType, setInvoiceType] = useState('non-gst');
   const [paymentMode, setPaymentMode] = useState('cash');
-  const [redeemPoints, setRedeemPoints] = useState(0);
-  const [billDiscountAmount, setBillDiscountAmount] = useState(0);
-  const [billDiscountPercent, setBillDiscountPercent] = useState(0);
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [billDiscountAmount, setBillDiscountAmount] = useState('');
+  const [billDiscountPercent, setBillDiscountPercent] = useState('');
   const [isCreditSale, setIsCreditSale] = useState(false);
   const [notes, setNotes] = useState('');
+
+  // Helper to sanitize numeric inputs to prevent leading zeros while supporting decimals
+  const cleanNumberInput = (val) => {
+    if (val === '') return '';
+    let cleaned = val.replace(/^0+(?=\d)/, '');
+    if (cleaned === '') return '0';
+    return cleaned;
+  };
   
   const [createdInvoice, setCreatedInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -92,7 +100,7 @@ const Sales = () => {
         model: watch.model,
         selling_price: watch.selling_price,
         gst_rate: watch.gst_rate,
-        discount_amount: 0,
+        discount_amount: '',
         image_urls: watch.image_urls || []
       }]);
       setSearchSerial('');
@@ -109,14 +117,14 @@ const Sales = () => {
     const next = [...cart];
     const idx = next.findIndex(item => item.watch_id === watchId);
     if (idx !== -1) {
-      next[idx].discount_amount = Math.max(0, Number(value || 0));
+      next[idx].discount_amount = cleanNumberInput(value);
     }
     setCart(next);
   };
 
   // Totals calculations
   const subtotal = cart.reduce((acc, item) => acc + Number(item.selling_price), 0);
-  const totalItemDiscounts = cart.reduce((acc, item) => acc + item.discount_amount, 0);
+  const totalItemDiscounts = cart.reduce((acc, item) => acc + Number(item.discount_amount || 0), 0);
   const afterItemDisc = subtotal - totalItemDiscounts;
 
   // Bill-level discount
@@ -125,7 +133,7 @@ const Sales = () => {
   const computedBillDisc = billDiscPct > 0 ? (afterItemDisc * billDiscPct / 100) : billDiscFlat;
   
   // Redeem points value
-  const pointsToRedeem = Math.min(redeemPoints, loyaltyPoints || 0);
+  const pointsToRedeem = Math.min(Number(redeemPoints || 0), loyaltyPoints || 0);
   const pointsVal = pointsToRedeem; // 1 point = Rs 1
   
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
@@ -133,7 +141,7 @@ const Sales = () => {
 
   // GST calculations
   const totalGst = cart.reduce((acc, item) => {
-    const itemNet = item.selling_price - item.discount_amount;
+    const itemNet = item.selling_price - Number(item.discount_amount || 0);
     const itemGst = invoiceType === 'gst' ? (itemNet - (itemNet / (1 + (item.gst_rate / 100)))) : 0;
     return acc + itemGst;
   }, 0);
@@ -180,9 +188,9 @@ const Sales = () => {
       
       // Clear checkout inputs
       setCart([]);
-      setRedeemPoints(0);
-      setBillDiscountAmount(0);
-      setBillDiscountPercent(0);
+      setRedeemPoints('');
+      setBillDiscountAmount('');
+      setBillDiscountPercent('');
       setIsCreditSale(false);
       setNotes('');
       setCustName('');
@@ -272,6 +280,7 @@ const Sales = () => {
                               onChange={(e) => handleDiscountChange(item.watch_id, e.target.value)}
                               min="0"
                               max={item.selling_price}
+                              placeholder="0"
                             />
                           </td>
                           <td>₹{(item.selling_price - item.discount_amount).toLocaleString()}</td>
@@ -371,9 +380,9 @@ const Sales = () => {
                 <input 
                   type="number" 
                   className="form-control" 
-                  placeholder="Points to redeem..." 
+                  placeholder="0" 
                   value={redeemPoints}
-                  onChange={(e) => setRedeemPoints(Math.max(0, Number(e.target.value || 0)))}
+                  onChange={(e) => setRedeemPoints(cleanNumberInput(e.target.value))}
                   max={loyaltyPoints || 0}
                 />
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -387,13 +396,13 @@ const Sales = () => {
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="Rupees off" 
+                    placeholder="0" 
                     value={billDiscountAmount} 
                     onChange={(e) => {
-                      setBillDiscountAmount(Math.max(0, Number(e.target.value || 0)));
-                      setBillDiscountPercent(0);
+                      setBillDiscountAmount(cleanNumberInput(e.target.value));
+                      setBillDiscountPercent('');
                     }}
-                    disabled={billDiscountPercent > 0}
+                    disabled={Number(billDiscountPercent || 0) > 0}
                   />
                 </div>
                 <div className="form-group">
@@ -401,13 +410,13 @@ const Sales = () => {
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="Percent off" 
+                    placeholder="0" 
                     value={billDiscountPercent} 
                     onChange={(e) => {
-                      setBillDiscountPercent(Math.max(0, Number(e.target.value || 0)));
-                      setBillDiscountAmount(0);
+                      setBillDiscountPercent(cleanNumberInput(e.target.value));
+                      setBillDiscountAmount('');
                     }}
-                    disabled={billDiscountAmount > 0}
+                    disabled={Number(billDiscountAmount || 0) > 0}
                   />
                 </div>
               </div>

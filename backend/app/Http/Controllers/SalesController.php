@@ -110,7 +110,7 @@ class SalesController extends Controller
                 'customer_id' => $customer->id,
                 'user_id' => $user->id,
                 'invoice_type' => $request->invoice_type,
-                'invoice_date' => $now->toDateString(),
+                'invoice_date' => now()->toDateString(),
                 'subtotal' => $subtotal,
                 'discount_amount' => $totalDiscount,
                 'gst_amount' => ($request->invoice_type === 'gst') ? $totalGst : 0.00,

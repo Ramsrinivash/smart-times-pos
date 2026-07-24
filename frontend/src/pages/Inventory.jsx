@@ -27,6 +27,20 @@ const Inventory = () => {
   };
 
   useEffect(() => {
+    const checkSessionSearch = () => {
+      const sessionSearch = sessionStorage.getItem('inventory_search');
+      if (sessionSearch) {
+        setSearchVal(sessionSearch);
+        sessionStorage.removeItem('inventory_search');
+      }
+    };
+    checkSessionSearch();
+
+    window.addEventListener('refresh-inventory-search', checkSessionSearch);
+    return () => window.removeEventListener('refresh-inventory-search', checkSessionSearch);
+  }, []);
+
+  useEffect(() => {
     fetchInventory();
   }, [searchVal, filterStatus]);
 

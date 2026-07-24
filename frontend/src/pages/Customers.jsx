@@ -32,6 +32,20 @@ const Customers = () => {
   };
 
   useEffect(() => {
+    const checkSessionSearch = () => {
+      const sessionSearch = sessionStorage.getItem('customer_search');
+      if (sessionSearch) {
+        setSearchVal(sessionSearch);
+        sessionStorage.removeItem('customer_search');
+      }
+    };
+    checkSessionSearch();
+
+    window.addEventListener('refresh-customer-search', checkSessionSearch);
+    return () => window.removeEventListener('refresh-customer-search', checkSessionSearch);
+  }, []);
+
+  useEffect(() => {
     fetchCustomers();
   }, [searchVal]);
 

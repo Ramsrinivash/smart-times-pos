@@ -9,6 +9,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -17,9 +18,18 @@ const Login = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const reason = sessionStorage.getItem('watch_logout_reason');
+    if (reason === 'inactivity') {
+      setInfoMessage('You have been logged out due to inactivity.');
+      sessionStorage.removeItem('watch_logout_reason');
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
     setLoading(true);
     try {
       await login(email, password);
@@ -41,6 +51,13 @@ const Login = () => {
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '1px' }}>SMART TIMES</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Smart Times Showroom</p>
         </div>
+
+        {infoMessage && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--warning-bg)', color: 'var(--warning)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+            <AlertCircle size={16} />
+            <span>{infoMessage}</span>
+          </div>
+        )}
 
         {error && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--error-bg)', color: 'var(--error)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
