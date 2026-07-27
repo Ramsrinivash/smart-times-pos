@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\LoyaltyLedger;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -32,6 +33,7 @@ class CustomerController extends Controller
                 if ($request->filled('name') && $existing->name !== $request->name) {
                     $existing->name = $request->name;
                     $existing->save();
+                    ActivityLog::log($request->user()->id, 'UPDATE', 'Customers', "Updated customer profile name to {$existing->name}");
                 }
                 return response()->json([
                     'message' => 'Customer profile already exists, returned existing profile',
@@ -60,6 +62,8 @@ class CustomerController extends Controller
         ]);
 
         $customer = Customer::create($request->all());
+
+        ActivityLog::log($request->user()->id, 'CREATE', 'Customers', "Created profile for customer {$customer->name} (Phone: {$customer->phone})");
 
         return response()->json([
             'message' => 'Customer profile created successfully',

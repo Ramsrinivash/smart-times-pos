@@ -12,6 +12,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WarrantyCardController;
 use App\Http\Controllers\ReturnController;
+use App\Http\Controllers\ActivityLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -107,6 +108,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // User routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/users', [AuthController::class, 'getUsers'])->middleware('role:admin');
+    Route::post('/users', [AuthController::class, 'addUser'])->middleware('role:admin');
+    Route::put('/users/{id}', [AuthController::class, 'updateUser']);
 
     // Dashboard Overview Route (Accessible by all roles)
     Route::get('/dashboard', [ReportController::class, 'dashboardOverview']);
@@ -131,6 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/purchase/ledger', [PurchaseController::class, 'index']);
         Route::post('/purchase', [PurchaseController::class, 'store']);
         Route::put('/purchase/{id}/payment', [PurchaseController::class, 'updatePayment']);
+        Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('role:admin');
     });
 
     // Sales Routes

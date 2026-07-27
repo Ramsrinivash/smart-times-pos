@@ -7,6 +7,7 @@ use App\Models\SaleItem;
 use App\Models\Watch;
 use App\Models\Customer;
 use App\Models\LoyaltyLedger;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -203,6 +204,8 @@ class SalesController extends Controller
             }
 
             $customer->save();
+
+            ActivityLog::log($user->id, 'CREATE', 'Sales', "Created invoice {$sale->id} for customer {$customer->name} of amount ₹" . number_format($netAmount, 2));
 
             return response()->json([
                 'message' => 'Sale invoiced successfully',

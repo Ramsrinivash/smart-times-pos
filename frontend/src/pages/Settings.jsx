@@ -510,32 +510,44 @@ const Settings = () => {
               )}
 
               <div className="card">
-                <h3 style={{ marginBottom: '1.25rem' }}>Current Staff ({users.length})</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {users.map(u => (
-                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary-gold-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-gold)', fontWeight: 700, fontSize: '0.9rem' }}>
-                        {u.name.charAt(0).toUpperCase()}
+                {/* Exclude Admin role from Employee/Staff listing for attendance & payroll purposes */}
+                {(() => {
+                  const employees = users.filter(u => u.role !== 'admin');
+                  return (
+                    <>
+                      <h3 style={{ marginBottom: '1.25rem' }}>Current Employees / Staff ({employees.length})</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {employees.length > 0 ? (
+                          employees.map(u => (
+                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary-gold-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-gold)', fontWeight: 700, fontSize: '0.9rem' }}>
+                                {u.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</p>
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+                                <span className={`badge badge-${u.role === 'admin' ? 'danger' : u.role === 'manager' ? 'warning' : 'info'}`}>
+                                  {u.role}
+                                </span>
+                                <button 
+                                  onClick={() => { setEditingUser(u); setNewStaffPassword(''); }}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                                >
+                                  Reset Pass
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '1rem' }}>No employees registered.</div>
+                        )}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</p>
-                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
-                        <span className={`badge badge-${u.role === 'admin' ? 'danger' : u.role === 'manager' ? 'warning' : 'info'}`}>
-                          {u.role}
-                        </span>
-                        <button 
-                          onClick={() => { setEditingUser(u); setNewStaffPassword(''); }}
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-                        >
-                          Reset Pass
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
