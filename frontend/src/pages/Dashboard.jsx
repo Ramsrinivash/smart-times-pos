@@ -15,8 +15,10 @@ import {
   Cake,
   CheckCircle,
   Clock,
-  CreditCard
+  CreditCard,
+  Download
 } from 'lucide-react';
+import { pwaInstall } from '../utils/pwaInstall';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -24,6 +26,20 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+
+  const [installAvailable, setInstallAvailable] = useState(false);
+
+  useEffect(() => {
+    const unsubInstall = pwaInstall.onAvailabilityChange(setInstallAvailable);
+    return () => unsubInstall();
+  }, []);
+
+  const handleInstall = async () => {
+    const installed = await pwaInstall.install();
+    if (installed) {
+      setInstallAvailable(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -53,35 +69,24 @@ const Dashboard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
       <Header searchPlaceholder="Search dashboard..." />
       <div className="page-container">
-        
-        {/* Mock/Live Status Banner */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          padding: '0.875rem 1.25rem',
-          borderRadius: 'var(--radius-md)',
-          background: useMock ? 'var(--warning-bg)' : 'var(--success-bg)',
-          border: `1px solid ${useMock ? 'var(--warning)' : 'var(--success)'}`,
-          color: useMock ? 'var(--warning)' : 'var(--success)',
-          marginBottom: '1.5rem',
-          fontSize: '0.875rem',
-          fontWeight: 500
-        }}>
-          <span style={{ 
-            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
-            background: useMock ? 'var(--warning)' : 'var(--success)',
-            boxShadow: `0 0 10px ${useMock ? 'var(--warning)' : 'var(--success)'}`
-          }} />
-          <span>
-            {useMock 
-              ? "Running in Demonstration Mode (Mock): All data saved locally in your browser's storage." 
-              : "Running in Live Production Mode: Connected to Smart Times MySQL Database API."}
-          </span>
-        </div>
 
-        <h1 className="page-title">Welcome back, {user.name}</h1>
-        <p className="page-subtitle">Showroom performance overview for today.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 className="page-title">Welcome back, {user.name}</h1>
+            <p className="page-subtitle">Showroom performance overview for today.</p>
+          </div>
+          {installAvailable && !pwaInstall.isInstalled() && (
+            <button
+              onClick={handleInstall}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+              title="Install Smart Times as a desktop app"
+            >
+              <Download size={16} />
+              Install App
+            </button>
+          )}
+        </div>
 
         {/* KPIs Grid — Row 1 */}
         <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>

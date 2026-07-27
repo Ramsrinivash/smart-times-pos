@@ -87,7 +87,7 @@ const Sidebar = () => {
               border: 'none',
               cursor: 'pointer',
               color: 'var(--text-secondary)',
-              display: 'none',
+              display: 'flex',
               padding: '0.25rem'
             }}
           >

@@ -14,6 +14,7 @@ const Inventory = () => {
   const [selectedWatch, setSelectedWatch] = useState(null);
   const [adjustWatch, setAdjustWatch] = useState(null);
   const [newStatus, setNewStatus] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -95,6 +96,44 @@ const Inventory = () => {
     }
   };
 
+  const getGroupedInventory = () => {
+    const grouped = [];
+    const groups = {};
+
+    inventory.forEach(w => {
+      const key = `${w.brand.trim().toLowerCase()}_${w.model.trim().toLowerCase()}`;
+      if (!groups[key]) {
+        groups[key] = {
+          brand: w.brand,
+          model: w.model,
+          category: w.category,
+          gender: w.gender,
+          movement_type: w.movement_type,
+          mrp: w.mrp,
+          selling_price: w.selling_price,
+          cost_price: w.cost_price,
+          gst_rate: w.gst_rate,
+          discount_percent: w.discount_percent,
+          thumbnail: w.image_urls?.[0] || null,
+          pieces: [],
+        };
+        grouped.push(groups[key]);
+      }
+      groups[key].pieces.push(w);
+    });
+
+    return grouped;
+  };
+
+  const toggleGroup = (key) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const groupedInventory = getGroupedInventory();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
       <Header searchVal={searchVal} setSearchVal={setSearchVal} searchPlaceholder="Search inventory by Serial, brand, model..." />
@@ -129,94 +168,170 @@ const Inventory = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Thumbnail</th>
-                  <th>Watch ID / Serial</th>
+                  <th style={{ width: '80px' }}>Thumbnail</th>
                   <th>Brand & Model</th>
                   <th>Specs</th>
                   <th>MRP</th>
                   <th>Selling Price</th>
                   {(user.role === 'admin' || user.role === 'manager') && <th>Cost Price</th>}
                   <th>GST</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>Stock Summary</th>
+                  <th style={{ width: '80px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {inventory.length > 0 ? (
-                  inventory.map(w => (
-                    <tr key={w.id}>
-                      <td>
-                        {w.image_urls && w.image_urls.length > 0 ? (
-                          <img 
-                            src={w.image_urls[0]} 
-                            alt={w.model} 
-                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} 
-                          />
-                        ) : (
-                          <div style={{ width: '40px', height: '40px', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-                            <ImageIcon size={16} />
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{w.id}</td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{w.brand}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{w.model}</div>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {w.category} • {w.gender} • {w.movement_type}
-                        </span>
-                      </td>
-                      <td>₹{Number(w.mrp).toLocaleString()}</td>
-                      <td>₹{Number(w.selling_price).toLocaleString()}</td>
-                      {(user.role === 'admin' || user.role === 'manager') && (
-                        <td style={{ color: 'var(--primary-gold)' }}>
-                          ₹{Number(w.cost_price).toLocaleString()}
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.3rem' }}>
-                            ({w.discount_percent}% off)
-                          </span>
-                        </td>
-                      )}
-                      <td>{w.gst_rate}%</td>
-                      <td>
-                        <span className={`badge badge-${
-                          w.status === 'in_stock' ? 'success' :
-                          w.status === 'sold' ? 'info' :
-                          w.status === 'refurbishing' ? 'warning' :
-                          w.status === 'exchanged_returned' ? 'warning' : 'danger'
-                        }`}>
-                          {w.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            onClick={() => setSelectedWatch(w)}
-                            className="btn btn-secondary btn-sm"
-                            title="View Photos & Details"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Eye size={14} />
-                          </button>
+                {groupedInventory.length > 0 ? (
+                  groupedInventory.map(group => {
+                    const key = `${group.brand.toLowerCase()}_${group.model.toLowerCase()}`;
+                    const isExpanded = !!expandedGroups[key];
+                    const totalQty = group.pieces.length;
+                    const inStockQty = group.pieces.filter(p => p.status === 'in_stock').length;
+                    const soldQty = group.pieces.filter(p => p.status === 'sold').length;
+                    const otherQty = totalQty - inStockQty - soldQty;
+
+                    return (
+                      <React.Fragment key={key}>
+                        {/* Main Group Summary Row */}
+                        <tr 
+                          onClick={() => toggleGroup(key)} 
+                          style={{ cursor: 'pointer' }}
+                          className="inventory-group-row"
+                        >
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {isExpanded ? '▼' : '▶'}
+                              </span>
+                              {group.thumbnail ? (
+                                <img 
+                                  src={group.thumbnail} 
+                                  alt={group.model} 
+                                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} 
+                                />
+                              ) : (
+                                <div style={{ width: '40px', height: '40px', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                                  <ImageIcon size={16} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{group.brand}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{group.model}</div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {group.category} • {group.gender} • {group.movement_type}
+                            </span>
+                          </td>
+                          <td>₹{Number(group.mrp).toLocaleString()}</td>
+                          <td>₹{Number(group.selling_price).toLocaleString()}</td>
                           {(user.role === 'admin' || user.role === 'manager') && (
+                            <td style={{ color: 'var(--primary-gold)' }}>
+                              ₹{Number(group.cost_price).toLocaleString()}
+                              {group.discount_percent > 0 && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.3rem' }}>
+                                  ({group.discount_percent}% off)
+                                </span>
+                              )}
+                            </td>
+                          )}
+                          <td>{group.gst_rate}%</td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center' }}>
+                              <span className="badge badge-info" style={{ fontWeight: 600 }}>{totalQty} Total</span>
+                              {inStockQty > 0 && <span className="badge badge-success">{inStockQty} In Stock</span>}
+                              {soldQty > 0 && <span className="badge badge-secondary">{soldQty} Sold</span>}
+                              {otherQty > 0 && <span className="badge badge-warning">{otherQty} Other</span>}
+                            </div>
+                          </td>
+                          <td onClick={e => e.stopPropagation()}>
                             <button 
-                              onClick={() => { setAdjustWatch(w); setNewStatus(w.status); }} 
+                              onClick={() => setSelectedWatch(group.pieces[0])}
                               className="btn btn-secondary btn-sm"
-                              title="Adjust Stock Status"
+                              title="View Group Photos"
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
-                              <Settings size={14} />
+                              <Eye size={14} />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                          </td>
+                        </tr>
+
+                        {/* Expanded Nested Sub-table */}
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={user.role === 'sales' ? 8 : 9} style={{ padding: '0.75rem 1rem 1rem 2.5rem', background: 'rgba(212, 175, 55, 0.02)' }}>
+                              <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-color)', padding: '0.75rem' }}>
+                                <h4 style={{ fontSize: '0.85rem', margin: '0 0 0.5rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
+                                  Individual Pieces for {group.brand} {group.model}
+                                </h4>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                                  <thead>
+                                    <tr style={{ background: 'var(--surface-card)', borderBottom: '1px solid var(--border-color)' }}>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Serial / Watch ID</th>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Status</th>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>MRP</th>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Selling Price</th>
+                                      {(user.role === 'admin' || user.role === 'manager') && <th style={{ padding: '0.5rem', textAlign: 'left' }}>Cost Price</th>}
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {group.pieces.map(piece => (
+                                      <tr key={piece.id} style={{ borderBottom: '1px dashed var(--border-color)' }}>
+                                        <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: 600 }}>{piece.id}</td>
+                                        <td style={{ padding: '0.5rem' }}>
+                                          <span className={`badge badge-${
+                                            piece.status === 'in_stock' ? 'success' :
+                                            piece.status === 'sold' ? 'info' :
+                                            piece.status === 'refurbishing' ? 'warning' :
+                                            piece.status === 'exchanged_returned' ? 'warning' : 'danger'
+                                          }`} style={{ fontSize: '0.75rem' }}>
+                                            {piece.status.replace('_', ' ')}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '0.5rem' }}>₹{Number(piece.mrp).toLocaleString()}</td>
+                                        <td style={{ padding: '0.5rem' }}>₹{Number(piece.selling_price).toLocaleString()}</td>
+                                        {(user.role === 'admin' || user.role === 'manager') && (
+                                          <td style={{ padding: '0.5rem', color: 'var(--primary-gold)' }}>₹{Number(piece.cost_price).toLocaleString()}</td>
+                                        )}
+                                        <td style={{ padding: '0.5rem' }}>
+                                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                            <button 
+                                              onClick={() => setSelectedWatch(piece)}
+                                              className="btn btn-secondary btn-sm"
+                                              title="Photos & Details"
+                                              style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
+                                            >
+                                              <Eye size={12} />
+                                            </button>
+                                            {(user.role === 'admin' || user.role === 'manager') && (
+                                              <button 
+                                                onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
+                                                className="btn btn-secondary btn-sm"
+                                                title="Adjust Status"
+                                                style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
+                                              >
+                                                <Settings size={12} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={user.role === 'sales' ? 9 : 10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                      No watch units match your filters or search terms.
+                    <td colSpan={user.role === 'sales' ? 8 : 9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                      No watch models match your filters or search terms.
                     </td>
                   </tr>
                 )}

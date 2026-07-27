@@ -348,7 +348,7 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
           <button 
             onClick={triggerSidebar}
             className="btn btn-secondary mobile-menu-btn" 
-            style={{ display: 'none', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', alignItems: 'center', justifyContent: 'center' }}
+            style={{ display: 'flex', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', alignItems: 'center', justifyContent: 'center' }}
             title="Toggle Sidebar Menu"
           >
             <Menu size={20} />
@@ -505,20 +505,6 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
         </div>
 
         <div className="header-actions">
-          {/* Install App Button — appears when Chrome install is available */}
-          {installAvailable && !pwaInstall.isInstalled() && (
-            <button
-              id="pwa-install-btn"
-              onClick={handleInstall}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-              title="Install Smart Times as a desktop app"
-            >
-              <Download size={14} />
-              Install App
-            </button>
-          )}
-
           {/* Online/Offline indicator */}
           <div 
             style={{ 

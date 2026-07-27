@@ -93,7 +93,7 @@ body {
   flex-direction: column;
   min-width: 0;
   min-height: 100vh;
-  margin-left: var(--sidebar-width);
+  margin-left: 0;
   transition: margin-left var(--transition-normal);
 }
 
@@ -238,8 +238,14 @@ body {
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 100;
+  z-index: 200;
+  transform: translateX(-100%);
   transition: transform var(--transition-normal);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+}
+
+.sidebar.open {
+  transform: translateX(0);
 }
 
 .sidebar-brand {
