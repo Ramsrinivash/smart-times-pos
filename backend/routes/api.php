@@ -11,6 +11,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WarrantyCardController;
+use App\Http\Controllers\ReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -136,6 +137,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales', [SalesController::class, 'index']);
     Route::post('/sales', [SalesController::class, 'store']);
     Route::get('/sales/{id}', [SalesController::class, 'show']);
+
+    // Sales Returns Routes
+    Route::get('/returns', [ReturnController::class, 'index']);
+    Route::post('/returns', [ReturnController::class, 'store']);
 
     // Exchange Routes
     Route::get('/exchanges', [ExchangeController::class, 'index']);

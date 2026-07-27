@@ -17,6 +17,10 @@ const Exchanges = () => {
   
   const [diffCalculation, setDiffCalculation] = useState(null);
 
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = React.useRef(null);
+
   const fetchExchanges = async () => {
     try {
       const list = await api.getExchanges();
@@ -28,6 +32,38 @@ const Exchanges = () => {
 
   useEffect(() => {
     fetchExchanges();
+  }, []);
+
+  // Debounced search for replacement watch suggestions
+  useEffect(() => {
+    if (!replacementWatchId || replacementWatchId.trim().length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const inventory = await api.getInventory(replacementWatchId.trim(), 'in_stock');
+        setSearchSuggestions(inventory.slice(0, 8));
+        setShowSuggestions(inventory.length > 0);
+      } catch (err) {
+        console.error('Failed to fetch replacement suggestions:', err);
+      }
+    }, 200);
+
+    return () => clearTimeout(delayDebounce);
+  }, [replacementWatchId]);
+
+  // Click outside to close search suggestions
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSearchInvoice = async () => {
@@ -161,16 +197,75 @@ const Exchanges = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ position: 'relative' }} ref={suggestionsRef}>
                   <label className="form-label">Replacement Watch ID / Serial *</label>
                   <input 
                     type="text" 
                     className="form-control" 
-                    placeholder="Enter new Watch ID in stock" 
+                    placeholder="Type brand, model, or serial..." 
                     value={replacementWatchId}
-                    onChange={e => setReplacementWatchId(e.target.value)}
+                    onChange={e => {
+                      setReplacementWatchId(e.target.value);
+                      setShowSuggestions(true);
+                    }}
                     required
+                    style={{ fontFamily: 'monospace' }}
                   />
+                  {showSuggestions && searchSuggestions.length > 0 && (
+                    <div 
+                      className="suggestions-dropdown"
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'var(--surface-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                        zIndex: 9999,
+                        marginTop: '0.25rem',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        padding: '0.25rem 0',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <style>{`
+                        .exchange-suggestion-item {
+                          display: flex;
+                          justify-content: space-between;
+                          align-items: center;
+                          padding: 0.6rem 1rem;
+                          cursor: pointer;
+                          transition: background-color var(--transition-fast);
+                          border-bottom: 1px solid var(--border-color);
+                        }
+                        .exchange-suggestion-item:hover {
+                          background-color: var(--surface-card) !important;
+                        }
+                        .exchange-suggestion-item:last-child {
+                          border-bottom: none;
+                        }
+                      `}</style>
+                      {searchSuggestions.map(w => (
+                        <div 
+                          key={w.id} 
+                          onClick={() => {
+                            setReplacementWatchId(w.id);
+                            setShowSuggestions(false);
+                          }}
+                          className="exchange-suggestion-item"
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{w.brand} {w.model}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>ID/Serial: {w.id} | MRP: ₹{Number(w.mrp).toLocaleString()}</div>
+                          </div>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--primary-gold)' }}>₹{Number(w.selling_price).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {diffCalculation && (
