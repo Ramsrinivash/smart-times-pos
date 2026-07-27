@@ -99,7 +99,11 @@ const Sales = () => {
   // Check if Phone Number exists in CRM, and auto-load customer profile
   useEffect(() => {
     if (custPhone.length >= 10) {
-      const matched = customers.find(c => c.phone.trim() === custPhone.trim());
+      const matched = customers.find(c => {
+        const cPhone = c.phone.trim().replace(/\D/g, '');
+        const searchPhone = custPhone.trim().replace(/\D/g, '');
+        return cPhone.endsWith(searchPhone) || searchPhone.endsWith(cPhone);
+      });
       if (matched) {
         setCustName(matched.name);
         setLoyaltyPoints(matched.points_balance || 0);
@@ -199,11 +203,22 @@ const Sales = () => {
       return;
     }
 
+    // Validate Phone Number format before checkout/registration
+    let cleanPhone = custPhone.trim().replace(/\s+/g, '');
+    if (cleanPhone.startsWith('+91')) {
+      cleanPhone = cleanPhone.substring(3);
+    }
+    if (!/^\d{10}$/.test(cleanPhone)) {
+      alertService.warning('Invalid Phone', 'Customer Phone number must be a valid 10-digit mobile number.');
+      return;
+    }
+    const finalPhone = '+91' + cleanPhone;
+
     try {
       let finalCustomerId = selectedCustomerId;
       if (!finalCustomerId) {
         // Automatically create a new customer on the fly
-        const newCust = await api.addCustomer({ name: custName, phone: custPhone });
+        const newCust = await api.addCustomer({ name: custName, phone: finalPhone });
         finalCustomerId = newCust.customer ? newCust.customer.id : newCust.id;
       }
 

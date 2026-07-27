@@ -92,7 +92,7 @@ const Dashboard = () => {
         <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
 
           {/* Today's Sales */}
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/sales')}>
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Today's Sales</span>

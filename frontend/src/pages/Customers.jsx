@@ -14,11 +14,39 @@ const Customers = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [address2, setAddress2] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [taluk, setTaluk] = useState('');
+  const [district, setDistrict] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [pincodeLoading, setPincodeLoading] = useState(false);
   const [dob, setDob] = useState('');
   const [anniversary, setAnniversary] = useState('');
   const [tags, setTags] = useState('Regular');
   const [notes, setNotes] = useState('');
+
+  const handlePincodeChange = async (val) => {
+    setPincode(val);
+    const cleaned = val.trim();
+    if (cleaned.length === 6 && /^\d{6}$/.test(cleaned)) {
+      setPincodeLoading(true);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleaned}`);
+        const data = await res.json();
+        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice) {
+          const po = data[0].PostOffice[0];
+          setTaluk(po.Block || po.Division || '');
+          setDistrict(po.District || '');
+          setStateName(po.State || '');
+        }
+      } catch (err) {
+        console.error('Pincode fetch error:', err);
+      } finally {
+        setPincodeLoading(false);
+      }
+    }
+  };
 
   const [reprintInvoice, setReprintInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -64,13 +92,56 @@ const Customers = () => {
 
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
+    
+    // Validate Phone
+    let cleanPhone = phone.trim().replace(/\s+/g, '');
+    if (cleanPhone.startsWith('+91')) {
+      cleanPhone = cleanPhone.substring(3);
+    }
+    if (!/^\d{10}$/.test(cleanPhone)) {
+      alertService.warning('Invalid Phone', 'Phone number must be a valid 10-digit number.');
+      return;
+    }
+    const finalPhone = '+91' + cleanPhone;
+
+    // Validate Email
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alertService.warning('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    // Combine Address parts
+    const parts = [
+      address1.trim(),
+      address2.trim(),
+      taluk.trim(),
+      district.trim(),
+      stateName.trim(),
+      pincode.trim() ? `PIN: ${pincode.trim()}` : ''
+    ].filter(Boolean);
+    const combinedAddress = parts.join(', ');
+
     try {
-      await api.addCustomer({ name, phone, email, address, dob, anniversary, tags, notes });
+      await api.addCustomer({ 
+        name, 
+        phone: finalPhone, 
+        email, 
+        address: combinedAddress, 
+        dob, 
+        anniversary, 
+        tags, 
+        notes 
+      });
       alertService.success('Success', 'Customer profile created successfully!');
       setName('');
       setPhone('');
       setEmail('');
-      setAddress('');
+      setAddress1('');
+      setAddress2('');
+      setPincode('');
+      setTaluk('');
+      setDistrict('');
+      setStateName('');
       setDob('');
       setAnniversary('');
       setTags('Regular');
@@ -235,16 +306,65 @@ const Customers = () => {
                   <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Phone Number *</label>
-                  <input type="text" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} required />
+                  <label className="form-label">Phone Number (10 digit Mobile) *</label>
+                  <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                    <span style={{ padding: '0.625rem 0.75rem', background: 'var(--surface-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md) 0 0 var(--radius-md)', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>+91</span>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}
+                      placeholder="e.g. 9876543210" 
+                      value={phone} 
+                      onChange={e => setPhone(e.target.value)} 
+                      required 
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} />
+                  <label className="form-label">Email Address</label>
+                  <input type="text" placeholder="e.g. customer@domain.com" className="form-control" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Address</label>
-                  <input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} />
+                
+                {/* Structured Address */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Address Line 1 *</label>
+                    <input type="text" className="form-control" placeholder="Door No / Street Name" value={address1} onChange={e => setAddress1(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Address Line 2</label>
+                    <input type="text" className="form-control" placeholder="Area / Landmark" value={address2} onChange={e => setAddress2(e.target.value)} />
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Pincode *</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="6-digit Pincode" 
+                      value={pincode} 
+                      onChange={e => handlePincodeChange(e.target.value)} 
+                      required 
+                    />
+                    {pincodeLoading && <span style={{ fontSize: '0.75rem', color: 'var(--primary-gold)' }}>Auto-fetching state/district...</span>}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Taluk / Block</label>
+                    <input type="text" className="form-control" placeholder="Taluk" value={taluk} onChange={e => setTaluk(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">District *</label>
+                    <input type="text" className="form-control" placeholder="District" value={district} onChange={e => setDistrict(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">State *</label>
+                    <input type="text" className="form-control" placeholder="State" value={stateName} onChange={e => setStateName(e.target.value)} required />
+                  </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -293,7 +413,7 @@ const Customers = () => {
                       {settings?.store_name || 'SMART TIMES'}
                     </h2>
                     <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: '#333', fontWeight: 600 }}>
-                      {settings?.tagline || 'TITAN - SONATA - FASTRACK - TIMEX - LENCO - SMART WATCHES'}
+                      {settings?.tagline || 'Watch Showroom & Service'}
                     </p>
                     <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
                       {settings?.address || '108, Pennagaram Main Road, Dharmapuri - 636701'}

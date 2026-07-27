@@ -10,7 +10,7 @@ const Settings = () => {
 
   // Showroom profile
   const [storeName, setStoreName] = useState('Smart Times');
-  const [tagline, setTagline] = useState('TITAN - SONATA - FASTRACK - TIMEX - LENCO - SMART WATCHES');
+  const [tagline, setTagline] = useState('Watch Showroom & Service');
   const [gstin, setGstin] = useState('33EJBPA4537C1ZW');
   const [address, setAddress] = useState('108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701.');
   const [phone, setPhone] = useState('97512 85945, 86672 88021');

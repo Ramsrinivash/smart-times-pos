@@ -10,6 +10,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\WarrantyCardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -151,6 +152,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings Routes
     Route::get('/settings', [SettingsController::class, 'show']);
     Route::put('/settings', [SettingsController::class, 'update']);
+
+    // Warranty Card routes
+    Route::get('/warranty', [WarrantyCardController::class, 'index']);
 
     // Reports Route (Role Restricted)
     Route::middleware('role:admin,manager')->group(function () {

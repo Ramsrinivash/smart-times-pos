@@ -141,6 +141,10 @@ class SalesController extends Controller
                 $customer->outstanding_dues = ($customer->outstanding_dues ?? 0.00) + $netAmount;
             }
 
+            // Fetch settings to get default warranty period
+            $settingsRecord = \App\Models\Setting::first();
+            $warrantyMonths = $settingsRecord ? (int) $settingsRecord->warranty_period_months : 12;
+
             foreach ($itemsData as $item) {
                 $watch = $item['watch'];
                 
@@ -152,6 +156,19 @@ class SalesController extends Controller
                     'cost_price' => $item['cost_price'],
                     'gst_rate' => $item['gst_rate'],
                     'gst_amount' => $item['gst_amount'],
+                ]);
+
+                // Create associated Warranty Card automatically
+                $expiryDate = Carbon::parse($sale->invoice_date)->addMonths($warrantyMonths)->toDateString();
+                \App\Models\WarrantyCard::create([
+                    'watch_id' => $watch->id,
+                    'sale_id' => $sale->id,
+                    'customer_id' => $customer->id,
+                    'sale_date' => $sale->invoice_date,
+                    'warranty_months' => $warrantyMonths,
+                    'expiry_date' => $expiryDate,
+                    'is_active' => true,
+                    'notes' => 'Generated automatically upon purchase'
                 ]);
 
                 $watch->status = 'sold';
