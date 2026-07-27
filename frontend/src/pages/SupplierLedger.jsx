@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { CreditCard, CheckCircle, Clock, AlertTriangle, Search } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const SupplierLedger = () => {
   const [purchases, setPurchases] = useState([]);
@@ -30,9 +31,10 @@ const SupplierLedger = () => {
     setMarking(id);
     try {
       await api.updatePurchasePayment(id, 'paid');
+      alertService.success('Success', 'Supplier payment marked as paid.');
       await loadData();
     } catch (err) {
-      alert('Failed to update payment: ' + err.message);
+      alertService.error('Error', 'Failed to update payment: ' + err.message);
     } finally {
       setMarking(null);
     }

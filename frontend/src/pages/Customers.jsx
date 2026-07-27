@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { Phone, MapPin, Award, Plus, Calendar, Printer, X, FileText } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -65,7 +66,7 @@ const Customers = () => {
     e.preventDefault();
     try {
       await api.addCustomer({ name, phone, email, address, dob, anniversary, tags, notes });
-      alert('Customer profile created successfully!');
+      alertService.success('Success', 'Customer profile created successfully!');
       setName('');
       setPhone('');
       setEmail('');
@@ -77,7 +78,7 @@ const Customers = () => {
       setShowAddModal(false);
       fetchCustomers();
     } catch (err) {
-      alert(err.message || 'Failed to add customer.');
+      alertService.error('Error', err.message || 'Failed to add customer.');
     }
   };
 
@@ -190,7 +191,7 @@ const Customers = () => {
                                     const fullSale = await api.getSale(sale.id);
                                     setReprintInvoice(fullSale);
                                   } catch (err) {
-                                    alert('Failed to load invoice: ' + err.message);
+                                    alertService.error('Error', 'Failed to load invoice: ' + err.message);
                                   }
                                 }}
                                 className="btn btn-secondary btn-sm"

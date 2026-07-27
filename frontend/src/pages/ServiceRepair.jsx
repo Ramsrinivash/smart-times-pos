@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle, UserCheck } from 'lucide-react';
+import { alertService } from '../utils/alert';
+import Swal from 'sweetalert2';
 
 const ServiceRepair = () => {
   const [customers, setCustomers] = useState([]);
@@ -18,9 +20,6 @@ const ServiceRepair = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [hideDelivered, setHideDelivered] = useState(true);
-
-  // SweetAlert custom modal state
-  const [sweetAlert, setSweetAlert] = useState(null);
 
   // Dynamic list of watches to service
   const [watchesToService, setWatchesToService] = useState([
@@ -129,7 +128,7 @@ const ServiceRepair = () => {
   const handleSubmitIntake = async (e) => {
     e.preventDefault();
     if (!custName || !custPhone) {
-      alert('Please fill out customer name and phone.');
+      alertService.warning('Required Fields', 'Please fill out customer name and phone.');
       return;
     }
 
@@ -137,7 +136,7 @@ const ServiceRepair = () => {
     for (let i = 0; i < watchesToService.length; i++) {
       const w = watchesToService[i];
       if ((!w.isExternal && !w.selectedWatchId) || (w.isExternal && !w.externalBrand) || !w.issue) {
-        alert(`Please fill out all mandatory fields (Brand/Watch ID and Issue) for Watch #${i + 1}.`);
+        alertService.warning('Required Fields', `Please fill out all mandatory fields (Brand/Watch ID and Issue) for Watch #${i + 1}.`);
         return;
       }
     }
@@ -167,12 +166,7 @@ const ServiceRepair = () => {
         createdJobs.push(result);
       }
 
-      // SweetAlert custom pop-up success modal
-      setSweetAlert({
-        title: 'Job Registered!',
-        text: `Successfully registered ${createdJobs.length} watch repair service job card(s).`,
-        type: 'success'
-      });
+      alertService.success('Job Registered!', `Successfully registered ${createdJobs.length} watch repair service job card(s).`);
 
       // Auto open printable job card modal for the first created job
       const freshJobs = await api.getServiceJobs();
@@ -199,45 +193,78 @@ const ServiceRepair = () => {
       ]);
       loadData();
     } catch (err) {
-      setSweetAlert({
-        title: 'Error',
-        text: err.message || 'Failed to create job card.',
-        type: 'error'
-      });
+      alertService.error('Error', err.message || 'Failed to create job card.');
     }
   };
 
   const handleUpdateStatus = async (jobId, nextStatus) => {
     try {
       if (nextStatus === 'delivered') {
-        const inputCost = prompt('Enter final service charges to collect from customer (₹):');
-        if (inputCost === null) return;
+        const { value: inputCost } = await Swal.fire({
+          title: 'Delivering Service',
+          text: 'Enter final service charges to collect from customer (₹):',
+          input: 'number',
+          inputLabel: 'Amount in ₹',
+          inputValue: '0',
+          showCancelButton: true,
+          confirmButtonText: 'Proceed',
+          cancelButtonText: 'Cancel',
+          background: 'var(--surface-color)',
+          color: 'var(--text-primary)',
+          confirmButtonColor: 'var(--primary-gold)',
+          cancelButtonColor: 'var(--border-color)',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'swal2-custom-popup',
+            title: 'swal2-custom-title',
+            htmlContainer: 'swal2-custom-html',
+            confirmButton: 'btn btn-primary swal-btn-margin',
+            cancelButton: 'btn btn-secondary swal-btn-margin',
+            input: 'form-control'
+          }
+        });
+        if (inputCost === undefined || inputCost === null) return;
         const actualCost = Number(inputCost || 0);
 
-        const payMode = window.confirm('Payment received via UPI/Card? Click OK for UPI, Cancel for Cash.') ? 'upi' : 'cash';
-        const result = await api.addServiceBill(jobId, actualCost, payMode);
-        setSweetAlert({
-          title: 'Service Delivered!',
-          text: `Service billed and delivered successfully. Bill Invoice No: ${result.id || result}. Total collected: ₹${actualCost.toLocaleString()}.`,
-          type: 'success'
+        const payModeChoice = await Swal.fire({
+          title: 'Payment Mode',
+          text: 'How was the payment received?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'UPI / Card',
+          cancelButtonText: 'Cash',
+          background: 'var(--surface-color)',
+          color: 'var(--text-primary)',
+          confirmButtonColor: 'var(--primary-gold)',
+          cancelButtonColor: 'var(--border-color)',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'swal2-custom-popup',
+            title: 'swal2-custom-title',
+            htmlContainer: 'swal2-custom-html',
+            confirmButton: 'btn btn-primary swal-btn-margin',
+            cancelButton: 'btn btn-secondary swal-btn-margin'
+          }
         });
+        const payMode = payModeChoice.isConfirmed ? 'upi' : 'cash';
+
+        const result = await api.addServiceBill(jobId, actualCost, payMode);
+        alertService.success(
+          'Service Delivered!',
+          `Service billed and delivered successfully. Bill Invoice No: ${result.id || result}. Total collected: ₹${actualCost.toLocaleString()}.`
+        );
         loadData();
         return;
       }
 
       await api.updateServiceJobStatus(jobId, nextStatus, null);
-      setSweetAlert({
-        title: 'Status Updated',
-        text: `Job Card status successfully updated to: ${nextStatus.toUpperCase().replace('_', ' ')}.`,
-        type: 'success'
-      });
+      alertService.success(
+        'Status Updated',
+        `Job Card status successfully updated to: ${nextStatus.toUpperCase().replace('_', ' ')}.`
+      );
       loadData();
     } catch (err) {
-      setSweetAlert({
-        title: 'Update Failed',
-        text: err.message || 'Failed to update job status.',
-        type: 'error'
-      });
+      alertService.error('Update Failed', err.message || 'Failed to update job status.');
     }
   };
 
@@ -664,22 +691,7 @@ const ServiceRepair = () => {
           </div>
         )}
 
-        {/* SweetAlert Custom Modal Overlay */}
-        {sweetAlert && (
-          <div className="modal-overlay" style={{ zIndex: 99999 }}>
-            <div className="card" style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem' }}>
-              <h3 style={{ color: sweetAlert.type === 'error' ? 'var(--error)' : 'var(--success)', marginBottom: '0.5rem' }}>
-                {sweetAlert.title}
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                {sweetAlert.text}
-              </p>
-              <button onClick={() => setSweetAlert(null)} className="btn btn-primary">
-                OK
-              </button>
-            </div>
-          </div>
-        )}
+        {/* SweetAlert Custom Modal Overlay replaced with sweetalert2 */}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { Plus, Trash2, Save, CheckCircle, Edit, RefreshCw } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const Purchase = () => {
   const [supplierName, setSupplierName] = useState('');
@@ -87,7 +88,7 @@ const Purchase = () => {
   const handleSaveSupplier = (e) => {
     e.preventDefault();
     if (!supplierName) {
-      alert('Please enter supplier name.');
+      alertService.warning('Required Field', 'Please enter supplier name.');
       return;
     }
     setIsSupplierSaved(true);
@@ -209,13 +210,13 @@ const Purchase = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!supplierName) {
-      alert('Please enter supplier name.');
+      alertService.warning('Required Field', 'Please enter supplier name.');
       return;
     }
 
     const invalid = items.some(item => !item.id || !item.brand || !item.model || !item.mrp || !item.cost_price || !item.selling_price);
     if (invalid) {
-      alert('Please fill out all mandatory fields for all watch pieces.');
+      alertService.warning('Incomplete fields', 'Please fill out all mandatory fields for all watch pieces.');
       return;
     }
 
@@ -228,7 +229,7 @@ const Purchase = () => {
         payment_status: paymentStatus,
         items
       });
-      alert('Purchase batch and pieces successfully added to inventory!');
+      alertService.success('Success', 'Purchase batch and pieces successfully added to inventory!');
       setSupplierName('');
       setInvoiceNumber('');
       setRemarks('');
@@ -253,7 +254,7 @@ const Purchase = () => {
         hsn_code: '9102'
       }]);
     } catch (err) {
-      alert(err.message || 'Failed to record purchase batch.');
+      alertService.error('Error', err.message || 'Failed to record purchase batch.');
     }
   };
 

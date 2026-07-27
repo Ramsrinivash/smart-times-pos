@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
 import { Search, ShoppingCart, Trash2, Printer, Share2, Plus, UserCheck, Image as ImageIcon } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const Sales = () => {
   const { user } = useAuth();
@@ -116,7 +117,7 @@ const Sales = () => {
   // Add item to cart
   const handleSelectSuggestion = (watch) => {
     if (cart.some(item => item.watch_id === watch.id)) {
-      alert('Watch already added to cart.');
+      alertService.warning('Watch already in cart', 'This watch has already been added to your cart.');
       return;
     }
     setCart([...cart, {
@@ -143,7 +144,7 @@ const Sales = () => {
       } else if (inventory.length > 0) {
         handleSelectSuggestion(inventory[0]);
       } else {
-        alert('Watch Serial Number not found in stock.');
+        alertService.error('Not Found', 'Watch Serial Number not found in stock.');
       }
     } catch (err) {
       console.error(err);
@@ -190,11 +191,11 @@ const Sales = () => {
   // Handle Checkout (with optional print + WhatsApp share redirect)
   const handleCheckout = async (shouldPrintAndShare = false) => {
     if (cart.length === 0) {
-      alert('Your cart is empty.');
+      alertService.warning('Cart Empty', 'Your cart is empty.');
       return;
     }
     if (!custName || !custPhone) {
-      alert('Customer Name and Phone Number are required to generate a bill.');
+      alertService.warning('Required Fields', 'Customer Name and Phone Number are required to generate a bill.');
       return;
     }
 
@@ -248,8 +249,9 @@ const Sales = () => {
           window.open(waUrl, '_blank');
         }, 500);
       }
+      alertService.success('Success', 'Checkout completed successfully!');
     } catch (err) {
-      alert(err.message || 'Checkout failed.');
+      alertService.error('Checkout Failed', err.message || 'Checkout failed.');
     }
   };
 

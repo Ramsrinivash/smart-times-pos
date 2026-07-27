@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
 import { Search } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const Exchanges = () => {
   const { user } = useAuth();
@@ -38,7 +39,7 @@ const Exchanges = () => {
         setSelectedWatchId(sale.items[0].watch_id);
       }
     } catch (err) {
-      alert(err.message || 'Invoice not found.');
+      alertService.error('Error', err.message || 'Invoice not found.');
       setOriginalSale(null);
     }
   };
@@ -88,7 +89,7 @@ const Exchanges = () => {
         replacement_watch_id: replacementWatchId,
         remarks
       });
-      alert('Exchange processed successfully!');
+      alertService.success('Success', 'Exchange processed successfully!');
       setOriginalSaleId('');
       setOriginalSale(null);
       setReplacementWatchId('');
@@ -96,17 +97,17 @@ const Exchanges = () => {
       setDiffCalculation(null);
       fetchExchanges();
     } catch (err) {
-      alert(err.message || 'Exchange submission failed.');
+      alertService.error('Error', err.message || 'Exchange submission failed.');
     }
   };
 
   const handleApproveReturn = async (exchangeId, actionStatus) => {
     try {
       await api.approveExchangeReview(exchangeId, actionStatus);
-      alert('Return item audited successfully.');
+      alertService.success('Success', 'Return item audited successfully.');
       fetchExchanges();
     } catch (err) {
-      alert(err.message || 'Failed to submit review.');
+      alertService.error('Error', err.message || 'Failed to submit review.');
     }
   };
 

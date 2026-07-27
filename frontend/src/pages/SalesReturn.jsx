@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { useAuth } from '../context/AuthContext';
 import { Search, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const SalesReturn = () => {
   const { user } = useAuth();
@@ -56,11 +57,11 @@ const SalesReturn = () => {
 
   const handleSubmitReturn = async () => {
     if (!foundSale || !selectedItemId) {
-      alert('Please select the item to return.');
+      alertService.warning('Item Required', 'Please select the item to return.');
       return;
     }
     if (!reason.trim()) {
-      alert('Please enter a reason for the return.');
+      alertService.warning('Reason Required', 'Please enter a reason for the return.');
       return;
     }
 
@@ -73,6 +74,7 @@ const SalesReturn = () => {
         refund_mode: refundMode,
         reason
       });
+      alertService.success('Success', `Return processed successfully. Refund of ₹${refundAmount.toLocaleString()} via ${refundMode}.`);
       setSuccess(`✅ Return processed successfully. Refund of ₹${refundAmount.toLocaleString()} via ${refundMode}.`);
       setFoundSale(null);
       setInvoiceSearch('');
@@ -80,7 +82,7 @@ const SalesReturn = () => {
       setReason('');
       await loadReturns();
     } catch (err) {
-      alert(err.message || 'Return failed.');
+      alertService.error('Error', err.message || 'Return failed.');
     }
   };
 

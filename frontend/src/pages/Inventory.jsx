@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
 import { Settings, Eye, Image as ImageIcon, Trash2, X, Plus } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const Inventory = () => {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ const Inventory = () => {
       setAdjustWatch(null);
       fetchInventory();
     } catch (err) {
-      alert(err.message || 'Failed to adjust stock status.');
+      alertService.error('Error', err.message || 'Failed to adjust stock status.');
     }
   };
 
@@ -73,20 +74,24 @@ const Inventory = () => {
       const updatedWatch = await api.uploadWatchImages(selectedWatch.id, base64Strings);
       setSelectedWatch(updatedWatch);
       fetchInventory();
-      alert('✅ Watch images uploaded successfully!');
+      alertService.success('Success', 'Watch images uploaded successfully!');
     } catch (err) {
-      alert('Failed to upload images: ' + err.message);
+      alertService.error('Error', 'Failed to upload images: ' + err.message);
     }
   };
 
   const handleRemoveImage = async (index) => {
-    if (!window.confirm('Are you sure you want to delete this watch photo?')) return;
+    const confirmed = await alertService.confirm(
+      'Delete photo?',
+      'Are you sure you want to delete this watch photo?'
+    );
+    if (!confirmed) return;
     try {
       const updatedWatch = await api.removeWatchImage(selectedWatch.id, index);
       setSelectedWatch(updatedWatch);
       fetchInventory();
     } catch (err) {
-      alert('Failed to remove image: ' + err.message);
+      alertService.error('Error', 'Failed to remove image: ' + err.message);
     }
   };
 

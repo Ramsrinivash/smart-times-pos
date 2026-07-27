@@ -5,11 +5,13 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { 
   Sun, Moon, Search, Wifi, WifiOff, Menu, Download, CloudOff, 
-  RefreshCw, User, FileText, Watch, Share2, Printer 
+  RefreshCw, User, FileText, Watch, Share2, Printer,
+  Bell, AlertTriangle, Cake, CheckCircle, Info
 } from 'lucide-react';
 import { pwaInstall } from '../../utils/pwaInstall';
 import { syncQueue } from '../../utils/syncQueue';
 import { offlineDetector } from '../../utils/offlineDetector';
+import { alertService } from '../../utils/alert';
 
 const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search..." }) => {
   const { theme, toggleTheme } = useTheme();
@@ -30,8 +32,91 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
 
+  // Notifications states
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
   const searchContainerRef = useRef(null);
   const activeQuery = setSearchVal ? searchVal : localQuery;
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      const stats = await api.getDashboardStats(user.role);
+      const list = [];
+
+      // Low Stock alerts
+      if (stats?.low_stock_alerts && stats.low_stock_alerts.length > 0) {
+        stats.low_stock_alerts.forEach(item => {
+          list.push({
+            id: `low-stock-${item.model}`,
+            type: 'warning',
+            title: 'Low Stock',
+            message: `${item.model} has only ${item.count} items left.`,
+            path: '/inventory'
+          });
+        });
+      }
+
+      // Service/Repair statuses
+      if (stats?.jobs_overdue > 0) {
+        list.push({
+          id: 'jobs-overdue',
+          type: 'error',
+          title: 'Overdue Repair Jobs',
+          message: `There are ${stats.jobs_overdue} repair jobs overdue.`,
+          path: '/services'
+        });
+      }
+      if (stats?.jobs_due_today > 0) {
+        list.push({
+          id: 'jobs-due-today',
+          type: 'info',
+          title: 'Repair Jobs Due Today',
+          message: `${stats.jobs_due_today} repair jobs due today.`,
+          path: '/services'
+        });
+      }
+      if (stats?.jobs_ready > 0) {
+        list.push({
+          id: 'jobs-ready',
+          type: 'success',
+          title: 'Repairs Ready',
+          message: `${stats.jobs_ready} repair jobs ready for pickup.`,
+          path: '/services'
+        });
+      }
+
+      // Birthdays Today
+      if (stats?.birthdays_today && stats.birthdays_today.length > 0) {
+        stats.birthdays_today.forEach(c => {
+          list.push({
+            id: `birthday-${c.id}`,
+            type: 'info',
+            title: `Birthday: ${c.name}`,
+            message: `Today is ${c.name}'s birthday (${c.phone}).`,
+            path: '/customers'
+          });
+        });
+      }
+
+      // Sync Queue
+      if (pendingSync > 0) {
+        list.push({
+          id: 'pending-sync',
+          type: 'warning',
+          title: 'Sync Pending',
+          message: `${pendingSync} action(s) saved offline and pending sync.`,
+          actionType: 'sync'
+        });
+      }
+
+      setNotifications(list);
+    } catch (err) {
+      console.error('Error compiling notifications:', err);
+    }
+  };
 
   useEffect(() => {
     const unsubInstall = pwaInstall.onAvailabilityChange(setInstallAvailable);
@@ -49,7 +134,11 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
     };
     fetchSettings();
 
-    // Click outside listener
+    // Compile initial notifications and poll
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+
+    // Click outside listener for global search suggestions
     const handleClickOutside = (event) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
@@ -57,13 +146,23 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
     };
     document.addEventListener('mousedown', handleClickOutside);
 
+    // Click outside listener for notifications dropdown
+    const handleNotifClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleNotifClickOutside);
+
     return () => {
       unsubInstall();
       unsubOnline();
       unsubQueue();
+      clearInterval(interval);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleNotifClickOutside);
     };
-  }, []);
+  }, [user, pendingSync]);
 
   // Debounced query lookups
   useEffect(() => {
@@ -143,7 +242,7 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
       const detail = await api.getSale(sale.id);
       setSelectedInvoice(detail);
     } catch (err) {
-      alert('Failed to load invoice details.');
+      alertService.error('Error', 'Failed to load invoice details.');
     }
   };
 
@@ -390,6 +489,89 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
           >
             {!isOnline ? <WifiOff size={14} /> : useMock ? <WifiOff size={14} /> : <Wifi size={14} />}
             <span>{!isOnline ? 'Offline' : useMock ? 'Mock Mode' : 'API Online'}</span>
+          </div>
+
+          {/* Notification Bell */}
+          <div className="notification-bell-container" ref={notificationRef}>
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="btn btn-secondary" 
+              style={{ padding: '0.5rem', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+              title="Notifications"
+            >
+              <Bell size={18} />
+              {notifications.length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: 'var(--error)',
+                  color: '#fff',
+                  fontSize: '0.65rem',
+                  fontWeight: 'bold',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 4px rgba(239, 68, 68, 0.4)'
+                }}>
+                  {notifications.length}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown Panel */}
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notification-header">
+                  <span className="notification-header-title">Notifications</span>
+                  {notifications.length > 0 && (
+                    <span className="notification-header-count">{notifications.length} active</span>
+                  )}
+                </div>
+                <ul className="notification-list">
+                  {notifications.length > 0 ? (
+                    notifications.map(notif => {
+                      let iconEl = <Info size={16} />;
+                      if (notif.type === 'warning') iconEl = <AlertTriangle size={16} />;
+                      if (notif.type === 'error') iconEl = <AlertTriangle size={16} />;
+                      if (notif.type === 'success') iconEl = <CheckCircle size={16} />;
+                      if (notif.id.startsWith('birthday-')) iconEl = <Cake size={16} />;
+
+                      return (
+                        <li 
+                          key={notif.id} 
+                          className="notification-item"
+                          onClick={() => {
+                            setShowNotifications(false);
+                            if (notif.path) {
+                              navigate(notif.path);
+                            } else if (notif.actionType === 'sync') {
+                              handleManualSync();
+                            }
+                          }}
+                        >
+                          <div className={`notification-icon-wrapper ${notif.type}`}>
+                            {iconEl}
+                          </div>
+                          <div className="notification-item-content">
+                            <div className="notification-item-title">{notif.title}</div>
+                            <div className="notification-item-msg">{notif.message}</div>
+                          </div>
+                        </li>
+                      );
+                    })
+                  ) : (
+                    <div className="notification-empty">
+                      <CheckCircle size={24} style={{ color: 'var(--success)' }} />
+                      <span>No pending notifications</span>
+                    </div>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
 
           <button 

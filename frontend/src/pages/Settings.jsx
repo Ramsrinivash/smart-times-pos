@@ -3,6 +3,7 @@ import Header from '../components/Layout/Header';
 import { api } from '../services/api';
 import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { alertService } from '../utils/alert';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -106,36 +107,36 @@ const Settings = () => {
   const handleUpdateMyCredentials = async (e) => {
     e.preventDefault();
     if (myPassword && myPassword !== myConfirmPassword) {
-      alert('Passwords do not match!');
+      alertService.warning('Verification failed', 'Passwords do not match!');
       return;
     }
     try {
       const payload = { email: myEmail };
       if (myPassword) payload.password = myPassword;
       await api.updateUser(user.id, payload);
-      alert('✅ Credentials updated successfully. Please log in again if you changed your Email/Login ID.');
+      alertService.success('Success', 'Credentials updated successfully. Please log in again if you changed your Email/Login ID.');
       setMyPassword('');
       setMyConfirmPassword('');
     } catch (err) {
-      alert('Failed to update credentials: ' + err.message);
+      alertService.error('Error', 'Failed to update credentials: ' + err.message);
     }
   };
 
   const handleResetStaffPassword = async (e) => {
     e.preventDefault();
     if (!newStaffPassword) {
-      alert('Please enter a password.');
+      alertService.warning('Required Field', 'Please enter a password.');
       return;
     }
     try {
       await api.updateUser(editingUser.id, { password: newStaffPassword }, user.id);
-      alert(`✅ Password updated successfully for user "${editingUser.name}".`);
+      alertService.success('Success', `Password updated successfully for user "${editingUser.name}".`);
       setEditingUser(null);
       setNewStaffPassword('');
       const u = await api.getUsers();
       setUsers(u);
     } catch (err) {
-      alert('Failed to update staff password: ' + err.message);
+      alertService.error('Error', 'Failed to update staff password: ' + err.message);
     }
   };
 
@@ -159,9 +160,9 @@ const Settings = () => {
         loyalty_expiry_months: Number(expiryMonths),
         job_card_terms: jobCardTerms
       });
-      alert('✅ Settings saved successfully.');
+      alertService.success('Success', 'Settings saved successfully.');
     } catch (err) {
-      alert('Failed to save settings: ' + err.message);
+      alertService.error('Error', 'Failed to save settings: ' + err.message);
     }
   };
 
@@ -174,12 +175,12 @@ const Settings = () => {
         password: newUserPassword,
         role: newUserRole
       });
-      alert(`✅ User "${newUserName}" created successfully.`);
+      alertService.success('Success', `User "${newUserName}" created successfully.`);
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales');
       const u = await api.getUsers();
       setUsers(u);
     } catch (err) {
-      alert('Failed to create user: ' + err.message);
+      alertService.error('Error', 'Failed to create user: ' + err.message);
     }
   };
 

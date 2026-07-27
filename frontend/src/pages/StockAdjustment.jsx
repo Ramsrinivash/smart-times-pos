@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { useAuth } from '../context/AuthContext';
 import { PackageMinus, History, AlertTriangle } from 'lucide-react';
+import { alertService } from '../utils/alert';
 
 const ADJUST_REASONS = [
   { value: 'damage', label: 'Damage / Defect' },
@@ -47,39 +48,40 @@ const StockAdjustment = () => {
       const inv = await api.getInventory(watchSearch.trim(), '');
       const watch = inv.find(w => w.id.toLowerCase() === watchSearch.toLowerCase().trim());
       if (!watch) {
-        alert('Watch ID not found.');
+        alertService.error('Not Found', 'Watch ID not found.');
         return;
       }
       setSelectedWatch(watch);
       setNewStatus(watch.status);
       setSuccess('');
     } catch (err) {
-      alert('Search failed: ' + err.message);
+      alertService.error('Error', 'Search failed: ' + err.message);
     }
   };
 
   const handleSubmitAdjustment = async () => {
     if (!selectedWatch) {
-      alert('Select a watch first.');
+      alertService.warning('Watch Required', 'Select a watch first.');
       return;
     }
     if (!newStatus || newStatus === selectedWatch.status) {
-      alert('Please select a different status to adjust to.');
+      alertService.warning('Status Choice', 'Please select a different status to adjust to.');
       return;
     }
     if (!remarks.trim()) {
-      alert('Please enter remarks for this adjustment.');
+      alertService.warning('Remarks Required', 'Please enter remarks for this adjustment.');
       return;
     }
     setLoading(true);
     try {
       await api.adjustStock(selectedWatch.id, newStatus, reason, remarks);
+      alertService.success('Success', `Watch ${selectedWatch.id} adjusted: ${selectedWatch.status} → ${newStatus}`);
       setSuccess(`✅ Watch ${selectedWatch.id} adjusted: ${selectedWatch.status} → ${newStatus}`);
       setSelectedWatch({ ...selectedWatch, status: newStatus });
       setRemarks('');
       await loadLogs();
     } catch (err) {
-      alert(err.message || 'Adjustment failed.');
+      alertService.error('Error', err.message || 'Adjustment failed.');
     }
     setLoading(false);
   };
