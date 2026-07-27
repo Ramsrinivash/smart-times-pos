@@ -162,5 +162,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/sales', [ReportController::class, 'salesReport']);
         Route::get('/reports/stock-valuation', [ReportController::class, 'stockValuation']);
         Route::get('/reports/gst', [ReportController::class, 'gstReport']);
+        Route::get('/reports/profit', [ReportController::class, 'profitReport']);
+        Route::get('/reports/exchanges', [ReportController::class, 'exchangeReport']);
+        Route::get('/reports/loyalty', [ReportController::class, 'loyaltyReport']);
+        Route::get('/reports/services-pending', [ReportController::class, 'pendingServiceReport']);
+        Route::get('/reports/supplier-dues', [ReportController::class, 'supplierDuesReport']);
+        Route::get('/reports/purchase-ledger', [ReportController::class, 'purchaseLedger']);
     });
 });

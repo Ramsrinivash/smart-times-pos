@@ -593,10 +593,22 @@ const Sales = () => {
                   <span>Gross Total:</span>
                   <span>₹{subtotal.toLocaleString()}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--error)' }}>
-                  <span>Total Discount:</span>
-                  <span>-₹{totalDiscount.toLocaleString()}</span>
-                </div>
+                 {totalItemDiscounts + computedBillDisc > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--error)' }}>
+                    <span>Store/Item Discount:</span>
+                    <span>-₹{(totalItemDiscounts + computedBillDisc).toLocaleString()}</span>
+                  </div>
+                 )}
+                 {pointsVal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--error)' }}>
+                    <span>Points Redeemed ({pointsToRedeem} pts):</span>
+                    <span>-₹{pointsVal.toLocaleString()}</span>
+                  </div>
+                 )}
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--error)', fontWeight: 600 }}>
+                   <span>Total Discount:</span>
+                   <span>-₹{totalDiscount.toLocaleString()}</span>
+                 </div>
                 {invoiceType === 'gst' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <span>Included GST (18%):</span>

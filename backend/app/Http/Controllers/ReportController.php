@@ -7,6 +7,8 @@ use App\Models\Watch;
 use App\Models\Customer;
 use App\Models\ServiceJob;
 use App\Models\Purchase;
+use App\Models\Exchange;
+use App\Models\LoyaltyLedger;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +108,7 @@ class ReportController extends Controller
     public function stockValuation(Request $request)
     {
         $totalValuation = (double) Watch::where('status', 'in_stock')->sum('cost_price');
+        $totalMrpValuation = (double) Watch::where('status', 'in_stock')->sum('mrp');
         $itemCount = Watch::where('status', 'in_stock')->count();
 
         $valuationByBrand = Watch::select('brand', DB::raw('count(*) as count'), DB::raw('SUM(cost_price) as cost_value'), DB::raw('SUM(mrp) as mrp_value'))
@@ -116,6 +119,7 @@ class ReportController extends Controller
         return response()->json([
             'total_in_stock_count' => $itemCount,
             'total_cost_valuation' => $totalValuation,
+            'total_mrp_valuation' => $totalMrpValuation,
             'breakdown_by_brand' => $valuationByBrand
         ]);
     }
@@ -134,5 +138,91 @@ class ReportController extends Controller
             ->get();
 
         return response()->json($sales);
+    }
+
+    public function profitReport(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+        ]);
+
+        $query = Sale::with(['customer', 'items']);
+
+        if ($request->has('start_date') && $request->start_date) {
+            $query->where('invoice_date', '>=', $request->start_date);
+        }
+        if ($request->has('end_date') && $request->end_date) {
+            $query->where('invoice_date', '<=', $request->end_date);
+        }
+
+        $sales = $query->latest()->get();
+
+        $sales->map(function ($s) {
+            $totalCost = (double) $s->items->sum('cost_price');
+            $s->total_profit = (double) $s->net_amount - $totalCost;
+            return $s;
+        });
+
+        return response()->json($sales);
+    }
+
+    public function exchangeReport()
+    {
+        $exchanges = Exchange::with('customer')->latest()->get();
+        return response()->json($exchanges);
+    }
+
+    public function loyaltyReport()
+    {
+        $ledger = LoyaltyLedger::with('customer')->latest()->get();
+        return response()->json($ledger);
+    }
+
+    public function pendingServiceReport()
+    {
+        $today = Carbon::now()->toDateString();
+        $jobs = ServiceJob::with('customer')
+            ->whereIn('status', ['received', 'in_repair', 'ready'])
+            ->latest()
+            ->get();
+
+        $jobs->map(function ($j) use ($today) {
+            $j->is_overdue = ($j->expected_delivery_date < $today) && in_array($j->status, ['received', 'in_repair', 'ready']);
+            return $j;
+        });
+
+        return response()->json($jobs);
+    }
+
+    public function supplierDuesReport()
+    {
+        $dues = Purchase::where('payment_status', 'pending')
+            ->with('watches')
+            ->latest()
+            ->get();
+        return response()->json($dues);
+    }
+
+    public function purchaseLedger()
+    {
+        $watches = Watch::with('purchase')->latest()->get();
+        $data = $watches->map(function ($w) {
+            return [
+                'id' => $w->id,
+                'brand' => $w->brand,
+                'model' => $w->model,
+                'supplier_name' => $w->purchase ? $w->purchase->supplier_name : 'N/A',
+                'purchase_date' => $w->purchase ? $w->purchase->purchase_date : 'N/A',
+                'invoice_number' => $w->purchase ? $w->purchase->invoice_number : 'N/A',
+                'mrp' => $w->mrp,
+                'discount_percent' => $w->discount_percent,
+                'cost_price' => $w->cost_price,
+                'selling_price' => $w->selling_price,
+                'gst_rate' => $w->gst_rate,
+                'status' => $w->status,
+            ];
+        });
+        return response()->json($data);
     }
 }

@@ -221,10 +221,10 @@ const Reports = () => {
                   <tfoot>
                     <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
                       <td colSpan="4">Total ({salesData.length} invoices)</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + s.subtotal, 0))}</td>
-                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + (s.discount_amount || 0) + (s.bill_discount_amount || 0), 0))}</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + s.gst_amount, 0))}</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + s.net_amount, 0))}</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.subtotal || 0), 0))}</td>
+                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0) + Number(s.bill_discount_amount || 0), 0))}</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.gst_amount || 0), 0))}</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
                       <td></td>
                     </tr>
                   </tfoot>
@@ -243,8 +243,8 @@ const Reports = () => {
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                   ['Invoice No', 'Date', 'Customer', 'Net Amount', 'Cost', 'Profit', 'Margin %'],
                   profitData.map(s => {
-                    const cost = s.items.reduce((a, si) => a + si.cost_price, 0);
-                    const margin = s.net_amount > 0 ? ((s.total_profit / s.net_amount) * 100).toFixed(1) : 0;
+                    const cost = s.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                    const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
                     return [s.id, s.invoice_date, s.customer?.name, s.net_amount, cost, s.total_profit, margin + '%'];
                   }),
                   'profit_report'
@@ -254,8 +254,8 @@ const Reports = () => {
                 <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
                   ['Invoice No', 'Date', 'Customer', 'Net Amount', 'Cost', 'Profit', 'Margin %'],
                   profitData.map(s => {
-                    const cost = s.items.reduce((a, si) => a + si.cost_price, 0);
-                    const margin = s.net_amount > 0 ? ((s.total_profit / s.net_amount) * 100).toFixed(1) : 0;
+                    const cost = s.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                    const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
                     return [s.id, s.invoice_date, s.customer?.name, s.net_amount, cost, s.total_profit, margin + '%'];
                   }),
                   'profit_report', 'Profit Report'
@@ -268,8 +268,8 @@ const Reports = () => {
               <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Net Sale</th><th>Total Cost</th><th>Profit</th><th>Margin %</th></tr></thead>
               <tbody>
                 {profitData.length > 0 ? profitData.map(s => {
-                  const cost = s.items.reduce((a, si) => a + si.cost_price, 0);
-                  const margin = s.net_amount > 0 ? ((s.total_profit / s.net_amount) * 100).toFixed(1) : 0;
+                  const cost = s.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                  const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
                   return (
                     <tr key={s.id}>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
@@ -277,7 +277,7 @@ const Reports = () => {
                       <td>{s.customer?.name}</td>
                       <td>{fmt(s.net_amount)}</td>
                       <td style={{ color: 'var(--text-secondary)' }}>{fmt(cost)}</td>
-                      <td style={{ color: s.total_profit >= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 700 }}>{fmt(s.total_profit)}</td>
+                      <td style={{ color: Number(s.total_profit || 0) >= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 700 }}>{fmt(s.total_profit)}</td>
                       <td><span className={`badge badge-${Number(margin) > 20 ? 'success' : Number(margin) > 10 ? 'warning' : 'danger'}`}>{margin}%</span></td>
                     </tr>
                   );
@@ -289,9 +289,9 @@ const Reports = () => {
                 <tfoot>
                   <tr style={{ fontWeight: 700 }}>
                     <td colSpan="3">Total</td>
-                    <td>{fmt(profitData.reduce((a, s) => a + s.net_amount, 0))}</td>
-                    <td>{fmt(profitData.reduce((a, s) => a + s.items.reduce((b, si) => b + si.cost_price, 0), 0))}</td>
-                    <td style={{ color: 'var(--success)' }}>{fmt(profitData.reduce((a, s) => a + s.total_profit, 0))}</td>
+                    <td>{fmt(profitData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
+                    <td>{fmt(profitData.reduce((a, s) => a + s.items.reduce((b, si) => b + Number(si.cost_price || 0), 0), 0))}</td>
+                    <td style={{ color: 'var(--success)' }}>{fmt(profitData.reduce((a, s) => a + Number(s.total_profit || 0), 0))}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -567,7 +567,7 @@ const Reports = () => {
                 <tfoot>
                   <tr style={{ fontWeight: 700 }}>
                     <td colSpan="4">Total Outstanding</td>
-                    <td style={{ color: 'var(--error)' }}>{fmt(supplierDues.reduce((a, p) => a + p.total_amount, 0))}</td>
+                    <td style={{ color: 'var(--error)' }}>{fmt(supplierDues.reduce((a, p) => a + Number(p.total_amount || 0), 0))}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -628,9 +628,9 @@ const Reports = () => {
                   <tr style={{ fontWeight: 700 }}>
                     <td colSpan="4">Total</td>
                     <td></td>
-                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + si.gst_amount / 2, 0))}</td>
-                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + si.gst_amount / 2, 0))}</td>
-                    <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + si.gst_amount, 0))}</td>
+                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                    <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0), 0))}</td>
                   </tr>
                 </tfoot>
               )}
