@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   PackageMinus,
   CreditCard,
+  Calendar,
   X
 } from 'lucide-react';
 
