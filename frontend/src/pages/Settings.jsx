@@ -49,6 +49,7 @@ const Settings = () => {
   // Staff password edit state
   const [editingUser, setEditingUser] = useState(null);
   const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [newStaffSalary, setNewStaffSalary] = useState('');
 
   // Activity log
   const [activityLogs, setActivityLogs] = useState([]);
@@ -123,21 +124,24 @@ const Settings = () => {
     }
   };
 
-  const handleResetStaffPassword = async (e) => {
+  const handleUpdateStaff = async (e) => {
     e.preventDefault();
-    if (!newStaffPassword) {
-      alertService.warning('Required Field', 'Please enter a password.');
-      return;
-    }
     try {
-      await api.updateUser(editingUser.id, { password: newStaffPassword }, user.id);
-      alertService.success('Success', `Password updated successfully for user "${editingUser.name}".`);
+      const payload = {
+        base_salary: Number(newStaffSalary || 0)
+      };
+      if (newStaffPassword) {
+        payload.password = newStaffPassword;
+      }
+      await api.updateUser(editingUser.id, payload);
+      alertService.success('Success', `Details updated successfully for user "${editingUser.name}".`);
       setEditingUser(null);
       setNewStaffPassword('');
+      setNewStaffSalary('');
       const u = await api.getUsers();
       setUsers(u);
     } catch (err) {
-      alertService.error('Error', 'Failed to update staff password: ' + err.message);
+      alertService.error('Error', 'Failed to update staff details: ' + err.message);
     }
   };
 
@@ -493,24 +497,36 @@ const Settings = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Reset Password Form Inline */}
+              {/* Edit Details / Reset Password Form Inline */}
               {editingUser && (
-                <div className="card" style={{ border: '1px solid var(--warning)' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--warning)' }}>Reset Password: {editingUser.name}</h3>
-                  <form onSubmit={handleResetStaffPassword} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-                    <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                      <label className="form-label">New Password</label>
+                <div className="card" style={{ border: '1px solid var(--primary-gold)' }}>
+                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary-gold)' }}>Edit Details: {editingUser.name}</h3>
+                  <form onSubmit={handleUpdateStaff} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Base Salary (₹/month) *</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        required 
+                        value={newStaffSalary} 
+                        onChange={e => setNewStaffSalary(e.target.value)} 
+                        min="0"
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">New Password (Leave blank to keep current)</label>
                       <input 
                         type="password" 
                         className="form-control" 
-                        required 
                         placeholder="••••••••" 
                         value={newStaffPassword} 
                         onChange={e => setNewStaffPassword(e.target.value)} 
                       />
                     </div>
-                    <button type="submit" className="btn btn-primary">Save</button>
-                    <button type="button" onClick={() => setEditingUser(null)} className="btn btn-secondary">Cancel</button>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button type="submit" className="btn btn-primary">Save Changes</button>
+                      <button type="button" onClick={() => { setEditingUser(null); setNewStaffPassword(''); }} className="btn btn-secondary">Cancel</button>
+                    </div>
                   </form>
                 </div>
               )}
@@ -539,11 +555,15 @@ const Settings = () => {
                                   {u.role}
                                 </span>
                                 <button 
-                                  onClick={() => { setEditingUser(u); setNewStaffPassword(''); }}
+                                  onClick={() => { 
+                                    setEditingUser(u); 
+                                    setNewStaffPassword(''); 
+                                    setNewStaffSalary(String(u.base_salary || 0));
+                                  }}
                                   className="btn btn-secondary btn-sm"
                                   style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
                                 >
-                                  Reset Pass
+                                  Edit Staff
                                 </button>
                               </div>
                             </div>
