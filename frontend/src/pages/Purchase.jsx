@@ -478,7 +478,7 @@ const Purchase = () => {
                           value={item.id}
                           onChange={(e) => handleItemChange(index, 'id', e.target.value)}
                           required
-                          style={{ fontFamily: 'monospace', height: '36px' }}
+                          style={{ fontFamily: 'monospace', height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -489,7 +489,7 @@ const Purchase = () => {
                           value={item.brand}
                           onChange={(e) => handleItemChange(index, 'brand', e.target.value)}
                           required
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -500,7 +500,7 @@ const Purchase = () => {
                           value={item.model}
                           onChange={(e) => handleItemChange(index, 'model', e.target.value)}
                           required
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -511,7 +511,7 @@ const Purchase = () => {
                           value={item.hsn_code}
                           onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
                           required
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -522,7 +522,7 @@ const Purchase = () => {
                           value={item.mrp}
                           onChange={(e) => handleItemChange(index, 'mrp', e.target.value)}
                           required
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -532,7 +532,7 @@ const Purchase = () => {
                           placeholder="%"
                           value={item.discount_percent}
                           onChange={(e) => handleItemChange(index, 'discount_percent', e.target.value)}
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -542,7 +542,7 @@ const Purchase = () => {
                           placeholder="%"
                           value={item.additional_scheme}
                           onChange={(e) => handleItemChange(index, 'additional_scheme', e.target.value)}
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -554,7 +554,7 @@ const Purchase = () => {
                           onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                           required
                           min="1"
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -564,7 +564,7 @@ const Purchase = () => {
                           placeholder="Cost"
                           value={item.cost_price}
                           readOnly
-                          style={{ color: 'var(--primary-gold)', fontWeight: 600, height: '36px', background: 'rgba(212,175,55,0.05)' }}
+                          style={{ color: 'var(--primary-gold)', fontWeight: 600, height: '36px', background: 'rgba(212,175,55,0.05)', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -575,7 +575,7 @@ const Purchase = () => {
                           value={item.selling_price}
                           onChange={(e) => handleItemChange(index, 'selling_price', e.target.value)}
                           required
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
@@ -583,7 +583,7 @@ const Purchase = () => {
                           className="form-control"
                           value={item.gst_rate}
                           onChange={(e) => handleItemChange(index, 'gst_rate', Number(e.target.value))}
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         >
                           <option value="5">5%</option>
                           <option value="12">12%</option>
@@ -596,7 +596,7 @@ const Purchase = () => {
                           className="form-control"
                           value={item.category}
                           onChange={(e) => handleItemChange(index, 'category', e.target.value)}
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         >
                           {specOptions.map((opt, oidx) => (
                             <option key={oidx} value={opt}>{opt}</option>
@@ -608,7 +608,7 @@ const Purchase = () => {
                           className="form-control"
                           value={item.gender || 'Unisex'}
                           onChange={(e) => handleItemChange(index, 'gender', e.target.value)}
-                          style={{ height: '36px' }}
+                          style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         >
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>

@@ -13,6 +13,8 @@ const Sales = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+  const [custDob, setCustDob] = useState('');
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   
   const [searchSerial, setSearchSerial] = useState('');
@@ -106,6 +108,8 @@ const Sales = () => {
       });
       if (matched) {
         setCustName(matched.name);
+        setCustEmail(matched.email || '');
+        setCustDob(matched.dob || '');
         setLoyaltyPoints(matched.points_balance || 0);
         setSelectedCustomerId(matched.id);
       } else {
@@ -218,7 +222,12 @@ const Sales = () => {
       let finalCustomerId = selectedCustomerId;
       if (!finalCustomerId) {
         // Automatically create a new customer on the fly
-        const newCust = await api.addCustomer({ name: custName, phone: finalPhone });
+        const newCust = await api.addCustomer({ 
+          name: custName, 
+          phone: finalPhone,
+          email: custEmail || null,
+          dob: custDob || null
+        });
         finalCustomerId = newCust.customer ? newCust.customer.id : newCust.id;
       }
 
@@ -253,6 +262,8 @@ const Sales = () => {
       setNotes('');
       setCustName('');
       setCustPhone('');
+      setCustEmail('');
+      setCustDob('');
       loadCustomers(); // Reload customer list to update points balance
 
       await alertService.success('Success', 'Checkout completed successfully!');
@@ -284,7 +295,7 @@ const Sales = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Search items bar */}
-            <div className="card" style={{ overflow: 'visible' }}>
+            <div className="card" style={{ overflow: 'visible', zIndex: 10 }}>
               <h3 style={{ marginBottom: '1rem' }}>Scan or Enter Watch Serial</h3>
               <div ref={searchInputContainerRef} style={{ display: 'flex', gap: '0.75rem', position: 'relative', width: '100%' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -451,6 +462,27 @@ const Sales = () => {
                   value={custName}
                   onChange={(e) => setCustName(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Customer Email (Optional)</label>
+                <input 
+                  type="email" 
+                  className="form-control" 
+                  placeholder="e.g. customer@example.com" 
+                  value={custEmail}
+                  onChange={(e) => setCustEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Customer DOB (Optional)</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={custDob}
+                  onChange={(e) => setCustDob(e.target.value)}
                 />
               </div>
 
@@ -713,10 +745,18 @@ const Sales = () => {
                     <span>Gross Subtotal</span>
                     <span>₹{createdInvoice.subtotal.toLocaleString()}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Discounts & Adjustments</span>
-                    <span>-₹{createdInvoice.discount_amount.toLocaleString()}</span>
-                  </div>
+                  {createdInvoice.discount_amount - (createdInvoice.points_value || 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Store Discount / Special Offers</span>
+                      <span>-₹{(createdInvoice.discount_amount - (createdInvoice.points_value || 0)).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {(createdInvoice.points_value || 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Loyalty Points Redeemed ({createdInvoice.points_redeemed} pts)</span>
+                      <span>-₹{Number(createdInvoice.points_value).toLocaleString()}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, borderTop: '2px solid #333', paddingTop: '0.5rem', color: '#d4af37' }}>
                     <span>Grand Net Total</span>
                     <span>₹{createdInvoice.net_amount.toLocaleString()}</span>

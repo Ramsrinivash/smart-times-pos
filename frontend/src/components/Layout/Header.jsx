@@ -724,10 +724,18 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
                   <span>Gross Subtotal</span>
                   <span>₹{selectedInvoice.subtotal.toLocaleString()}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Discounts & Adjustments</span>
-                  <span>-₹{selectedInvoice.discount_amount.toLocaleString()}</span>
-                </div>
+                {selectedInvoice.discount_amount - (selectedInvoice.points_value || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Store Discount / Special Offers</span>
+                    <span>-₹{(selectedInvoice.discount_amount - (selectedInvoice.points_value || 0)).toLocaleString()}</span>
+                  </div>
+                )}
+                {(selectedInvoice.points_value || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Loyalty Points Redeemed ({selectedInvoice.points_redeemed} pts)</span>
+                    <span>-₹{Number(selectedInvoice.points_value).toLocaleString()}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, borderTop: '2px solid #333', paddingTop: '0.5rem', color: '#d4af37' }}>
                   <span>Grand Net Total</span>
                   <span>₹{selectedInvoice.net_amount.toLocaleString()}</span>

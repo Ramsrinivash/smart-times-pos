@@ -129,6 +129,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin,manager')->group(function () {
         Route::get('/purchase/ledger', [PurchaseController::class, 'index']);
         Route::post('/purchase', [PurchaseController::class, 'store']);
+        Route::put('/purchase/{id}/payment', [PurchaseController::class, 'updatePayment']);
     });
 
     // Sales Routes

@@ -103,4 +103,20 @@ class PurchaseController extends Controller
             ], 201);
         });
     }
+
+    public function updatePayment(Request $request, $id)
+    {
+        $request->validate([
+            'payment_status' => 'required|string|in:paid,pending',
+        ]);
+
+        $purchase = Purchase::findOrFail($id);
+        $purchase->payment_status = $request->payment_status;
+        $purchase->save();
+
+        return response()->json([
+            'message' => 'Purchase payment status updated successfully',
+            'purchase' => $purchase
+        ]);
+    }
 }
