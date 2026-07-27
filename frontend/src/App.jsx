@@ -17,6 +17,7 @@ import StockAdjustment from './pages/StockAdjustment';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import SupplierLedger from './pages/SupplierLedger';
+import AttendancePayroll from './pages/AttendancePayroll';
 
 const ProtectedLayout = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -135,6 +136,13 @@ function App() {
             <Route path="/settings" element={
               <ProtectedLayout allowedRoles={['admin']}>
                 <Settings />
+              </ProtectedLayout>
+            } />
+
+            {/* Attendance & Payroll */}
+            <Route path="/attendance" element={
+              <ProtectedLayout allowedRoles={['admin', 'manager']}>
+                <AttendancePayroll />
               </ProtectedLayout>
             } />
 

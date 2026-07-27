@@ -39,6 +39,7 @@ const Settings = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('sales');
+  const [newUserSalary, setNewUserSalary] = useState('15000');
 
   // Personal credentials edit state
   const [myEmail, setMyEmail] = useState(user?.email || '');
@@ -173,10 +174,11 @@ const Settings = () => {
         name: newUserName,
         email: newUserEmail,
         password: newUserPassword,
-        role: newUserRole
+        role: newUserRole,
+        base_salary: Number(newUserSalary || 0)
       });
       alertService.success('Success', `User "${newUserName}" created successfully.`);
-      setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales');
+      setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('15000');
       const u = await api.getUsers();
       setUsers(u);
     } catch (err) {
@@ -443,6 +445,10 @@ const Settings = () => {
                     <option value="sales">Sales Staff</option>
                   </select>
                 </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Base Salary (₹/month) *</label>
+                  <input type="number" className="form-control" required value={newUserSalary} onChange={e => setNewUserSalary(e.target.value)} min="0" />
+                </div>
 
                 {/* Role description capabilities box */}
                 <div style={{
@@ -526,6 +532,7 @@ const Settings = () => {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</p>
                                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+                                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: 'var(--primary-gold)', fontWeight: 600 }}>Salary: ₹{Number(u.base_salary || 0).toLocaleString('en-IN')}/mo</p>
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
                                 <span className={`badge badge-${u.role === 'admin' ? 'danger' : u.role === 'manager' ? 'warning' : 'info'}`}>

@@ -49,6 +49,7 @@ const Sidebar = () => {
     { to: '/customers',              label: 'Customers (CRM)',   icon: Users,           roles: ['admin', 'manager', 'sales'] },
     { to: '/warranty',               label: 'Warranty Cards',    icon: ShieldCheck,     roles: ['admin', 'manager', 'sales'] },
     { to: '/reports',                label: 'Reports',           icon: TrendingUp,      roles: ['admin', 'manager', 'sales'] },
+    { to: '/attendance',             label: 'Attendance & Pay',  icon: Calendar,        roles: ['admin', 'manager'] },
     { to: '/settings',               label: 'Settings',          icon: Settings,        roles: ['admin'] }
   ];
 

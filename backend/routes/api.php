@@ -13,6 +13,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WarrantyCardController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AttendancePayrollController;
 
 /*
 |--------------------------------------------------------------------------
@@ -178,5 +179,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/services-pending', [ReportController::class, 'pendingServiceReport']);
         Route::get('/reports/supplier-dues', [ReportController::class, 'supplierDuesReport']);
         Route::get('/reports/purchase-ledger', [ReportController::class, 'purchaseLedger']);
+    });
+
+    // Attendance & Payroll Routes (Admin/Manager only)
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::get('/attendance', [AttendancePayrollController::class, 'getAttendance']);
+        Route::post('/attendance', [AttendancePayrollController::class, 'saveAttendance']);
+        Route::get('/payroll', [AttendancePayrollController::class, 'getPayroll']);
+        Route::post('/payroll/pay', [AttendancePayrollController::class, 'paySalary']);
     });
 });

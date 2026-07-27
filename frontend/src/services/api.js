@@ -57,6 +57,26 @@ export const api = {
     return request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
 
+  // Attendance & Payroll
+  getAttendance: async (date = '') => {
+    return request(`/attendance?date=${encodeURIComponent(date)}`);
+  },
+  saveAttendance: async (date, records) => {
+    return request('/attendance', {
+      method: 'POST',
+      body: JSON.stringify({ date, records })
+    });
+  },
+  getPayroll: async (month, year) => {
+    return request(`/payroll?month=${month}&year=${year}`);
+  },
+  paySalary: async (data) => {
+    return request('/payroll/pay', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
   // Activity Logs
   getActivityLogs: async () => {
     if (USE_MOCK) return mockAPI.getActivityLogs();
