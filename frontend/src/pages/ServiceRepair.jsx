@@ -562,12 +562,7 @@ const ServiceRepair = () => {
                     
                     {/* Status modifications */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', flexWrap: 'wrap' }}>
-                      {job.status === 'received' && (
-                        <button onClick={() => handleUpdateStatus(job.id, 'in_repair')} className="btn btn-secondary btn-sm">
-                          Start Repair
-                        </button>
-                      )}
-                      {job.status === 'in_repair' && (
+                      {(job.status === 'received' || job.status === 'in_repair') && (
                         <button onClick={() => handleUpdateStatus(job.id, 'ready')} className="btn btn-secondary btn-sm" style={{ borderColor: 'var(--success)', color: 'var(--success)' }}>
                           Mark Ready
                         </button>
