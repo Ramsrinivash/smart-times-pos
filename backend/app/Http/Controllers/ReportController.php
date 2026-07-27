@@ -37,6 +37,7 @@ class ReportController extends Controller
             ->whereIn('status', ['received', 'in_repair', 'ready'])
             ->count();
         $jobsReady = ServiceJob::where('status', 'ready')->count();
+        $jobsActive = ServiceJob::whereIn('status', ['received', 'in_repair', 'ready'])->count();
 
         $pendingPaymentsCount = Purchase::where('payment_status', 'pending')->count();
         $pendingPaymentsSum = (double) Purchase::where('payment_status', 'pending')->sum('total_amount');
@@ -67,6 +68,7 @@ class ReportController extends Controller
             'jobs_due_today' => $jobsDueToday,
             'jobs_overdue' => $jobsOverdue,
             'jobs_ready' => $jobsReady,
+            'jobs_active' => $jobsActive,
             'pending_supplier_payments_count' => $pendingPaymentsCount,
             'pending_supplier_payments_sum' => $pendingPaymentsSum,
             'outstanding_dues_total' => $outstandingDuesTotal,

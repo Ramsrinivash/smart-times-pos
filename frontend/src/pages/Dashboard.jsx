@@ -132,7 +132,7 @@ const Dashboard = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Repairs Status</span>
-                <h2 className="card-value">{stats?.jobs_due_today || 0}</h2>
+                <h2 className="card-value">{stats?.jobs_active || 0}</h2>
               </div>
               <div style={{ background: 'var(--info-bg)', color: 'var(--info)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
                 <Wrench size={24} />
