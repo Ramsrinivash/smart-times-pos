@@ -1,7 +1,7 @@
-// Smart Times POS — Service Worker v1.0
-// Cache-first for static assets, Network-first for API calls
+// Smart Times POS — Service Worker v2.0
+// Network-first strategy for both static assets and API calls to prevent caching stuckness while maintaining offline functionality.
 
-const CACHE_NAME = 'smarttimes-pos-v1';
+const CACHE_NAME = 'smarttimes-pos-v2';
 const OFFLINE_URL = '/';
 
 // Core app shell assets to pre-cache
@@ -45,38 +45,24 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (!url.protocol.startsWith('http')) return;
 
-  // API calls — Network-first, fall back to cache
-  if (url.pathname.startsWith('/api/') || url.hostname !== self.location.hostname) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const cloned = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // Static assets — Cache-first, fall back to network
+  // Network-First strategy: Always fetch from network when online. Fall back to cache when offline.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response.ok) {
           const cloned = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
         }
         return response;
-      }).catch(() => {
-        // Offline fallback: serve index.html for navigation requests
-        if (request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(request).then((cached) => {
+          if (cached) return cached;
+          // Offline fallback: serve index.html for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
+      })
   );
 });
