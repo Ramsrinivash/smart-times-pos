@@ -40,76 +40,118 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
   const searchContainerRef = useRef(null);
   const activeQuery = setSearchVal ? searchVal : localQuery;
 
+  const getDismissedNotifications = () => {
+    try {
+      const data = localStorage.getItem('dismissed_notifications');
+      return data ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const dismissNotification = (id) => {
+    try {
+      const dismissed = getDismissedNotifications();
+      const todayStr = new Date().toISOString().split('T')[0];
+      dismissed[id] = todayStr;
+      localStorage.setItem('dismissed_notifications', JSON.stringify(dismissed));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchNotifications = async () => {
     if (!user) return;
     try {
       const stats = await api.getDashboardStats(user.role);
       const list = [];
+      const dismissed = getDismissedNotifications();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const isDismissed = (id) => dismissed[id] === todayStr;
 
       // Low Stock alerts
       if (stats?.low_stock_alerts && stats.low_stock_alerts.length > 0) {
         stats.low_stock_alerts.forEach(item => {
-          list.push({
-            id: `low-stock-${item.model}`,
-            type: 'warning',
-            title: 'Low Stock',
-            message: `${item.model} has only ${item.count} items left.`,
-            path: '/inventory'
-          });
+          const notifId = `low-stock-${item.model}`;
+          if (!isDismissed(notifId)) {
+            list.push({
+              id: notifId,
+              type: 'warning',
+              title: 'Low Stock',
+              message: `${item.model} has only ${item.count} items left.`,
+              path: '/inventory'
+            });
+          }
         });
       }
 
       // Service/Repair statuses
       if (stats?.jobs_overdue > 0) {
-        list.push({
-          id: 'jobs-overdue',
-          type: 'error',
-          title: 'Overdue Repair Jobs',
-          message: `There are ${stats.jobs_overdue} repair jobs overdue.`,
-          path: '/services'
-        });
+        const notifId = 'jobs-overdue';
+        if (!isDismissed(notifId)) {
+          list.push({
+            id: notifId,
+            type: 'error',
+            title: 'Overdue Repair Jobs',
+            message: `There are ${stats.jobs_overdue} repair jobs overdue.`,
+            path: '/services'
+          });
+        }
       }
       if (stats?.jobs_due_today > 0) {
-        list.push({
-          id: 'jobs-due-today',
-          type: 'info',
-          title: 'Repair Jobs Due Today',
-          message: `${stats.jobs_due_today} repair jobs due today.`,
-          path: '/services'
-        });
+        const notifId = 'jobs-due-today';
+        if (!isDismissed(notifId)) {
+          list.push({
+            id: notifId,
+            type: 'info',
+            title: 'Repair Jobs Due Today',
+            message: `${stats.jobs_due_today} repair jobs due today.`,
+            path: '/services'
+          });
+        }
       }
       if (stats?.jobs_ready > 0) {
-        list.push({
-          id: 'jobs-ready',
-          type: 'success',
-          title: 'Repairs Ready',
-          message: `${stats.jobs_ready} repair jobs ready for pickup.`,
-          path: '/services'
-        });
+        const notifId = 'jobs-ready';
+        if (!isDismissed(notifId)) {
+          list.push({
+            id: notifId,
+            type: 'success',
+            title: 'Repairs Ready',
+            message: `${stats.jobs_ready} repair jobs ready for pickup.`,
+            path: '/services'
+          });
+        }
       }
 
       // Birthdays Today
       if (stats?.birthdays_today && stats.birthdays_today.length > 0) {
         stats.birthdays_today.forEach(c => {
-          list.push({
-            id: `birthday-${c.id}`,
-            type: 'info',
-            title: `Birthday: ${c.name}`,
-            message: `Today is ${c.name}'s birthday (${c.phone}).`,
-            path: '/customers'
-          });
+          const notifId = `birthday-${c.id}`;
+          if (!isDismissed(notifId)) {
+            list.push({
+              id: notifId,
+              type: 'info',
+              title: `Birthday: ${c.name}`,
+              message: `Today is ${c.name}'s birthday (${c.phone}).`,
+              path: '/customers'
+            });
+          }
         });
       }
 
       // Sync Queue
       if (pendingSync > 0) {
-        list.push({
-          id: 'pending-sync',
-          type: 'warning',
-          title: 'Sync Pending',
-          message: `${pendingSync} action(s) saved offline and pending sync.`,
-          actionType: 'sync'
-        });
+        const notifId = 'pending-sync';
+        if (!isDismissed(notifId)) {
+          list.push({
+            id: notifId,
+            type: 'warning',
+            title: 'Sync Pending',
+            message: `${pendingSync} action(s) saved offline and pending sync.`,
+            actionType: 'sync'
+          });
+        }
       }
 
       setNotifications(list);
@@ -546,6 +588,8 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
                           className="notification-item"
                           onClick={() => {
                             setShowNotifications(false);
+                            dismissNotification(notif.id);
+                            fetchNotifications();
                             if (notif.path) {
                               navigate(notif.path);
                             } else if (notif.actionType === 'sync') {

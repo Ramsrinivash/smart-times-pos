@@ -214,6 +214,7 @@ const ServiceRepair = () => {
           confirmButtonColor: 'var(--primary-gold)',
           cancelButtonColor: 'var(--border-color)',
           buttonsStyling: false,
+          width: '360px',
           customClass: {
             popup: 'swal2-custom-popup',
             title: 'swal2-custom-title',
@@ -238,6 +239,7 @@ const ServiceRepair = () => {
           confirmButtonColor: 'var(--primary-gold)',
           cancelButtonColor: 'var(--border-color)',
           buttonsStyling: false,
+          width: '360px',
           customClass: {
             popup: 'swal2-custom-popup',
             title: 'swal2-custom-title',

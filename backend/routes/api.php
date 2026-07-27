@@ -121,6 +121,8 @@ Route::middleware('auth:sanctum')->group(function () {
          ->middleware('role:admin,manager');
     Route::post('/inventory/adjust', [InventoryController::class, 'adjustStock'])
          ->middleware('role:admin,manager');
+    Route::post('/inventory/images', [InventoryController::class, 'uploadImages']);
+    Route::delete('/inventory/{id}/images/{index}', [InventoryController::class, 'removeImage']);
          
     // Purchase Management (Role Restricted)
     Route::middleware('role:admin,manager')->group(function () {

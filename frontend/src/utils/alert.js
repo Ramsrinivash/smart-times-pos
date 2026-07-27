@@ -7,6 +7,7 @@ const swalConfig = {
   confirmButtonColor: 'var(--primary-gold, #d4af37)',
   cancelButtonColor: 'var(--border-color, #2b2b35)',
   buttonsStyling: false,
+  width: '360px',
   customClass: {
     popup: 'swal2-custom-popup',
     title: 'swal2-custom-title',

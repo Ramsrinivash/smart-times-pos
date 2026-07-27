@@ -75,4 +75,41 @@ class InventoryController extends Controller
         $logs = StockAdjustment::with(['watch', 'user'])->latest()->get();
         return response()->json($logs);
     }
+
+    public function uploadImages(Request $request)
+    {
+        $request->validate([
+            'watch_id' => 'required|exists:watches,id',
+            'images' => 'required|array',
+            'images.*' => 'required|string'
+        ]);
+
+        $watch = Watch::findOrFail($request->watch_id);
+        $currentImages = $watch->image_urls ?? [];
+        
+        // Merge the new base64 images into the existing array
+        $mergedImages = array_merge($currentImages, $request->images);
+        
+        $watch->image_urls = $mergedImages;
+        $watch->save();
+
+        return response()->json($watch);
+    }
+
+    public function removeImage(Request $request, $id, $index)
+    {
+        $watch = Watch::findOrFail($id);
+        $images = $watch->image_urls ?? [];
+        
+        $index = (int)$index;
+        if (isset($images[$index])) {
+            unset($images[$index]);
+            $images = array_values($images);
+        }
+
+        $watch->image_urls = $images;
+        $watch->save();
+
+        return response()->json($watch);
+    }
 }
