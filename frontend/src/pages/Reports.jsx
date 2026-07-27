@@ -573,7 +573,7 @@ const Reports = () => {
                 </tfoot>
               </table>
             ) : (
-              <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--success)' }}>✅ No pending supplier dues — all purchase bills settled.</p>
+              <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--success)' }}>No pending supplier dues — all purchase bills settled.</p>
             )}
           </div>
         )}

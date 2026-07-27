@@ -259,11 +259,11 @@ const Dashboard = () => {
                     borderBottom: idx === stats.birthdays_today.length - 1 ? 'none' : '1px solid var(--border-color)'
                   }}>
                     <div>
-                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>🎂 {c.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</span>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>{c.phone}</span>
                     </div>
                     <a
-                      href={`https://wa.me/91${c.phone}?text=${encodeURIComponent(`Happy Birthday ${c.name}! 🎉 Wishing you a wonderful day from Smart Times Watch Showroom. Visit us for exclusive birthday offers!`)}`}
+                      href={`https://wa.me/91${c.phone}?text=${encodeURIComponent(`Happy Birthday ${c.name}! Wishing you a wonderful day from Smart Times Watch Showroom. Visit us for exclusive birthday offers!`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-primary"

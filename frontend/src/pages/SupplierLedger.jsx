@@ -177,7 +177,7 @@ const SupplierLedger = () => {
                             disabled={marking === p.id}
                             onClick={() => handleMarkPaid(p.id)}
                           >
-                            {marking === p.id ? '...' : '✓ Mark Paid'}
+                            {marking === p.id ? '...' : 'Mark Paid'}
                           </button>
                         ) : (
                           <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Settled</span>

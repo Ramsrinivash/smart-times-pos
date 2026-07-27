@@ -75,7 +75,7 @@ const SalesReturn = () => {
         reason
       });
       alertService.success('Success', `Return processed successfully. Refund of ₹${refundAmount.toLocaleString()} via ${refundMode}.`);
-      setSuccess(`✅ Return processed successfully. Refund of ₹${refundAmount.toLocaleString()} via ${refundMode}.`);
+      setSuccess(`Return processed successfully. Refund of ₹${refundAmount.toLocaleString()} via ${refundMode}.`);
       setFoundSale(null);
       setInvoiceSearch('');
       setSelectedItemId('');

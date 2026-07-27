@@ -85,7 +85,7 @@ const StockAdjustment = () => {
     try {
       await api.adjustStock(selectedWatch.id, newStatus, reason, remarks);
       alertService.success('Success', `Watch ${selectedWatch.id} adjusted: ${selectedWatch.status} → ${newStatus}`);
-      setSuccess(`✅ Watch ${selectedWatch.id} adjusted: ${selectedWatch.status} → ${newStatus}`);
+      setSuccess(`Watch ${selectedWatch.id} adjusted: ${selectedWatch.status} → ${newStatus}`);
       setSelectedWatch(null);
       setSearchResults([]);
       setRemarks('');

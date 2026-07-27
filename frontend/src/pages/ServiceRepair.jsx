@@ -521,7 +521,7 @@ const ServiceRepair = () => {
                 style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}
                 title={hideDelivered ? 'Show delivered jobs' : 'Hide delivered jobs'}
               >
-                {hideDelivered ? `Show Delivered (${deliveredCount})` : '🙈 Hide Delivered'}
+                {hideDelivered ? `Show Delivered (${deliveredCount})` : 'Hide Delivered'}
               </button>
             </div>
             
