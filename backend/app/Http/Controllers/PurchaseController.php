@@ -23,6 +23,7 @@ class PurchaseController extends Controller
             'purchase_date' => 'required|date',
             'invoice_number' => 'nullable|string',
             'remarks' => 'nullable|string',
+            'payment_status' => 'nullable|string|in:paid,pending',
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|string', // We will validate uniqueness manually in the loop
             'items.*.brand' => 'required|string',
@@ -52,6 +53,7 @@ class PurchaseController extends Controller
                 'purchase_date' => $request->purchase_date,
                 'invoice_number' => $request->invoice_number,
                 'remarks' => $request->remarks,
+                'payment_status' => $request->payment_status ?? 'paid',
                 'total_amount' => 0.00
             ]);
 

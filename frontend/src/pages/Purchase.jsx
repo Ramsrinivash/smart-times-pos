@@ -12,6 +12,22 @@ const Purchase = () => {
   const [paymentStatus, setPaymentStatus] = useState('paid');
   const [isSupplierSaved, setIsSupplierSaved] = useState(false);
   const [existingModels, setExistingModels] = useState([]);
+  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
+  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+
+  const handleSupplierNameChange = (val) => {
+    setSupplierName(val);
+    if (!val.trim()) {
+      setFilteredSuppliers([]);
+      setShowSupplierSuggestions(false);
+      return;
+    }
+    const filtered = existingSuppliers.filter(s => 
+      s.toLowerCase().includes(val.toLowerCase())
+    );
+    setFilteredSuppliers(filtered);
+    setShowSupplierSuggestions(filtered.length > 0);
+  };
   
   const [items, setItems] = useState([
     { 
@@ -278,7 +294,7 @@ const Purchase = () => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Supplier Details Card */}
-          <div className="card">
+          <div className="card" style={{ overflow: 'visible' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ margin: 0 }}>Supplier Details</h3>
               {isSupplierSaved ? (
@@ -292,23 +308,66 @@ const Purchase = () => {
               )}
             </div>
             <div className="form-row">
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label className="form-label">Supplier Name *</label>
                 <input 
                   type="text" 
-                  list="suppliers-list"
                   className="form-control" 
                   placeholder="e.g. TimeTech Distributors" 
                   value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
+                  onChange={(e) => handleSupplierNameChange(e.target.value)}
                   disabled={isSupplierSaved}
                   required
+                  onFocus={() => {
+                    if (supplierName.trim()) {
+                      const filtered = existingSuppliers.filter(s => 
+                        s.toLowerCase().includes(supplierName.toLowerCase())
+                      );
+                      setFilteredSuppliers(filtered);
+                      setShowSupplierSuggestions(filtered.length > 0);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowSupplierSuggestions(false), 200);
+                  }}
                 />
-                <datalist id="suppliers-list">
-                  {existingSuppliers.map((sup, idx) => (
-                    <option key={idx} value={sup} />
-                  ))}
-                </datalist>
+                {showSupplierSuggestions && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'var(--surface-color)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    marginTop: '0.25rem',
+                    maxHeight: '180px',
+                    overflowY: 'auto'
+                  }}>
+                    {filteredSuppliers.map((sup, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSupplierName(sup);
+                          setShowSupplierSuggestions(false);
+                        }}
+                        style={{
+                          padding: '0.6rem 1rem',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--surface-card)'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                      >
+                        {sup}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Purchase Date *</label>

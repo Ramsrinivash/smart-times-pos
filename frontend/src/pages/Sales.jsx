@@ -240,16 +240,13 @@ const Sales = () => {
       setCustPhone('');
       loadCustomers(); // Reload customer list to update points balance
 
+      await alertService.success('Success', 'Checkout completed successfully!');
       if (shouldPrintAndShare) {
-        // Trigger print immediately and open WhatsApp Web link
-        setTimeout(() => {
-          window.print();
-          const waText = `Dear ${detailInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${detailInvoice.id} amounting ₹${detailInvoice.net_amount} is ready.`;
-          const waUrl = `https://wa.me/${detailInvoice.customer?.phone}?text=${encodeURIComponent(waText)}`;
-          window.open(waUrl, '_blank');
-        }, 500);
+        window.print();
+        const waText = `Dear ${detailInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${detailInvoice.id} amounting ₹${detailInvoice.net_amount} is ready.`;
+        const waUrl = `https://wa.me/${detailInvoice.customer?.phone}?text=${encodeURIComponent(waText)}`;
+        window.open(waUrl, '_blank');
       }
-      alertService.success('Success', 'Checkout completed successfully!');
     } catch (err) {
       alertService.error('Checkout Failed', err.message || 'Checkout failed.');
     }
@@ -272,7 +269,7 @@ const Sales = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Search items bar */}
-            <div className="card">
+            <div className="card" style={{ overflow: 'visible' }}>
               <h3 style={{ marginBottom: '1rem' }}>Scan or Enter Watch Serial</h3>
               <div ref={searchInputContainerRef} style={{ display: 'flex', gap: '0.75rem', position: 'relative', width: '100%' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
