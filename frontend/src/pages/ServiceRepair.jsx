@@ -63,7 +63,8 @@ const ServiceRepair = () => {
     setWatchesToService(next);
   };
 
-  const filteredJobs = jobs.filter(job => {
+  const filteredJobs = (Array.isArray(jobs) ? jobs : []).filter(job => {
+    if (!job) return false;
     const custNameField = job.customer?.name?.toLowerCase() || '';
     const custPhoneField = job.customer?.phone || '';
     const watchId = job.watch_id?.toLowerCase() || '';
@@ -75,29 +76,30 @@ const ServiceRepair = () => {
                          custPhoneField.includes(query) || 
                          watchId.includes(query) || 
                          extSerial.includes(query) || 
-                         job.id.toLowerCase().includes(query);
+                         String(job.id || '').toLowerCase().includes(query);
     const matchesStatus = !statusFilter || jobStatus === statusFilter;
     const matchesHide = !hideDelivered || jobStatus !== 'delivered';
 
     return matchesQuery && matchesStatus && matchesHide;
   });
 
-  const deliveredCount = jobs.filter(j => j.status === 'delivered').length;
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
+  const deliveredCount = safeJobs.filter(j => j?.status === 'delivered').length;
   const todayStr = new Date().toLocaleDateString('en-CA');
-  const readyTodayCount = jobs.filter(j => j.status === 'ready' && j.expected_delivery_date === todayStr).length;
-  const overdueCount = jobs.filter(j => j.status !== 'delivered' && j.expected_delivery_date && j.expected_delivery_date < todayStr).length;
-  const totalReadyCount = jobs.filter(j => j.status === 'ready').length;
+  const readyTodayCount = safeJobs.filter(j => j?.status !== 'delivered' && j?.expected_delivery_date === todayStr).length;
+  const overdueCount = safeJobs.filter(j => j?.status !== 'delivered' && j?.expected_delivery_date && j?.expected_delivery_date < todayStr).length;
+  const totalReadyCount = safeJobs.filter(j => j?.status === 'ready').length;
 
   const loadData = async () => {
     try {
       const custs = await api.getCustomers();
-      setCustomers(custs);
+      setCustomers(Array.isArray(custs) ? custs : []);
 
       const items = await api.getInventory('', 'sold');
-      setRegisteredWatches(items);
+      setRegisteredWatches(Array.isArray(items) ? items : []);
 
       const serviceJobs = await api.getServiceJobs();
-      setJobs(serviceJobs);
+      setJobs(Array.isArray(serviceJobs) ? serviceJobs : []);
 
       const s = await api.getSettings();
       setSettings(s);
@@ -113,7 +115,7 @@ const ServiceRepair = () => {
   // CRM customer auto-lookup by phone
   useEffect(() => {
     if (custPhone.length >= 10) {
-      const matched = customers.find(c => c.phone.trim() === custPhone.trim());
+      const matched = (Array.isArray(customers) ? customers : []).find(c => c && (c.phone || '').trim() === custPhone.trim());
       if (matched) {
         setCustName(matched.name);
         setSelectedCustomerId(matched.id);
@@ -288,7 +290,7 @@ const ServiceRepair = () => {
               <Wrench size={22} />
             </div>
             <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Ready to Deliver Today</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Due Today</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{readyTodayCount}</div>
             </div>
           </div>
@@ -547,8 +549,16 @@ const ServiceRepair = () => {
                       </strong>
                     </p>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.4rem 0' }}>Issue: "{job.issue_reported}"</p>
+                    <p style={{ fontSize: '0.85rem', margin: '0.2rem 0' }}>
+                      Due Date: <strong style={{ color: job.status !== 'delivered' && job.expected_delivery_date && job.expected_delivery_date < todayStr ? 'var(--error)' : 'inherit' }}>
+                        {job.expected_delivery_date || 'N/A'}
+                      </strong>
+                      {job.expected_delivery_date && job.expected_delivery_date < todayStr && job.status !== 'delivered' && (
+                        <span className="badge badge-danger" style={{ marginLeft: '0.5rem', fontSize: '0.65rem', padding: '0.1rem 0.3rem' }}>OVERDUE</span>
+                      )}
+                    </p>
                     
-                    {job.estimated_cost && <p style={{ fontSize: '0.85rem', color: 'var(--primary-gold)' }}>Estimate: ₹{Number(job.estimated_cost).toLocaleString()}</p>}
+                    {job.estimated_cost && <p style={{ fontSize: '0.85rem', color: 'var(--primary-gold)', margin: '0.2rem 0' }}>Estimate: ₹{Number(job.estimated_cost).toLocaleString()}</p>}
                     
                     {/* Status modifications */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', flexWrap: 'wrap' }}>
