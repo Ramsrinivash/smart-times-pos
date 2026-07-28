@@ -390,6 +390,11 @@ const AttendancePayroll = () => {
                             <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                               <span>Present: <strong>{rec.present_days}</strong>, Half: <strong>{rec.half_days}</strong></span>
                               <span>Leave: <strong>{rec.leave_days}</strong>, Absent: <strong>{rec.absent_days}</strong></span>
+                              {rec.unrecorded_days > 0 && (
+                                <span style={{ color: 'var(--warning, #f59e0b)', fontWeight: 600, fontSize: '0.72rem' }}>
+                                  ⚠ {rec.unrecorded_days} day(s) not recorded — counted as absent
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>
@@ -403,13 +408,18 @@ const AttendancePayroll = () => {
                           <td style={{ textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                               {rec.status === 'unpaid' ? (
-                                <button 
-                                  onClick={() => handlePaySalary(rec)} 
-                                  className="btn btn-primary btn-sm"
-                                  style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
-                                >
-                                  Pay Salary
-                                </button>
+                                <>
+                                  {rec.attendance_incomplete && (
+                                    <span title="Attendance is incomplete for this month" style={{ color: 'var(--warning, #f59e0b)', fontSize: '0.75rem', alignSelf: 'center' }}>⚠ Incomplete</span>
+                                  )}
+                                  <button 
+                                    onClick={() => handlePaySalary(rec)} 
+                                    className="btn btn-primary btn-sm"
+                                    style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                                  >
+                                    Pay Salary
+                                  </button>
+                                </>
                               ) : (
                                 <>
                                   <button 

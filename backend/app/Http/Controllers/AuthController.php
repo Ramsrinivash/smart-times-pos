@@ -70,6 +70,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
             'role' => 'required|string|in:admin,manager,sales',
+            'base_salary' => 'nullable|numeric|min:0',
         ]);
 
         $user = User::create([
@@ -77,6 +78,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
+            'base_salary' => $request->base_salary ?? 15000.00,
         ]);
 
         ActivityLog::log($request->user()->id, 'CREATE', 'Users', "Created staff account for {$user->name} with role {$user->role}");
@@ -97,9 +99,10 @@ class AuthController extends Controller
             'email' => 'nullable|string|email|max:255|unique:users,email,' . $id,
             'password' => 'nullable|string|min:6',
             'role' => 'nullable|string|in:admin,manager,sales',
+            'base_salary' => 'nullable|numeric|min:0',
         ]);
 
-        $user->fill($request->only(['name', 'email', 'role']));
+        $user->fill($request->only(['name', 'email', 'role', 'base_salary']));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);

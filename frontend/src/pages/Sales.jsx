@@ -101,10 +101,17 @@ const Sales = () => {
   // Check if Phone Number exists in CRM, and auto-load customer profile
   useEffect(() => {
     if (custPhone.length >= 10) {
+      // Fix #13: Strict phone match — strip +91 prefix and require full 10-digit equality
+      const normalizePhone = (p) => p.replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+      const searchNorm = normalizePhone(custPhone.trim());
+      if (searchNorm.length < 10) {
+        setSelectedCustomerId('');
+        setLoyaltyPoints(0);
+        return;
+      }
       const matched = customers.find(c => {
-        const cPhone = c.phone.trim().replace(/\D/g, '');
-        const searchPhone = custPhone.trim().replace(/\D/g, '');
-        return cPhone.endsWith(searchPhone) || searchPhone.endsWith(cPhone);
+        const cNorm = normalizePhone(c.phone.trim());
+        return cNorm === searchNorm;
       });
       if (matched) {
         setCustName(matched.name);
@@ -722,24 +729,27 @@ const Sales = () => {
                     <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '4px', border: '1px solid #eee' }}>
                       <h4 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>GST HSN Breakdown</h4>
                       {(() => {
+                        // Fix #8: Group by HSN + gst_rate so label shows actual rate, not hardcoded 9%
                         const hsnBreakdown = {};
                         createdInvoice.items?.forEach(si => {
                           const hsn = si.watch?.hsn_code || '9102';
-                          if (!hsnBreakdown[hsn]) {
-                            hsnBreakdown[hsn] = 0;
+                          const rate = Number(si.gst_rate || 18);
+                          const key = `${hsn}__${rate}`;
+                          if (!hsnBreakdown[key]) {
+                            hsnBreakdown[key] = { hsn, rate, gstAmt: 0 };
                           }
-                          hsnBreakdown[hsn] += Number(si.gst_amount || 0);
+                          hsnBreakdown[key].gstAmt += Number(si.gst_amount || 0);
                         });
-                        return Object.entries(hsnBreakdown).map(([hsn, gstAmt]) => (
-                          <div key={hsn} style={{ marginBottom: '0.5rem', borderBottom: '1px dashed #eee', paddingBottom: '0.25rem' }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>HSN: {hsn}</div>
+                        return Object.values(hsnBreakdown).map((entry) => (
+                          <div key={`${entry.hsn}-${entry.rate}`} style={{ marginBottom: '0.5rem', borderBottom: '1px dashed #eee', paddingBottom: '0.25rem' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>HSN: {entry.hsn} | GST: {entry.rate}%</div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem' }}>
-                              <span>CGST (9%)</span>
-                              <span>₹{(gstAmt / 2).toFixed(2)}</span>
+                              <span>CGST ({entry.rate / 2}%)</span>
+                              <span>₹{(entry.gstAmt / 2).toFixed(2)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem', marginTop: '0.1rem' }}>
-                              <span>SGST (9%)</span>
-                              <span>₹{(gstAmt / 2).toFixed(2)}</span>
+                              <span>SGST ({entry.rate / 2}%)</span>
+                              <span>₹{(entry.gstAmt / 2).toFixed(2)}</span>
                             </div>
                           </div>
                         ));

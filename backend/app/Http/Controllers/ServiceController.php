@@ -119,17 +119,18 @@ class ServiceController extends Controller
             'job_id' => 'required|exists:service_jobs,id',
             'actual_cost' => 'required|numeric|min:0',
             'payment_mode' => 'required|string',
+            'invoice_type' => 'nullable|string|in:gst,non-gst', // Fix #11: Accept GST or non-GST
         ]);
 
         return DB::transaction(function () use ($request) {
             $job = ServiceJob::findOrFail($request->job_id);
             $user = $request->user();
 
-            // Generate sequential unique invoice ID for service bill (e.g. 0001, 0002...)
-            $lastInvoice = Sale::whereRaw('id REGEXP "^[0-9]+$"')->orderByRaw('CAST(id AS UNSIGNED) DESC')->first();
+            // Fix #2: Use SELECT FOR UPDATE inside the transaction to lock and prevent race conditions
+            $rows = DB::select('SELECT MAX(CAST(id AS UNSIGNED)) AS max_id FROM sales WHERE id REGEXP \'^[0-9]+$\' FOR UPDATE');
             $nextNum = 1;
-            if ($lastInvoice) {
-                $nextNum = ((int) $lastInvoice->id) + 1;
+            if ($rows && $rows[0]->max_id !== null) {
+                $nextNum = ((int) $rows[0]->max_id) + 1;
             }
             $invoiceId = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
@@ -137,7 +138,7 @@ class ServiceController extends Controller
                 'id' => $invoiceId,
                 'customer_id' => $job->customer_id,
                 'user_id' => $user->id,
-                'invoice_type' => 'non-gst',
+                'invoice_type' => $request->invoice_type ?? 'non-gst', // Fix #11: Use provided type
                 'invoice_date' => Carbon::now()->toDateString(),
                 'subtotal' => $request->actual_cost,
                 'discount_amount' => 0.00,

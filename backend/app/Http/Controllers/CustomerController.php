@@ -30,10 +30,17 @@ class CustomerController extends Controller
         if ($request->filled('phone')) {
             $existing = Customer::where('phone', trim($request->phone))->first();
             if ($existing) {
-                if ($request->filled('name') && $existing->name !== $request->name) {
-                    $existing->name = $request->name;
+                $changed = false;
+                // Fix #14: Update name, email, dob, alt_phone, address if provided and different
+                foreach (['name', 'email', 'alt_phone', 'address', 'dob', 'anniversary', 'tags', 'notes'] as $field) {
+                    if ($request->filled($field) && $existing->$field !== $request->$field) {
+                        $existing->$field = $request->$field;
+                        $changed = true;
+                    }
+                }
+                if ($changed) {
                     $existing->save();
-                    ActivityLog::log($request->user()->id, 'UPDATE', 'Customers', "Updated customer profile name to {$existing->name}");
+                    ActivityLog::log($request->user()->id, 'UPDATE', 'Customers', "Updated customer profile for {$existing->name} (Phone: {$existing->phone})");
                 }
                 return response()->json([
                     'message' => 'Customer profile already exists, returned existing profile',

@@ -180,14 +180,14 @@ const Reports = () => {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                   ['Invoice No', 'Date', 'Customer', 'Phone', 'Invoice Type', 'Subtotal', 'Discount', 'GST', 'Net Amount', 'Payment Mode'],
-                  salesData.map(s => [s.id, s.invoice_date, s.customer?.name, s.customer?.phone, s.invoice_type, s.subtotal, s.discount_amount + (s.bill_discount_amount || 0), s.gst_amount, s.net_amount, s.payment_mode]),
+                  salesData.map(s => [s.id, s.invoice_date, s.customer?.name, s.customer?.phone, s.invoice_type, s.subtotal, s.discount_amount, s.gst_amount, s.net_amount, s.payment_mode]),
                   'sales_report'
                 )}>
                   <Download size={13} /> Export CSV
                 </button>
                 <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
                   ['Invoice No', 'Date', 'Customer', 'Phone', 'Invoice Type', 'Subtotal', 'Discount', 'GST', 'Net Amount', 'Payment Mode'],
-                  salesData.map(s => [s.id, s.invoice_date, s.customer?.name, s.customer?.phone, s.invoice_type, s.subtotal, s.discount_amount + (s.bill_discount_amount || 0), s.gst_amount, s.net_amount, s.payment_mode]),
+                  salesData.map(s => [s.id, s.invoice_date, s.customer?.name, s.customer?.phone, s.invoice_type, s.subtotal, s.discount_amount, s.gst_amount, s.net_amount, s.payment_mode]),
                   'sales_report', 'Sales Report'
                 )}>
                   <Download size={13} /> Export Excel
@@ -208,7 +208,7 @@ const Reports = () => {
                       <td>{s.customer?.name}<br /><small style={{ color: 'var(--text-secondary)' }}>{s.customer?.phone}</small></td>
                       <td><span className={`badge badge-${s.invoice_type === 'gst' ? 'success' : 'info'}`}>{s.invoice_type.toUpperCase()}</span></td>
                       <td>{fmt(s.subtotal)}</td>
-                      <td style={{ color: 'var(--error)' }}>{fmt((s.discount_amount || 0) + (s.bill_discount_amount || 0))}</td>
+                      <td style={{ color: 'var(--error)' }}>{fmt(s.discount_amount || 0)}</td>
                       <td>{fmt(s.gst_amount)}</td>
                       <td style={{ fontWeight: 700 }}>{fmt(s.net_amount)}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.payment_mode}</td>
@@ -222,7 +222,7 @@ const Reports = () => {
                     <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
                       <td colSpan="4">Total ({salesData.length} invoices)</td>
                       <td>{fmt(salesData.reduce((a, s) => a + Number(s.subtotal || 0), 0))}</td>
-                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0) + Number(s.bill_discount_amount || 0), 0))}</td>
+                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0), 0))}</td>
                       <td>{fmt(salesData.reduce((a, s) => a + Number(s.gst_amount || 0), 0))}</td>
                       <td>{fmt(salesData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
                       <td></td>

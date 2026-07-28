@@ -59,6 +59,15 @@ class ReturnController extends Controller
             'reason' => 'required|string'
         ]);
 
+        // Fix #12: Prevent duplicate return for same watch + sale
+        $alreadyReturned = DB::table('sales_returns')
+            ->where('original_sale_id', $request->original_sale_id)
+            ->where('watch_id', $request->watch_id)
+            ->exists();
+        if ($alreadyReturned) {
+            return response()->json(['message' => 'This watch has already been returned from this invoice.'], 422);
+        }
+
         return DB::transaction(function () use ($request) {
             $ret = DB::table('sales_returns')->insertGetId([
                 'original_sale_id' => $request->original_sale_id,
@@ -91,7 +100,6 @@ class ReturnController extends Controller
                 $pointsEarnedToDeduct = floor($netItemSpent / 100);
                 if ($pointsEarnedToDeduct > 0) {
                     $customer->points_balance = max(0, $customer->points_balance - $pointsEarnedToDeduct);
-                    $customer->save();
 
                     DB::table('loyalty_ledgers')->insert([
                         'customer_id' => $customer->id,
@@ -105,6 +113,14 @@ class ReturnController extends Controller
                     ]);
                 }
             }
+
+            // Fix #4: Reduce outstanding_dues if the original sale was a credit sale
+            $originalSale = DB::table('sales')->where('id', $request->original_sale_id)->first();
+            if ($originalSale && $originalSale->is_credit_sale) {
+                $customer->outstanding_dues = max(0, ($customer->outstanding_dues ?? 0) - (double) $request->refund_amount);
+            }
+
+            $customer->save();
 
             return response()->json([
                 'message' => 'Return processed successfully',

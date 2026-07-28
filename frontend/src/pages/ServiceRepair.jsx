@@ -252,7 +252,31 @@ const ServiceRepair = () => {
         });
         const payMode = payModeChoice.isConfirmed ? 'upi' : 'cash';
 
-        const result = await api.addServiceBill(jobId, actualCost, payMode);
+        // Fix #11: Ask invoice type — GST or non-GST
+        const invoiceTypeChoice = await Swal.fire({
+          title: 'Invoice Type',
+          text: 'Does this customer require a GST invoice?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'GST Invoice',
+          cancelButtonText: 'Non-GST / Plain Bill',
+          background: 'var(--surface-color)',
+          color: 'var(--text-primary)',
+          confirmButtonColor: 'var(--primary-gold)',
+          cancelButtonColor: 'var(--border-color)',
+          buttonsStyling: false,
+          width: '380px',
+          customClass: {
+            popup: 'swal2-custom-popup',
+            title: 'swal2-custom-title',
+            htmlContainer: 'swal2-custom-html',
+            confirmButton: 'btn btn-primary swal-btn-margin',
+            cancelButton: 'btn btn-secondary swal-btn-margin'
+          }
+        });
+        const invoiceType = invoiceTypeChoice.isConfirmed ? 'gst' : 'non-gst';
+
+        const result = await api.addServiceBill(jobId, actualCost, payMode, invoiceType);
         alertService.success(
           'Service Delivered!',
           `Service billed and delivered successfully. Bill Invoice No: ${result.id || result}. Total collected: ₹${actualCost.toLocaleString()}.`

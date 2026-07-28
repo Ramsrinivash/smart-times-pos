@@ -41,6 +41,16 @@ class ExchangeController extends Controller
                 return response()->json(['message' => 'The returned watch was not found on this invoice.'], 422);
             }
 
+            // Fix #5: Block exchange if watch was already returned/exchanged
+            if ($saleItem->is_returned) {
+                return response()->json(['message' => 'This watch has already been returned or exchanged. Cannot process again.'], 422);
+            }
+
+            $returnedWatchCheck = Watch::findOrFail($request->returned_watch_id);
+            if ($returnedWatchCheck->status === 'exchanged_returned') {
+                return response()->json(['message' => 'This watch has already been marked as returned/exchanged in inventory.'], 422);
+            }
+
             $replacementWatch = Watch::findOrFail($request->replacement_watch_id);
             if ($replacementWatch->status !== 'in_stock') {
                 return response()->json(['message' => 'The replacement watch is not in stock.'], 422);
@@ -126,8 +136,9 @@ class ExchangeController extends Controller
             // Loyalty Points Reversals
             $customer = Customer::findOrFail($originalSale->customer_id);
             $reversedPoints = floor($returnedCredit / 100);
-            if ($reversedPoints > 0 && $customer->points_balance >= $reversedPoints) {
-                $customer->points_balance -= $reversedPoints;
+            if ($reversedPoints > 0) {
+                // Fix #6: Always deduct, never silently skip — clamp to 0 minimum
+                $customer->points_balance = max(0, $customer->points_balance - $reversedPoints);
                 LoyaltyLedger::create([
                     'customer_id' => $customer->id,
                     'points_earned' => 0,

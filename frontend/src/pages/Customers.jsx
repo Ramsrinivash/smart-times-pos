@@ -497,10 +497,10 @@ const Customers = () => {
                     <span style={{ color: '#666' }}>Subtotal</span>
                     <span>₹{reprintInvoice.subtotal.toLocaleString()}</span>
                   </div>
-                  {(reprintInvoice.discount_amount > 0 || reprintInvoice.bill_discount_amount > 0) && (
+                  {reprintInvoice.discount_amount > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
                       <span>Discount Given</span>
-                      <span>-₹{(reprintInvoice.discount_amount + (reprintInvoice.bill_discount_amount || 0)).toLocaleString()}</span>
+                      <span>-₹{reprintInvoice.discount_amount.toLocaleString()}</span>
                     </div>
                   )}
                   {reprintInvoice.points_redeemed > 0 && (

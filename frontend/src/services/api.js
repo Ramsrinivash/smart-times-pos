@@ -251,9 +251,9 @@ export const api = {
   },
 
   // Service Billing
-  addServiceBill: async (jobId, actualCost, paymentMode) => {
+  addServiceBill: async (jobId, actualCost, paymentMode, invoiceType = 'non-gst') => {
     if (USE_MOCK) return mockAPI.addServiceBill(jobId, actualCost, paymentMode);
-    return request('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode }) });
+    return request('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode, invoice_type: invoiceType }) });
   },
 
   // Watch Image Upload

@@ -98,10 +98,12 @@ class AttendancePayrollController extends Controller
             $absent = $empAtts->where('status', 'absent')->count();
 
             $recordedCount = $empAtts->count();
+            // Fix #7: Unrecorded days treated as ABSENT (not present) — admin must fill attendance
             $unrecorded = max(0, $daysInMonth - $recordedCount);
+            $attendanceIncomplete = $recordedCount < $daysInMonth;
             
-            $effectivePresent = $present + $leave + $unrecorded;
-            $payableDays = $effectivePresent + ($halfDay * 0.5);
+            // Only counted paid days: present + approved leave + half_days
+            $payableDays = $present + $leave + ($halfDay * 0.5);
 
             $baseSalary = (double) $emp->base_salary;
             $netSalary = round(($baseSalary / $daysInMonth) * $payableDays, 2);
@@ -120,6 +122,7 @@ class AttendancePayrollController extends Controller
                 'half_days' => $halfDay,
                 'absent_days' => $absent,
                 'unrecorded_days' => $unrecorded,
+                'attendance_incomplete' => $attendanceIncomplete, // UI can warn admin
                 'status' => $saved ? $saved->status : 'unpaid',
                 'payment_date' => $saved ? $saved->payment_date : null
             ];
