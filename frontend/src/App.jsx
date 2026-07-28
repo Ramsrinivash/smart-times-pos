@@ -147,12 +147,8 @@ function App() {
               </ProtectedLayout>
             } />
 
-            {/* Bill Template Designer */}
-            <Route path="/bill-template" element={
-              <ProtectedLayout allowedRoles={['admin', 'manager']}>
-                <BillTemplate />
-              </ProtectedLayout>
-            } />
+            {/* Bill Template Designer (Redirects to System Configuration) */}
+            <Route path="/bill-template" element={<Navigate to="/settings?tab=bill_designer" replace />} />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

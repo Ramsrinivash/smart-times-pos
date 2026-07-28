@@ -62,7 +62,7 @@ const MARGIN_OPTIONS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-const BillTemplate = () => {
+const BillTemplate = ({ embedded = false }) => {
   const { user } = useAuth();
   const [template, setTemplate] = useState(getBillTemplate());
   const [storeSettings, setStoreSettings] = useState(null);
@@ -129,29 +129,27 @@ const BillTemplate = () => {
     </label>
   );
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
-      <Header searchPlaceholder="Bill template settings..." />
-      <div className="page-container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div>
-            <h1 className="page-title" style={{ margin: 0 }}>Bill Template Designer</h1>
-            <p className="page-subtitle" style={{ margin: '0.25rem 0 0' }}>
-              Customize how your printed invoices & receipts look. Changes apply to all future bills.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button onClick={() => setShowPreview(p => !p)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Eye size={16} /> {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </button>
-            <button onClick={handleReset} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <RefreshCw size={16} /> Reset Defaults
-            </button>
-            <button onClick={handleSave} className={`btn btn-primary ${saved ? 'btn-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Save size={16} /> {saved ? '✓ Saved!' : 'Save Template'}
-            </button>
-          </div>
+  const innerContent = (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Bill Template & Layout Designer</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0' }}>
+            Configure paper sizes, font sizes, margins, and section visibility for invoice printing.
+          </p>
         </div>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setShowPreview(p => !p)} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Eye size={15} /> {showPreview ? 'Hide Preview' : 'Show Preview'}
+          </button>
+          <button type="button" onClick={handleReset} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <RefreshCw size={15} /> Reset Defaults
+          </button>
+          <button type="button" onClick={handleSave} className={`btn btn-primary btn-sm ${saved ? 'btn-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Save size={15} /> {saved ? '✓ Saved!' : 'Save Template'}
+          </button>
+        </div>
+      </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: showPreview ? '420px 1fr' : '1fr', gap: '1.5rem', alignItems: 'flex-start' }}>
 
@@ -330,6 +328,18 @@ const BillTemplate = () => {
             </div>
           )}
         </div>
+    </div>
+  );
+
+  if (embedded) {
+    return innerContent;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
+      <Header searchPlaceholder="Bill template settings..." />
+      <div className="page-container">
+        {innerContent}
       </div>
     </div>
   );

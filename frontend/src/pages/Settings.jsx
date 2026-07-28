@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
-import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { alertService } from '../utils/alert';
+import BillTemplate from './BillTemplate';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -51,9 +53,13 @@ const Settings = () => {
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffSalary, setNewStaffSalary] = useState('');
 
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = searchParams.get('tab') || 'profile';
+
   // Activity log
   const [activityLogs, setActivityLogs] = useState([]);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -228,6 +234,9 @@ const Settings = () => {
           <button style={tabStyle('invoice')} onClick={() => setActiveTab('invoice')}>
             <FileText size={14} style={{ marginRight: '0.3rem' }} /> Invoice & Rules
           </button>
+          <button style={tabStyle('bill_designer')} onClick={() => setActiveTab('bill_designer')}>
+            <Printer size={14} style={{ marginRight: '0.3rem' }} /> Bill Designer
+          </button>
           <button style={tabStyle('loyalty')} onClick={() => setActiveTab('loyalty')}>
             Loyalty Program
           </button>
@@ -324,6 +333,13 @@ const Settings = () => {
                 <input type="number" className="form-control" min="0" value={warrantyMonths} onChange={e => setWarrantyMonths(e.target.value)} />
                 <small style={{ color: 'var(--text-secondary)' }}>Auto in-warranty flag on service intake for watches sold within this period</small>
               </div>
+            </div>
+          )}
+
+          {/* Bill Designer */}
+          {activeTab === 'bill_designer' && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <BillTemplate embedded={true} />
             </div>
           )}
 

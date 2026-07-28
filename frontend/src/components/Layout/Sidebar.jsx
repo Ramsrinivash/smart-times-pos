@@ -52,7 +52,6 @@ const Sidebar = () => {
     { to: '/warranty',               label: 'Warranty Cards',    icon: ShieldCheck,     roles: ['admin', 'manager', 'sales'] },
     { to: '/reports',                label: 'Reports',           icon: TrendingUp,      roles: ['admin', 'manager', 'sales'] },
     { to: '/attendance',             label: 'Attendance & Pay',  icon: Calendar,        roles: ['admin', 'manager'] },
-    { to: '/bill-template',          label: 'Bill Designer',     icon: Printer,         roles: ['admin', 'manager'] },
     { to: '/settings',               label: 'Settings',          icon: Settings,        roles: ['admin'] }
   ];
 
