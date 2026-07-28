@@ -116,6 +116,14 @@ const AttendancePayroll = () => {
     setDailyRecords(prev => prev.map(r => r.user_id === userId ? { ...r, notes } : r));
   };
 
+  // Derived stats for Daily Register tab (safely computed to prevent runtime crash)
+  const safeDailyRecords = Array.isArray(dailyRecords) ? dailyRecords : [];
+  const presentToday = safeDailyRecords.filter(r => r.status === 'present').length;
+  const clToday = safeDailyRecords.filter(r => r.status === 'cl').length;
+  const mlToday = safeDailyRecords.filter(r => r.status === 'ml').length;
+  const halfDayToday = safeDailyRecords.filter(r => r.status === 'half_day').length;
+  const absentToday = safeDailyRecords.filter(r => r.status === 'absent').length;
+  const safePayrollRecords = Array.isArray(payrollRecords) ? payrollRecords : [];
   const handleSaveDailyRegister = async () => {
     try {
       const payload = dailyRecords.map(r => ({
@@ -504,15 +512,11 @@ const AttendancePayroll = () => {
               </div>
               <div className="card" style={{ textAlign: 'center', padding: '0.85rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Casual Leave (CL)</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#3b82f6' }}>
-                  {dailyRecords.filter(r => r.status === 'cl').length}
-                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#3b82f6' }}>{clToday}</div>
               </div>
               <div className="card" style={{ textAlign: 'center', padding: '0.85rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Medical Leave (ML)</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#8b5cf6' }}>
-                  {dailyRecords.filter(r => r.status === 'ml').length}
-                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#8b5cf6' }}>{mlToday}</div>
               </div>
               <div className="card" style={{ textAlign: 'center', padding: '0.85rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Half Day</div>
@@ -542,8 +546,8 @@ const AttendancePayroll = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {dailyRecords.length > 0 ? (
-                        dailyRecords.map(rec => (
+                      {safeDailyRecords.length > 0 ? (
+                        safeDailyRecords.map(rec => (
                           <tr key={rec.user_id}>
                             <td style={{ fontWeight: 600 }}>{rec.user_name}</td>
                             <td>
@@ -651,8 +655,8 @@ const AttendancePayroll = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {payrollRecords.length > 0 ? (
-                        payrollRecords.map(rec => (
+                      {safePayrollRecords.length > 0 ? (
+                        safePayrollRecords.map(rec => (
                           <tr key={rec.user_id}>
                             <td style={{ fontWeight: 600 }}>{rec.user_name}</td>
                             <td>
