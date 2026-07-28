@@ -18,6 +18,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import SupplierLedger from './pages/SupplierLedger';
 import AttendancePayroll from './pages/AttendancePayroll';
+import BillTemplate from './pages/BillTemplate';
 
 const ProtectedLayout = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -143,6 +144,13 @@ function App() {
             <Route path="/attendance" element={
               <ProtectedLayout allowedRoles={['admin', 'manager']}>
                 <AttendancePayroll />
+              </ProtectedLayout>
+            } />
+
+            {/* Bill Template Designer */}
+            <Route path="/bill-template" element={
+              <ProtectedLayout allowedRoles={['admin', 'manager']}>
+                <BillTemplate />
               </ProtectedLayout>
             } />
 

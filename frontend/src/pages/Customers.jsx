@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { Phone, MapPin, Award, Plus, Calendar, Printer, X, FileText } from 'lucide-react';
 import { alertService } from '../utils/alert';
+import PrintableInvoice from '../components/PrintableInvoice';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -402,127 +403,15 @@ const Customers = () => {
 
         {/* Reprint Invoice Modal Overlay */}
         {reprintInvoice && (
-          <div className="modal-overlay">
-            <div className="modal-content printable-area" style={{ maxWidth: '800px', background: '#ffffff', color: '#000000', padding: '3rem', borderRadius: '4px' }}>
-              
-              {/* Invoice print header */}
-              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h2 style={{ color: '#d4af37', fontFamily: 'var(--font-title)', fontSize: '2rem', margin: 0, textTransform: 'uppercase' }}>
-                      {settings?.store_name || 'SMART TIMES'}
-                    </h2>
-                    <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: '#333', fontWeight: 600 }}>
-                      {settings?.tagline || 'Watch Showroom & Service'}
-                    </p>
-                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
-                      {settings?.address || '108, Pennagaram Main Road, Dharmapuri - 636701'}
-                    </p>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#555', fontWeight: 500 }}>
-                      GSTIN: {settings?.gstin || '33EJBPA4537C1ZW'} | Cell: {settings?.phone || '97512 85945'}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>
-                      {reprintInvoice.invoice_type === 'gst' ? 'Tax Invoice' : 'Retail Bill'}
-                    </h3>
-                    <p style={{ margin: '0.2rem 0', fontWeight: 600 }}>Invoice: {reprintInvoice.id}</p>
-                    <p style={{ margin: 0 }}>Date: {reprintInvoice.invoice_date}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bill to section */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                <div>
-                  <h4 style={{ textTransform: 'uppercase', color: '#555', marginBottom: '0.5rem' }}>Billed To:</h4>
-                  <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{reprintInvoice.customer?.name}</p>
-                  <p style={{ margin: '0.1rem 0' }}>Phone: {reprintInvoice.customer?.phone}</p>
-                  <p style={{ margin: '0.1rem 0' }}>{reprintInvoice.customer?.address || 'Counter Sale'}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#555', marginBottom: '0.5rem' }}>Payment Info:</h4>
-                  <p style={{ margin: '0.1rem 0' }}>Mode: <strong>{reprintInvoice.payment_mode.toUpperCase()}</strong></p>
-                  <p style={{ margin: '0.1rem 0' }}>Salesperson: Owner Admin</p>
-                </div>
-              </div>
-
-              {/* Items list */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #333' }}>
-                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Watch ID / Serial</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Model Description</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Unit Price (₹)</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Discount (₹)</th>
-                    {reprintInvoice.invoice_type === 'gst' && <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>GST %</th>}
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Amount (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reprintInvoice.items?.map(item => (
-                    <tr key={item.watch_id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>{item.watch_id}</td>
-                      <td style={{ padding: '0.75rem' }}>{item.watch?.brand} - {item.watch?.model}</td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.price_sold.toLocaleString()}</td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.discount_amount.toLocaleString()}</td>
-                      {reprintInvoice.invoice_type === 'gst' && <td style={{ padding: '0.75rem', textAlign: 'right' }}>{item.gst_rate}%</td>}
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                        ₹{(item.price_sold - item.discount_amount).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Totals */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                <div>
-                  {reprintInvoice.invoice_type === 'gst' && (
-                    <div style={{ padding: '0.85rem', background: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee' }}>
-                      <h5 style={{ margin: '0 0 0.5rem 0', color: '#333' }}>GST Breakup (HSN Code: 9102)</h5>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#555' }}>
-                        <span>CGST (9%)</span>
-                        <span>₹{(reprintInvoice.gst_amount / 2).toFixed(2)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#555', marginTop: '0.2rem' }}>
-                        <span>SGST (9%)</span>
-                        <span>₹{(reprintInvoice.gst_amount / 2).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#666' }}>Subtotal</span>
-                    <span>₹{reprintInvoice.subtotal.toLocaleString()}</span>
-                  </div>
-                  {reprintInvoice.discount_amount > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
-                      <span>Discount Given</span>
-                      <span>-₹{reprintInvoice.discount_amount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {reprintInvoice.points_redeemed > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
-                      <span>Points Redeemed ({reprintInvoice.points_redeemed} pts)</span>
-                      <span>-₹{reprintInvoice.points_value.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, color: '#d4af37', borderTop: '2px solid #333', paddingTop: '0.5rem' }}>
-                    <span>Net Amount</span>
-                    <span>₹{reprintInvoice.net_amount.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions row */}
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '2rem' }}>
-                <button onClick={() => setReprintInvoice(null)} className="btn btn-secondary">Close</button>
-                <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Printer size={15} /> Print Copy
-                </button>
-              </div>
+          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
+            <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', padding: '1rem' }}>
+              <PrintableInvoice
+                invoice={reprintInvoice}
+                storeSettings={settings}
+                currentUser={null}
+                onClose={() => setReprintInvoice(null)}
+                onPrint={() => window.print()}
+              />
             </div>
           </div>
         )}

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
 import { Search, ShoppingCart, Trash2, Printer, Share2, Plus, UserCheck, Image as ImageIcon } from 'lucide-react';
 import { alertService } from '../utils/alert';
+import PrintableInvoice from '../components/PrintableInvoice';
 
 const Sales = () => {
   const { user } = useAuth();
@@ -657,173 +658,15 @@ const Sales = () => {
 
         {/* Printable Invoice Receipt Modal */}
         {createdInvoice && (
-          <div className="modal-overlay">
-            <div className="modal-content printable-area" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2.5rem' }}>
-              
-              {/* Receipt Header */}
-              <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h2 style={{ color: '#d4af37', fontSize: '1.8rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
-                    <h4 style={{ margin: '0.1rem 0 0', color: '#444' }}>{settings?.tagline || 'Showroom Invoice'}</h4>
-                    <p style={{ margin: '0.1rem 0', fontSize: '0.8rem', color: '#555' }}>
-                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Chruch), DHARMAPURI - 636 701. • Call: 97512 85945, 86672 88021'}
-                    </p>
-                    {settings?.gstin && <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>GSTIN: {settings.gstin}</p>}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333' }}>Tax Invoice</h3>
-                    <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>Bill Invoice No: {createdInvoice.id}</p>
-                    <p style={{ margin: 0 }}>Date: {createdInvoice.invoice_date}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem' }}>Billed To:</h4>
-                  <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{createdInvoice.customer?.name}</p>
-                  <p style={{ margin: '0.1rem 0' }}>Customer ID: #{createdInvoice.customer?.id || 'N/A'}</p>
-                  <p style={{ margin: '0.1rem 0' }}>Phone: {createdInvoice.customer?.phone}</p>
-                  <p style={{ margin: '0.1rem 0' }}>{createdInvoice.customer?.address || 'Counter Sale'}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#555', marginBottom: '0.5rem' }}>Payment Info:</h4>
-                  <p style={{ margin: '0.1rem 0' }}>Mode: <strong>{createdInvoice.payment_mode.toUpperCase()}</strong></p>
-                  <p style={{ margin: '0.1rem 0' }}>Salesperson: {user?.name || 'Staff'}</p>
-                </div>
-              </div>
-
-              {/* Items list */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #333' }}>
-                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Watch ID / Serial</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left', color: '#333' }}>Model Description</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Unit Price (₹)</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Discount (₹)</th>
-                    {createdInvoice.invoice_type === 'gst' && <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>GST %</th>}
-                    <th style={{ padding: '0.75rem', textAlign: 'right', color: '#333' }}>Amount (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {createdInvoice.items?.map(item => (
-                    <tr key={item.watch_id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>{item.watch_id}</td>
-                      <td style={{ padding: '0.75rem' }}>{item.watch?.brand} - {item.watch?.model} (HSN: {item.watch?.hsn_code || '9102'})</td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.price_sold.toLocaleString()}</td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>₹{item.discount_amount.toLocaleString()}</td>
-                      {createdInvoice.invoice_type === 'gst' && <td style={{ padding: '0.75rem', textAlign: 'right' }}>{item.gst_rate}%</td>}
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                        ₹{(item.price_sold - item.discount_amount).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Tax splits and totals */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                <div>
-                  {createdInvoice.invoice_type === 'gst' && (
-                    <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '4px', border: '1px solid #eee' }}>
-                      <h4 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>GST HSN Breakdown</h4>
-                      {(() => {
-                        // Fix #8: Group by HSN + gst_rate so label shows actual rate, not hardcoded 9%
-                        const hsnBreakdown = {};
-                        createdInvoice.items?.forEach(si => {
-                          const hsn = si.watch?.hsn_code || '9102';
-                          const rate = Number(si.gst_rate || 18);
-                          const key = `${hsn}__${rate}`;
-                          if (!hsnBreakdown[key]) {
-                            hsnBreakdown[key] = { hsn, rate, gstAmt: 0 };
-                          }
-                          hsnBreakdown[key].gstAmt += Number(si.gst_amount || 0);
-                        });
-                        return Object.values(hsnBreakdown).map((entry) => (
-                          <div key={`${entry.hsn}-${entry.rate}`} style={{ marginBottom: '0.5rem', borderBottom: '1px dashed #eee', paddingBottom: '0.25rem' }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>HSN: {entry.hsn} | GST: {entry.rate}%</div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem' }}>
-                              <span>CGST ({entry.rate / 2}%)</span>
-                              <span>₹{(entry.gstAmt / 2).toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', paddingLeft: '0.5rem', marginTop: '0.1rem' }}>
-                              <span>SGST ({entry.rate / 2}%)</span>
-                              <span>₹{(entry.gstAmt / 2).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  )}
-                  {createdInvoice.points_redeemed > 0 && (
-                    <p style={{ color: '#666', marginTop: '0.5rem' }}>
-                      Redeemed reward points: <strong>{createdInvoice.points_redeemed}</strong> points (Rs {createdInvoice.points_value} adjustment)
-                    </p>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Gross Subtotal</span>
-                    <span>₹{createdInvoice.subtotal.toLocaleString()}</span>
-                  </div>
-                  {createdInvoice.discount_amount - (createdInvoice.points_value || 0) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Store Discount / Special Offers</span>
-                      <span>-₹{(createdInvoice.discount_amount - (createdInvoice.points_value || 0)).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(createdInvoice.points_value || 0) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Loyalty Points Redeemed ({createdInvoice.points_redeemed} pts)</span>
-                      <span>-₹{Number(createdInvoice.points_value).toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, borderTop: '2px solid #333', paddingTop: '0.5rem', color: '#d4af37' }}>
-                    <span>Grand Net Total</span>
-                    <span>₹{createdInvoice.net_amount.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Signature Section */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3.5rem', fontSize: '0.85rem' }}>
-                <div style={{ textAlign: 'left' }}>
-                  <p style={{ margin: 0 }}>Salesperson: <strong>{createdInvoice.user?.name || user?.name}</strong></p>
-                  <div style={{ borderTop: '1px dashed #333', width: '150px', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
-                    Salesperson Signature
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0 }}>For <strong>{settings?.store_name || 'SMART TIMES'}</strong></p>
-                  <div style={{ borderTop: '1px dashed #333', width: '150px', marginLeft: 'auto', marginTop: '2.5rem', textAlign: 'center', paddingTop: '0.25rem' }}>
-                    Authorized Signatory
-                  </div>
-                </div>
-              </div>
-
-              {/* Share links */}
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #ccc', paddingTop: '1.5rem', marginTop: '2rem' }}>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <a 
-                    href={`https://wa.me/${createdInvoice.customer?.phone}?text=${encodeURIComponent(`Dear ${createdInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${createdInvoice.id} amounting ₹${createdInvoice.net_amount} is ready.`)}`} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                  >
-                    <Share2 size={16} /> WhatsApp Alert
-                  </a>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <Printer size={16} /> Print Receipt
-                  </button>
-                  <button onClick={() => setCreatedInvoice(null)} className="btn btn-secondary">
-                    Close Invoice
-                  </button>
-                </div>
-              </div>
+          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
+            <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', padding: '1rem' }}>
+              <PrintableInvoice
+                invoice={createdInvoice}
+                storeSettings={settings}
+                currentUser={user}
+                onClose={() => setCreatedInvoice(null)}
+                onPrint={() => window.print()}
+              />
             </div>
           </div>
         )}
