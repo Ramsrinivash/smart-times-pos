@@ -67,6 +67,17 @@ export const api = {
       body: JSON.stringify({ date, records })
     });
   },
+  getMonthlyAttendanceMatrix: async (month, year) => {
+    if (USE_MOCK) return mockAPI.getMonthlyAttendanceMatrix(month, year);
+    return request(`/attendance/matrix?month=${month}&year=${year}`);
+  },
+  saveSingleAttendance: async (data) => {
+    if (USE_MOCK) return mockAPI.saveSingleAttendance(data);
+    return request('/attendance/single', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
   getPayroll: async (month, year) => {
     return request(`/payroll?month=${month}&year=${year}`);
   },

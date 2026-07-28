@@ -42,7 +42,7 @@ class AttendancePayrollController extends Controller
             'date' => 'required|date',
             'records' => 'required|array',
             'records.*.user_id' => 'required|exists:users,id',
-            'records.*.status' => 'required|in:present,absent,half_day,leave',
+            'records.*.status' => 'required|in:present,absent,half_day,leave,cl,ml',
             'records.*.notes' => 'nullable|string',
         ]);
 
@@ -64,6 +64,116 @@ class AttendancePayrollController extends Controller
 
             return response()->json(['message' => 'Attendance saved successfully']);
         });
+    }
+
+    public function saveSingleAttendance(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'date' => 'required|date',
+            'status' => 'required|in:present,absent,half_day,leave,cl,ml',
+            'notes' => 'nullable|string',
+        ]);
+
+        $actor = $request->user();
+        $emp = User::findOrFail($request->user_id);
+        if ($emp->role === 'admin') {
+            return response()->json(['message' => 'Admin accounts are excluded from attendance.'], 422);
+        }
+
+        $att = Attendance::updateOrCreate(
+            ['user_id' => $request->user_id, 'date' => $request->date],
+            ['status' => $request->status, 'notes' => $request->notes ?? '']
+        );
+
+        ActivityLog::log($actor->id, 'UPDATE', 'Attendance', "Updated attendance for {$emp->name} on {$request->date} to status: {$request->status}");
+
+        return response()->json([
+            'message' => 'Attendance record updated successfully',
+            'attendance' => $att
+        ]);
+    }
+
+    public function getMonthlyMatrix(Request $request)
+    {
+        $request->validate([
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|min:2020|max:2050',
+        ]);
+
+        $month = (int) $request->month;
+        $year = (int) $request->year;
+
+        $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
+        $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+        $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+
+        $employees = User::where('role', '!=', 'admin')->get();
+        $attendances = Attendance::whereBetween('date', [$startDate, $endDate])->get();
+
+        $matrix = [];
+        foreach ($employees as $emp) {
+            $matrix[$emp->id] = [];
+        }
+
+        foreach ($attendances as $att) {
+            if (isset($matrix[$att->user_id])) {
+                $day = (int) Carbon::parse($att->date)->format('j');
+                $matrix[$att->user_id][$day] = [
+                    'status' => $att->status,
+                    'notes' => $att->notes ?? '',
+                    'date' => $att->date
+                ];
+            }
+        }
+
+        $formattedEmployees = $employees->map(function ($emp) use ($matrix, $daysInMonth) {
+            $empMatrix = $matrix[$emp->id] ?? [];
+            $present = 0;
+            $cl = 0;
+            $ml = 0;
+            $halfDay = 0;
+            $absent = 0;
+            $leave = 0;
+            $recordedCount = count($empMatrix);
+
+            foreach ($empMatrix as $dayData) {
+                $st = $dayData['status'] ?? '';
+                if ($st === 'present') $present++;
+                elseif ($st === 'cl') $cl++;
+                elseif ($st === 'ml') $ml++;
+                elseif ($st === 'half_day') $halfDay++;
+                elseif ($st === 'absent') $absent++;
+                elseif ($st === 'leave') $leave++;
+            }
+
+            $unrecorded = max(0, $daysInMonth - $recordedCount);
+            $payableDays = $present + $cl + $ml + ($halfDay * 0.5);
+
+            return [
+                'user_id' => $emp->id,
+                'user_name' => $emp->name,
+                'user_role' => $emp->role,
+                'days' => $empMatrix,
+                'summary' => [
+                    'present' => $present,
+                    'cl' => $cl,
+                    'ml' => $ml,
+                    'half_day' => $halfDay,
+                    'absent' => $absent,
+                    'leave' => $leave,
+                    'unrecorded' => $unrecorded,
+                    'payable_days' => $payableDays
+                ]
+            ];
+        });
+
+        return response()->json([
+            'month' => $month,
+            'year' => $year,
+            'days_in_month' => $daysInMonth,
+            'employees' => $formattedEmployees
+        ]);
     }
 
     public function getPayroll(Request $request)
@@ -93,17 +203,18 @@ class AttendancePayrollController extends Controller
             $empAtts = $attendances->get($emp->id) ?? collect([]);
             
             $present = $empAtts->where('status', 'present')->count();
+            $cl = $empAtts->where('status', 'cl')->count();
+            $ml = $empAtts->where('status', 'ml')->count();
             $leave = $empAtts->where('status', 'leave')->count();
             $halfDay = $empAtts->where('status', 'half_day')->count();
             $absent = $empAtts->where('status', 'absent')->count();
 
             $recordedCount = $empAtts->count();
-            // Fix #7: Unrecorded days treated as ABSENT (not present) — admin must fill attendance
             $unrecorded = max(0, $daysInMonth - $recordedCount);
             $attendanceIncomplete = $recordedCount < $daysInMonth;
             
-            // Only counted paid days: present + approved leave + half_days
-            $payableDays = $present + $leave + ($halfDay * 0.5);
+            // Paid days = Present + Casual Leave (CL) + Medical Leave (ML) + (Half Day * 0.5)
+            $payableDays = $present + $cl + $ml + ($halfDay * 0.5);
 
             $baseSalary = (double) $emp->base_salary;
             $netSalary = round(($baseSalary / $daysInMonth) * $payableDays, 2);
@@ -118,11 +229,13 @@ class AttendancePayrollController extends Controller
                 'net_salary' => $saved ? (double) $saved->net_salary : $netSalary,
                 'total_days' => $daysInMonth,
                 'present_days' => $present,
+                'cl_days' => $cl,
+                'ml_days' => $ml,
                 'leave_days' => $leave,
                 'half_days' => $halfDay,
                 'absent_days' => $absent,
                 'unrecorded_days' => $unrecorded,
-                'attendance_incomplete' => $attendanceIncomplete, // UI can warn admin
+                'attendance_incomplete' => $attendanceIncomplete,
                 'status' => $saved ? $saved->status : 'unpaid',
                 'payment_date' => $saved ? $saved->payment_date : null
             ];

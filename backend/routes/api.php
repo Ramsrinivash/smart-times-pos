@@ -185,6 +185,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin,manager')->group(function () {
         Route::get('/attendance', [AttendancePayrollController::class, 'getAttendance']);
         Route::post('/attendance', [AttendancePayrollController::class, 'saveAttendance']);
+        Route::get('/attendance/matrix', [AttendancePayrollController::class, 'getMonthlyMatrix']);
+        Route::post('/attendance/single', [AttendancePayrollController::class, 'saveSingleAttendance']);
         Route::get('/payroll', [AttendancePayrollController::class, 'getPayroll']);
         Route::post('/payroll/pay', [AttendancePayrollController::class, 'paySalary']);
     });
