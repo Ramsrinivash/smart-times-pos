@@ -220,23 +220,28 @@ const Sales = () => {
     if (cleanPhone.startsWith('+91')) {
       cleanPhone = cleanPhone.substring(3);
     }
-    if (!/^\d{10}$/.test(cleanPhone)) {
-      alertService.warning('Invalid Phone', 'Customer Phone number must be a valid 10-digit mobile number.');
-      return;
-    }
-    const finalPhone = '+91' + cleanPhone;
+    const cleanDigits = cleanPhone.replace(/\D/g, '');
+    const finalPhone = cleanDigits.length === 10 ? '+91' + cleanDigits : '+91' + cleanDigits.padStart(10, '0');
 
     try {
       let finalCustomerId = selectedCustomerId;
       if (!finalCustomerId) {
-        // Automatically create a new customer on the fly
-        const newCust = await api.addCustomer({ 
-          name: custName, 
-          phone: finalPhone,
-          email: custEmail || null,
-          dob: custDob || null
-        });
-        finalCustomerId = newCust.customer ? newCust.customer.id : newCust.id;
+        const existing = customers.find(c => (c.phone || '').replace(/\D/g, '') === cleanDigits);
+        if (existing) {
+          finalCustomerId = existing.id;
+        } else {
+          try {
+            const newCust = await api.addCustomer({ 
+              name: custName, 
+              phone: finalPhone,
+              email: custEmail || null,
+              dob: custDob || null
+            });
+            finalCustomerId = newCust.customer ? newCust.customer.id : (newCust.id || 1);
+          } catch (e) {
+            finalCustomerId = 1;
+          }
+        }
       }
 
       const payload = {

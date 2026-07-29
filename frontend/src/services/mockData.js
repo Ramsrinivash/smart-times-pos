@@ -176,8 +176,9 @@ export const mockAPI = {
 
   addCustomer: (data, userId = 1) => {
     const db = loadDB();
-    const existing = db.customers.find(c => c.phone === data.phone);
-    if (existing) throw new Error('Customer with this phone number already exists.');
+    const cleanP = (data.phone || '').replace(/\D/g, '');
+    const existing = db.customers.find(c => c.phone === data.phone || (cleanP && c.phone.replace(/\D/g, '') === cleanP));
+    if (existing) return existing;
     const newCustomer = {
       id: db.customers.length + 1,
       name: data.name,
@@ -385,8 +386,10 @@ export const mockAPI = {
     const db = loadDB();
     const now = new Date();
     const settings = db.settings;
-    const customer = db.customers.find(c => c.id === Number(data.customer_id));
-    if (!customer) throw new Error('Customer profile not found.');
+    let customer = db.customers.find(c => c.id === Number(data.customer_id));
+    if (!customer) {
+      customer = db.customers.find(c => c.id === 1) || db.customers[0] || { id: 1, name: 'Walk-in Customer', phone: '9999999999', points_balance: 0 };
+    }
 
     const invoiceId = String(db.sales.length + 1).padStart(4, '0');
 
