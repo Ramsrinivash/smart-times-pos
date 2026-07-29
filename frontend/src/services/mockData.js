@@ -399,9 +399,33 @@ export const mockAPI = {
     const itemsData = [];
 
     for (const itemInput of data.items) {
-      const watch = db.watches.find(w => w.id === itemInput.watch_id);
-      if (!watch || watch.status !== 'in_stock') {
-        throw new Error(`Watch "${itemInput.watch_id}" is not available in stock.`);
+      let watch = db.watches.find(w => w.id === itemInput.watch_id || w.id.toLowerCase() === (itemInput.watch_id || '').toLowerCase());
+      if (!watch) {
+        watch = {
+          id: itemInput.watch_id,
+          brand: itemInput.brand || 'Showroom Watch',
+          model: itemInput.model || itemInput.watch_id,
+          category: 'Wrist Watch',
+          gender: 'Unisex',
+          strap_type: 'Leather',
+          dial_color: 'Black',
+          movement_type: 'Quartz',
+          mrp: itemInput.selling_price || 1000,
+          cost_price: (itemInput.selling_price || 1000) * 0.7,
+          selling_price: itemInput.selling_price || 1000,
+          discount_percent: 0,
+          additional_scheme: 0,
+          gst_rate: itemInput.gst_rate || 18,
+          hsn_code: '9102',
+          supplier_name: 'Direct Showroom',
+          purchase_date: now.toISOString().split('T')[0],
+          invoice_number: 'DIRECT',
+          status: 'sold',
+          image_urls: []
+        };
+        db.watches.push(watch);
+      } else {
+        watch.status = 'sold';
       }
 
       const itemDisc = Number(itemInput.discount_amount || 0);
@@ -424,7 +448,6 @@ export const mockAPI = {
       subtotal += watch.selling_price;
       totalItemDiscounts += itemDisc;
       totalGst += gstAmt;
-      watch.status = 'sold';
     }
 
     // Bill-level discount (flat amount or percentage)
@@ -439,8 +462,11 @@ export const mockAPI = {
     const redeemPoints = Math.min(Number(data.redeem_points || 0), customer.points_balance);
     const pointsValue = redeemPoints * (settings.loyalty_redeem_rate || 1);
 
+    // Manual Round Off / Adjustment
+    const roundOffAmount = Number(data.round_off_amount || 0);
+
     const totalDiscount = totalItemDiscounts + billDiscAmount + pointsValue;
-    const netAmount = Math.max(0, subtotal - totalDiscount);
+    const netAmount = Math.max(0, subtotal - totalDiscount + roundOffAmount);
 
     // Credit sale tracking
     const isCreditSale = data.is_credit_sale || false;
@@ -490,6 +516,7 @@ export const mockAPI = {
       gst_amount: totalGst,
       points_redeemed: redeemPoints,
       points_value: pointsValue,
+      round_off_amount: roundOffAmount,
       net_amount: netAmount,
       payment_mode: data.payment_mode,
       is_credit_sale: isCreditSale,

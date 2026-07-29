@@ -25,6 +25,7 @@ const Sales = () => {
   const [redeemPoints, setRedeemPoints] = useState('');
   const [billDiscountAmount, setBillDiscountAmount] = useState('');
   const [billDiscountPercent, setBillDiscountPercent] = useState('');
+  const [roundOffAmount, setRoundOffAmount] = useState('');
   const [isCreditSale, setIsCreditSale] = useState(false);
   const [notes, setNotes] = useState('');
 
@@ -195,7 +196,27 @@ const Sales = () => {
   const pointsVal = pointsToRedeem; // 1 point = Rs 1
   
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
-  const netAmount = Math.max(0, subtotal - totalDiscount);
+  const rawNet = Math.max(0, subtotal - totalDiscount);
+  const roundOffVal = Number(roundOffAmount || 0);
+  const netAmount = Math.max(0, rawNet + roundOffVal);
+
+  const autoRoundToNearest100 = () => {
+    const remainder = rawNet % 100;
+    if (remainder !== 0) {
+      setRoundOffAmount(String(-remainder));
+    } else {
+      setRoundOffAmount('0');
+    }
+  };
+
+  const autoRoundToNearest50 = () => {
+    const remainder = rawNet % 50;
+    if (remainder !== 0) {
+      setRoundOffAmount(String(-remainder));
+    } else {
+      setRoundOffAmount('0');
+    }
+  };
 
   // GST calculations
   const totalGst = cart.reduce((acc, item) => {
@@ -251,10 +272,15 @@ const Sales = () => {
         redeem_points: pointsToRedeem,
         bill_discount_amount: billDiscFlat,
         bill_discount_percent: billDiscPct,
+        round_off_amount: roundOffVal,
         is_credit_sale: isCreditSale,
         notes,
         items: cart.map(item => ({
           watch_id: item.watch_id,
+          brand: item.brand,
+          model: item.model,
+          selling_price: item.selling_price,
+          gst_rate: item.gst_rate,
           discount_amount: item.discount_amount
         }))
       };
@@ -601,6 +627,28 @@ const Sales = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Manual Round Off / Adjustment (₹)</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--primary-gold)' }}>e.g. -90 or +10</span>
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    placeholder="0 (e.g. -90)" 
+                    value={roundOffAmount} 
+                    onChange={(e) => setRoundOffAmount(e.target.value)} 
+                  />
+                  <button type="button" onClick={autoRoundToNearest100} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap', padding: '0.3rem 0.5rem' }}>
+                    Round ₹100
+                  </button>
+                  <button type="button" onClick={autoRoundToNearest50} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap', padding: '0.3rem 0.5rem' }}>
+                    Round ₹50
+                  </button>
+                </div>
+              </div>
+
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                   <span>Gross Total:</span>
@@ -622,6 +670,12 @@ const Sales = () => {
                    <span>Total Discount:</span>
                    <span>-₹{totalDiscount.toLocaleString()}</span>
                  </div>
+                 {roundOffVal !== 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: roundOffVal < 0 ? 'var(--error)' : 'var(--success)', fontWeight: 600 }}>
+                    <span>Manual Round Off Adjustment:</span>
+                    <span>{roundOffVal < 0 ? `-₹${Math.abs(roundOffVal).toLocaleString()}` : `+₹${roundOffVal.toLocaleString()}`}</span>
+                  </div>
+                 )}
                 {invoiceType === 'gst' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <span>Included GST (18%):</span>

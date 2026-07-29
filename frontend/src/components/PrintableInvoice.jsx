@@ -347,6 +347,14 @@ const PrintableInvoice = ({
                 <span style={{ color: '#dc2626' }}>-{fmt(invoice.points_value)}</span>
               </div>
             )}
+            {(invoice.round_off_amount || 0) !== 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
+                <span style={{ color: '#555' }}>Round Off / Adjustment</span>
+                <span style={{ color: invoice.round_off_amount < 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                  {invoice.round_off_amount < 0 ? `-${fmt(Math.abs(invoice.round_off_amount))}` : `+${fmt(invoice.round_off_amount)}`}
+                </span>
+              </div>
+            )}
             {invoice.invoice_type === 'gst' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
                 <span style={{ color: '#555' }}>GST Included</span>
