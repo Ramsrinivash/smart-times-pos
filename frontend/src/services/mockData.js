@@ -386,14 +386,33 @@ export const mockAPI = {
     const db = loadDB();
     const now = new Date();
     const settings = db.settings;
-    let customer = db.customers.find(c => c.id === Number(data.customer_id));
+    
+    // Customer resolution logic
+    let customer = null;
+    if (data.customer_id) {
+      customer = db.customers.find(c => String(c.id) === String(data.customer_id));
+    }
+    if (!customer && data.customer_phone) {
+      const cleanP = String(data.customer_phone).replace(/\D/g, '');
+      if (cleanP) {
+        customer = db.customers.find(c => String(c.phone).replace(/\D/g, '').includes(cleanP));
+      }
+    }
     if (!customer) {
       customer = db.customers.find(c => c.id === 1) || db.customers[0] || { id: 1, name: 'Walk-in Customer', phone: '9999999999', points_balance: 0 };
     }
 
+    // Unique non-colliding invoice ID generation
     const prefix = data.invoice_type === 'gst' ? 'WS-GST-2627-' : 'WS-RETL-2627-';
-    const nextNum = db.sales.length + 1;
-    const invoiceId = `${prefix}${String(nextNum).padStart(4, '0')}`;
+    let maxNum = 0;
+    db.sales.forEach(s => {
+      const match = String(s.id).match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    const invoiceId = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
 
     let subtotal = 0;
     let totalItemDiscounts = 0;
@@ -461,7 +480,7 @@ export const mockAPI = {
     }
 
     // Reward points redemption
-    const redeemPoints = Math.min(Number(data.redeem_points || 0), customer.points_balance);
+    const redeemPoints = Math.min(Number(data.redeem_points || 0), customer.points_balance || 0);
     const pointsValue = redeemPoints * (settings.loyalty_redeem_rate || 1);
 
     // Manual Round Off / Adjustment
@@ -493,7 +512,7 @@ export const mockAPI = {
     const earnRate = settings.loyalty_earn_rate || 1;
     const pointsEarned = Math.floor(netAmount / 100 * earnRate);
     if (pointsEarned > 0) {
-      customer.points_balance += pointsEarned;
+      customer.points_balance = (customer.points_balance || 0) + pointsEarned;
       db.loyalty_ledgers.push({
         id: db.loyalty_ledgers.length + 1,
         customer_id: customer.id,
@@ -513,7 +532,7 @@ export const mockAPI = {
       invoice_type: data.invoice_type,
       invoice_date: now.toISOString().split('T')[0],
       subtotal,
-      discount_amount: totalItemDiscounts,
+      discount_amount: totalDiscount,
       bill_discount_amount: billDiscAmount,
       gst_amount: totalGst,
       points_redeemed: redeemPoints,
