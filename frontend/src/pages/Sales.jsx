@@ -287,9 +287,16 @@ const Sales = () => {
 
       const result = await api.addSale(payload, user.id);
       
-      // Load details of the invoice to show printable receipt
-      const saleId = result.sale ? result.sale.id : (result.id || result);
-      const detailInvoice = await api.getSale(saleId);
+      // Use newly created invoice directly for receipt modal
+      let detailInvoice = (result && result.items && result.customer) ? result : (result.sale || result);
+      if (!detailInvoice || !detailInvoice.items || !detailInvoice.customer) {
+        try {
+          const saleId = detailInvoice.id || result;
+          detailInvoice = await api.getSale(saleId);
+        } catch (e) {
+          console.error('Invoice fetch fallback:', e);
+        }
+      }
       setCreatedInvoice(detailInvoice);
       
       // Clear checkout inputs

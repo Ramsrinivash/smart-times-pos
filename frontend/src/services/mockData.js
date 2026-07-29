@@ -371,12 +371,12 @@ export const mockAPI = {
 
   getSale: (id) => {
     const db = loadDB();
-    const sale = db.sales.find(s => s.id === id);
+    const sale = db.sales.find(s => String(s.id).toLowerCase() === String(id).toLowerCase());
     if (!sale) throw new Error('Invoice not found.');
-    const customer = db.customers.find(c => c.id === sale.customer_id);
-    const user = db.users.find(u => u.id === sale.user_id);
-    const items = db.sale_items.filter(si => si.sale_id === sale.id).map(si => {
-      const watch = db.watches.find(w => w.id === si.watch_id);
+    const customer = db.customers.find(c => c.id === sale.customer_id) || { name: 'Walk-in Customer', phone: '9999999999' };
+    const user = db.users.find(u => u.id === sale.user_id) || { name: 'Owner Admin' };
+    const items = db.sale_items.filter(si => String(si.sale_id).toLowerCase() === String(sale.id).toLowerCase()).map(si => {
+      const watch = db.watches.find(w => w.id === si.watch_id) || { brand: 'Showroom Watch', model: si.watch_id, selling_price: si.price_sold };
       return { ...si, watch };
     });
     return { ...sale, customer, user, items };
@@ -391,7 +391,9 @@ export const mockAPI = {
       customer = db.customers.find(c => c.id === 1) || db.customers[0] || { id: 1, name: 'Walk-in Customer', phone: '9999999999', points_balance: 0 };
     }
 
-    const invoiceId = String(db.sales.length + 1).padStart(4, '0');
+    const prefix = data.invoice_type === 'gst' ? 'WS-GST-2627-' : 'WS-RETL-2627-';
+    const nextNum = db.sales.length + 1;
+    const invoiceId = `${prefix}${String(nextNum).padStart(4, '0')}`;
 
     let subtotal = 0;
     let totalItemDiscounts = 0;
@@ -528,7 +530,16 @@ export const mockAPI = {
     logActivity(db, userId, 'CREATE', 'Sales', `Invoice ${invoiceId} created — ₹${netAmount.toLocaleString()}`);
     saveDB(db);
 
-    return { ...newSale, items: itemsData };
+    const fullItems = itemsData.map(si => ({
+      ...si,
+      watch: db.watches.find(w => w.id === si.watch_id) || { brand: 'Showroom Watch', model: si.watch_id, selling_price: si.price_sold }
+    }));
+    return {
+      ...newSale,
+      customer,
+      user: db.users.find(u => u.id === userId) || { name: 'Owner Admin' },
+      items: fullItems
+    };
   },
 
   // Exchanges

@@ -71,7 +71,10 @@ const PrintableInvoice = ({
 
   const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const storeDiscount = (invoice.discount_amount || 0) - (invoice.points_value || 0);
+  const itemDiscountTotal = invoice.items?.reduce((acc, si) => acc + Number(si.discount_amount || 0), 0) || 0;
+  const billDiscount = Number(invoice.bill_discount_amount || 0);
+  const pointsVal = Number(invoice.points_value || 0);
+  const roundOffVal = Number(invoice.round_off_amount || 0);
 
   // GST breakdown grouped by HSN + rate
   const hsnGroups = {};
@@ -335,23 +338,29 @@ const PrintableInvoice = ({
               <span style={{ color: '#555' }}>Gross Subtotal</span>
               <span style={{ fontWeight: 600 }}>{fmt(invoice.subtotal)}</span>
             </div>
-            {storeDiscount > 0 && (
+            {itemDiscountTotal > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
-                <span style={{ color: '#555' }}>Discount / Offer</span>
-                <span style={{ color: '#dc2626' }}>-{fmt(storeDiscount)}</span>
+                <span style={{ color: '#555' }}>Item Discount</span>
+                <span style={{ color: '#dc2626' }}>-{fmt(itemDiscountTotal)}</span>
               </div>
             )}
-            {t.showLoyaltyPoints && (invoice.points_value || 0) > 0 && (
+            {billDiscount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
+                <span style={{ color: '#555' }}>Bill Discount</span>
+                <span style={{ color: '#dc2626' }}>-{fmt(billDiscount)}</span>
+              </div>
+            )}
+            {t.showLoyaltyPoints && pointsVal > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
                 <span style={{ color: '#555' }}>Points ({invoice.points_redeemed} pts)</span>
-                <span style={{ color: '#dc2626' }}>-{fmt(invoice.points_value)}</span>
+                <span style={{ color: '#dc2626' }}>-{fmt(pointsVal)}</span>
               </div>
             )}
-            {(invoice.round_off_amount || 0) !== 0 && (
+            {roundOffVal !== 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
-                <span style={{ color: '#555' }}>Round Off / Adjustment</span>
-                <span style={{ color: invoice.round_off_amount < 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
-                  {invoice.round_off_amount < 0 ? `-${fmt(Math.abs(invoice.round_off_amount))}` : `+${fmt(invoice.round_off_amount)}`}
+                <span style={{ color: '#555' }}>Manual Round Off Adjustment</span>
+                <span style={{ color: roundOffVal < 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                  {roundOffVal < 0 ? `-${fmt(Math.abs(roundOffVal))}` : `+${fmt(roundOffVal)}`}
                 </span>
               </div>
             )}
