@@ -164,11 +164,11 @@ const PrintableInvoice = ({
               <div style={{ fontSize: fs.sm, color: '#555', marginTop: '1px' }}>{storeSettings.tagline}</div>
             )}
             <div style={{ fontSize: fs.sm, color: '#444', marginTop: '2px', wordBreak: 'break-word' }}>
-              {storeSettings?.address || '108, Pennagaram Main Road, DHARMAPURI - 636 701'}
+              {storeSettings?.address || '108, Pennagaram Main Road, (Next to R.C. Church), DHARMAPURI - 636 701.'}
             </div>
-            {storeSettings?.phone && (
-              <div style={{ fontSize: fs.sm, color: '#444' }}>Phone: {storeSettings.phone}</div>
-            )}
+            <div style={{ fontSize: fs.sm, color: '#111', fontWeight: 700, marginTop: '2px' }}>
+              Call: {storeSettings?.phone || '97512 85945, 86672 88021'}
+            </div>
             {storeSettings?.gstin && (
               <div style={{ fontSize: fs.sm, fontWeight: 700, marginTop: '2px' }}>GSTIN: {storeSettings.gstin}</div>
             )}

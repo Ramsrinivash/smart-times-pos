@@ -15,7 +15,16 @@ const ServiceRepair = () => {
   const [registeredWatches, setRegisteredWatches] = useState([]);
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
-  const [selectedJobForCard, setSelectedJobForCard] = useState(null);
+  const [selectedJobsForCard, setSelectedJobsForCard] = useState(null); // Array of jobs to print on 1 job card
+
+  const handleOpenJobCardModal = (job) => {
+    // Find sister jobs for same customer on same received date to print together on 1 page
+    const sisterJobs = safeJobs.filter(j => 
+      (j.customer_id === job.customer_id || j.customer?.phone === job.customer?.phone) && 
+      j.received_date === job.received_date
+    );
+    setSelectedJobsForCard(sisterJobs.length > 0 ? sisterJobs : [job]);
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -598,7 +607,7 @@ const ServiceRepair = () => {
                       )}
                       
                       <button 
-                        onClick={() => setSelectedJobForCard(job)} 
+                        onClick={() => handleOpenJobCardModal(job)} 
                         className="btn btn-secondary btn-sm"
                         style={{ border: '1px solid var(--border-color)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                       >
@@ -615,10 +624,10 @@ const ServiceRepair = () => {
 
         </div>
 
-        {/* Printable Job Card Modal */}
-        {selectedJobForCard && (
+        {/* Printable Job Card Modal (Single Page Print for 1 or Multiple Watches) */}
+        {selectedJobsForCard && selectedJobsForCard.length > 0 && (
           <div className="modal-overlay">
-            <div className="modal-content printable-area job-card-print-container" style={{ maxWidth: '750px', background: '#ffffff', color: '#000000', padding: '2rem', boxSizing: 'border-box' }}>
+            <div className="modal-content printable-area job-card-print-container" style={{ maxWidth: '800px', background: '#ffffff', color: '#000000', padding: '1.5rem', boxSizing: 'border-box' }}>
               <style>{`
                 @media print {
                   body {
@@ -626,11 +635,13 @@ const ServiceRepair = () => {
                     color: #000000 !important;
                   }
                   .job-card-print-container {
-                    height: 135mm !important;
-                    max-height: 135mm !important;
+                    width: 210mm !important;
+                    max-width: 210mm !important;
+                    height: auto !important;
+                    max-height: 297mm !important;
                     border: none !important;
                     box-sizing: border-box !important;
-                    padding: 1rem !important;
+                    padding: 10mm !important;
                     page-break-after: avoid !important;
                   }
                   .no-print {
@@ -639,60 +650,76 @@ const ServiceRepair = () => {
                 }
               `}</style>
               
-              <div style={{ borderBottom: '2px solid #333', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ borderBottom: '2px solid #333', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <h2 style={{ color: '#d4af37', fontSize: '1.6rem', margin: 0 }}>{settings?.store_name || 'SMART TIMES'}</h2>
-                    <h4 style={{ margin: '0.1rem 0 0', color: '#444', fontSize: '0.9rem' }}>Service & Repair Department</h4>
-                    <p style={{ margin: '0.1rem 0', fontSize: '0.75rem', color: '#555' }}>
-                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Church), DHARMAPURI - 636 701.'} • Call: {settings?.phone || '97512 85945, 86672 88021'}
+                    <h2 style={{ color: '#d4af37', fontSize: '1.5rem', margin: 0, fontWeight: 800 }}>{settings?.store_name || 'SMART TIMES'}</h2>
+                    <h4 style={{ margin: '0.1rem 0 0', color: '#444', fontSize: '0.85rem' }}>Service & Repair Department</h4>
+                    <p style={{ margin: '0.15rem 0 0', fontSize: '0.75rem', color: '#555' }}>
+                      {settings?.address || '108, Pennagaram Main Road, (Next to R.C. Church), DHARMAPURI - 636 701.'}
+                    </p>
+                    <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: '#111', fontWeight: 700 }}>
+                      Call: {settings?.phone || '97512 85945, 86672 88021'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333', fontSize: '1.25rem' }}>Service Job Card</h3>
-                    <p style={{ margin: '0.1rem 0', fontWeight: 600, fontSize: '0.85rem' }}>JC Number: {selectedJobForCard.id}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Date: {selectedJobForCard.received_date || new Date().toISOString().split('T')[0]}</p>
+                    <h3 style={{ margin: 0, textTransform: 'uppercase', color: '#333', fontSize: '1.2rem' }}>Service Job Card</h3>
+                    <p style={{ margin: '0.1rem 0', fontWeight: 700, fontSize: '0.85rem' }}>
+                      JC #: {selectedJobsForCard.map(j => j.id).join(', ')}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.8rem' }}>Date: {selectedJobsForCard[0]?.received_date || new Date().toISOString().split('T')[0]}</p>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
-                <div style={{ borderRight: '1px solid #ddd', paddingRight: '1.5rem' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Customer Profile:</h4>
-                  <p style={{ margin: '0.1rem 0', fontWeight: 600 }}>{selectedJobForCard.customer?.name}</p>
-                  <p style={{ margin: '0.1rem 0' }}>Phone: {selectedJobForCard.customer?.phone}</p>
-                  {selectedJobForCard.customer?.address && selectedJobForCard.customer.address !== 'Local Customer' && (
-                    <p style={{ margin: '0.1rem 0' }}>{selectedJobForCard.customer.address}</p>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <h4 style={{ textTransform: 'uppercase', color: '#666', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Watch Description:</h4>
-                  <p style={{ margin: '0.1rem 0' }}>
-                    Watch: <strong>
-                      {selectedJobForCard.watch_id 
-                        ? `${selectedJobForCard.watch?.brand} ${selectedJobForCard.watch?.model}` 
-                        : `${selectedJobForCard.watch_details?.brand} ${selectedJobForCard.watch_details?.model}`
-                      }
-                    </strong>
-                  </p>
-                  <p style={{ margin: '0.1rem 0' }}>
-                    {selectedJobForCard.watch_id 
-                      ? `Serial: ${selectedJobForCard.watch_id}` 
-                      : `Gender: ${selectedJobForCard.watch_details?.gender || 'Unisex'}`
-                    }
-                  </p>
-                </div>
+              {/* Customer Profile Banner */}
+              <div style={{ padding: '0.5rem 0.75rem', background: '#f8f8f8', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '0.85rem', fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div><strong>Customer:</strong> {selectedJobsForCard[0]?.customer?.name}</div>
+                <div><strong>Phone:</strong> {selectedJobsForCard[0]?.customer?.phone}</div>
+                <div><strong>Total Items:</strong> {selectedJobsForCard.length} Watch(es)</div>
               </div>
 
-              <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
-                <p style={{ margin: '0.2rem 0' }}><strong>Job Status:</strong> {selectedJobForCard.status.toUpperCase()}</p>
-                <p style={{ margin: '0.2rem 0' }}><strong>Issue Reported:</strong> "{selectedJobForCard.issue_reported}"</p>
-                {selectedJobForCard.drop_off_condition && <p style={{ margin: '0.2rem 0' }}><strong>Physical Condition:</strong> {selectedJobForCard.drop_off_condition}</p>}
-                {selectedJobForCard.estimated_cost && <p style={{ margin: '0.2rem 0', color: '#d4af37', fontWeight: 600 }}><strong>Estimated Charges:</strong> ₹{Number(selectedJobForCard.estimated_cost).toLocaleString()}</p>}
-                {selectedJobForCard.expected_delivery_date && <p style={{ margin: '0.2rem 0' }}><strong>Expected Delivery:</strong> {selectedJobForCard.expected_delivery_date}</p>}
-              </div>
+              {/* Itemized Watches Table for Single Page Print */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.85rem', fontSize: '0.8rem', border: '1px solid #ddd' }}>
+                <thead>
+                  <tr style={{ background: '#f0f0f0', borderBottom: '1.5px solid #333' }}>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'left', width: '25px' }}>#</th>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'left', width: '90px' }}>JC No.</th>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'left' }}>Watch Model & Details</th>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'left' }}>Issue & Condition</th>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right', width: '85px' }}>Est. Cost</th>
+                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right', width: '95px' }}>Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedJobsForCard.map((job, idx) => (
+                    <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '0.45rem 0.5rem', fontWeight: 700 }}>{idx + 1}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', fontFamily: 'monospace', fontWeight: 700 }}>{job.id}</td>
+                      <td style={{ padding: '0.45rem 0.5rem' }}>
+                        <div style={{ fontWeight: 700 }}>
+                          {job.watch_id ? `${job.watch?.brand} ${job.watch?.model}` : `${job.watch_details?.brand} ${job.watch_details?.model}`}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#555' }}>
+                          {job.watch_id ? `Serial: ${job.watch_id}` : `Gender: ${job.watch_details?.gender || 'Unisex'}`}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.45rem 0.5rem' }}>
+                        <div>"{job.issue_reported}"</div>
+                        {job.drop_off_condition && <div style={{ fontSize: '0.72rem', color: '#666' }}>Condition: {job.drop_off_condition}</div>}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontWeight: 700, color: '#d4af37' }}>
+                        {job.estimated_cost ? `₹${Number(job.estimated_cost).toLocaleString()}` : '—'}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right' }}>
+                        {job.expected_delivery_date || 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-              <div style={{ borderTop: '1px solid #ccc', paddingTop: '0.5rem', fontSize: '0.72rem', color: '#666' }}>
+              <div style={{ borderTop: '1px solid #ccc', paddingTop: '0.5rem', fontSize: '0.72rem', color: '#555' }}>
                 <h5 style={{ margin: '0 0 0.2rem 0', textTransform: 'uppercase', fontSize: '0.75rem' }}>Terms & Service Agreement:</h5>
                 <p style={{ margin: '0.1rem 0' }}>1. Service repairs carry a 6 Months (180 Days) warranty period on replaced parts/labor.</p>
                 <p style={{ margin: '0.1rem 0' }}>2. If water damage or tampering occurs, this service warranty is void.</p>
@@ -700,20 +727,20 @@ const ServiceRepair = () => {
               </div>
 
               {/* Signatures Section */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', fontSize: '0.75rem' }}>
-                <div style={{ borderTop: '1px dashed #333', width: '130px', textAlign: 'center', paddingTop: '0.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', fontSize: '0.75rem' }}>
+                <div style={{ borderTop: '1px dashed #333', width: '140px', textAlign: 'center', paddingTop: '0.2rem' }}>
                   Customer Signature
                 </div>
-                <div style={{ borderTop: '1px dashed #333', width: '130px', textAlign: 'center', paddingTop: '0.2rem' }}>
+                <div style={{ borderTop: '1px dashed #333', width: '140px', textAlign: 'center', paddingTop: '0.2rem' }}>
                   Technician / Store Sign
                 </div>
               </div>
 
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '0.75rem' }}>
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid #eee', paddingTop: '0.75rem' }}>
                 <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Printer size={16} /> Print Job Card
+                  <Printer size={16} /> Print Job Card ({selectedJobsForCard.length} Watch{selectedJobsForCard.length > 1 ? 'es' : ''})
                 </button>
-                <button onClick={() => setSelectedJobForCard(null)} className="btn btn-secondary">
+                <button onClick={() => setSelectedJobsForCard(null)} className="btn btn-secondary">
                   Close
                 </button>
               </div>
