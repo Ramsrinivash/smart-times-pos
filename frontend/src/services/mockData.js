@@ -38,7 +38,9 @@ const defaultDB = {
   warranty_cards: [],
   stock_adjustments: [],
   service_jobs: [],
-  loyalty_ledgers: []
+  loyalty_ledgers: [],
+  attendance: [],
+  payroll: []
 };
 
 export const loadDB = () => {
@@ -48,6 +50,8 @@ export const loadDB = () => {
     return JSON.parse(JSON.stringify(defaultDB));
   }
   const db = JSON.parse(data);
+  if (!db.attendance) db.attendance = [];
+  if (!db.payroll) db.payroll = [];
   // Auto-reset legacy dummy mock data if detected
   if (db.watches && db.watches.some(w => w.id === 'RLX-SUB-90812')) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
@@ -1203,6 +1207,192 @@ export const mockAPI = {
     logActivity(db, userId, 'UPDATE', 'Inventory', `Image removed from watch ${watchId}`);
     saveDB(db);
     return watch;
+  },
+
+  // ═══════════════════════════════════════════════
+  // ATTENDANCE & PAYROLL MOCK IMPLEMENTATIONS
+  // ═══════════════════════════════════════════════
+  getAttendance: (date) => {
+    const db = loadDB();
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    return db.users.map(u => {
+      const rec = (db.attendance || []).find(a => a.user_id === u.id && a.date === targetDate);
+      return {
+        user_id: u.id,
+        user_name: u.name,
+        user_role: u.role,
+        status: rec ? rec.status : 'present',
+        notes: rec ? rec.notes || '' : ''
+      };
+    });
+  },
+
+  saveAttendance: (date, records) => {
+    const db = loadDB();
+    if (!db.attendance) db.attendance = [];
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    records.forEach(r => {
+      const idx = db.attendance.findIndex(a => a.user_id === r.user_id && a.date === targetDate);
+      if (idx >= 0) {
+        db.attendance[idx] = { ...db.attendance[idx], status: r.status, notes: r.notes || '' };
+      } else {
+        db.attendance.push({
+          id: db.attendance.length + 1,
+          user_id: r.user_id,
+          date: targetDate,
+          status: r.status,
+          notes: r.notes || ''
+        });
+      }
+    });
+    saveDB(db);
+    return { success: true };
+  },
+
+  getMonthlyAttendanceMatrix: (month, year) => {
+    const db = loadDB();
+    const m = Number(month);
+    const y = Number(year);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const attendance = db.attendance || [];
+
+    const employees = db.users.map(u => {
+      const days = {};
+      let present = 0, cl = 0, ml = 0, halfDay = 0, absent = 0, leave = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const rec = attendance.find(a => a.user_id === u.id && a.date === dateStr);
+        if (rec) {
+          days[day] = { status: rec.status, notes: rec.notes || '' };
+          if (rec.status === 'present') present++;
+          else if (rec.status === 'cl') cl++;
+          else if (rec.status === 'ml') ml++;
+          else if (rec.status === 'half_day') halfDay++;
+          else if (rec.status === 'absent') absent++;
+          else if (rec.status === 'leave') leave++;
+        }
+      }
+
+      const payableDays = present + cl + ml + (halfDay * 0.5);
+
+      return {
+        user_id: u.id,
+        user_name: u.name,
+        user_role: u.role,
+        days,
+        summary: {
+          present,
+          cl,
+          ml,
+          half_day: halfDay,
+          absent,
+          leave,
+          payable_days: payableDays
+        }
+      };
+    });
+
+    return {
+      month: m,
+      year: y,
+      days_in_month: daysInMonth,
+      employees
+    };
+  },
+
+  saveSingleAttendance: ({ user_id, date, status, notes }) => {
+    const db = loadDB();
+    if (!db.attendance) db.attendance = [];
+    const idx = db.attendance.findIndex(a => a.user_id === Number(user_id) && a.date === date);
+    if (idx >= 0) {
+      db.attendance[idx] = { ...db.attendance[idx], status, notes: notes || '' };
+    } else {
+      db.attendance.push({
+        id: db.attendance.length + 1,
+        user_id: Number(user_id),
+        date,
+        status,
+        notes: notes || ''
+      });
+    }
+    saveDB(db);
+    return { success: true };
+  },
+
+  getPayroll: (month, year) => {
+    const db = loadDB();
+    const m = Number(month);
+    const y = Number(year);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const attendance = db.attendance || [];
+    const payroll = db.payroll || [];
+
+    const defaultSalaries = { admin: 50000, manager: 30000, sales: 18000 };
+
+    return db.users.map(u => {
+      const baseSalary = u.base_salary || defaultSalaries[u.role] || 20000;
+      let presentDays = 0, clDays = 0, mlDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, recordedCount = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const rec = attendance.find(a => a.user_id === u.id && a.date === dateStr);
+        if (rec) {
+          recordedCount++;
+          if (rec.status === 'present') presentDays++;
+          else if (rec.status === 'cl') clDays++;
+          else if (rec.status === 'ml') mlDays++;
+          else if (rec.status === 'half_day') halfDays++;
+          else if (rec.status === 'absent') absentDays++;
+          else if (rec.status === 'leave') leaveDays++;
+        }
+      }
+
+      const unrecordedDays = daysInMonth - recordedCount;
+      const payableDays = presentDays + clDays + mlDays + (halfDays * 0.5);
+      const dailyRate = baseSalary / daysInMonth;
+      const netSalary = Math.round(dailyRate * payableDays);
+
+      const payRecord = payroll.find(p => p.user_id === u.id && p.month === m && p.year === y);
+
+      return {
+        user_id: u.id,
+        user_name: u.name,
+        user_role: u.role,
+        base_salary: baseSalary,
+        present_days: presentDays,
+        cl_days: clDays,
+        ml_days: mlDays,
+        half_days: halfDays,
+        absent_days: absentDays,
+        leave_days: leaveDays,
+        unrecorded_days: unrecordedDays,
+        total_days: daysInMonth,
+        net_salary: netSalary,
+        status: payRecord ? payRecord.status : 'unpaid',
+        attendance_incomplete: unrecordedDays > 0
+      };
+    });
+  },
+
+  paySalary: (data) => {
+    const db = loadDB();
+    if (!db.payroll) db.payroll = [];
+    const idx = db.payroll.findIndex(p => p.user_id === Number(data.user_id) && p.month === Number(data.month) && p.year === Number(data.year));
+    const payObj = {
+      id: idx >= 0 ? db.payroll[idx].id : db.payroll.length + 1,
+      user_id: Number(data.user_id),
+      month: Number(data.month),
+      year: Number(data.year),
+      base_salary: Number(data.base_salary),
+      net_salary: Number(data.net_salary),
+      status: 'paid',
+      paid_at: new Date().toISOString()
+    };
+    if (idx >= 0) db.payroll[idx] = payObj;
+    else db.payroll.push(payObj);
+    saveDB(db);
+    return payObj;
   }
 };
 

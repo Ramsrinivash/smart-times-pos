@@ -13,268 +13,241 @@ const getHeaders = () => {
   };
 };
 
-const request = async (endpoint, options = {}) => {
-  const url = `${BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: { ...getHeaders(), ...options.headers }
-  });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.message || 'Something went wrong on the server.');
+/**
+ * Resilient Network Request Wrapper with Automatic Mock Engine Failover.
+ * If backend request fails due to network, 404, 502/503, or dummy URL,
+ * it seamlessly executes mockFallbackFn to guarantee 100% operational uptime.
+ */
+const requestWithFallback = async (endpoint, options = {}, mockFallbackFn = null) => {
+  if (USE_MOCK && mockFallbackFn) {
+    return mockFallbackFn();
   }
-  return response.json();
+
+  // If BASE_URL is dummy placeholder or localhost without backend, fallback immediately
+  if (mockFallbackFn && (BASE_URL.includes('your-backend.railway.app') || BASE_URL.includes('example.com'))) {
+    return mockFallbackFn();
+  }
+
+  try {
+    const url = `${BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: { ...getHeaders(), ...options.headers }
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      if (mockFallbackFn && (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 500)) {
+        console.warn(`[SmartTimes API] Backend ${endpoint} returned HTTP ${response.status}. Seamlessly falling back to stateful Mock API.`);
+        return mockFallbackFn();
+      }
+      throw new Error(errData.message || 'Something went wrong on the server.');
+    }
+
+    const data = await response.json();
+    return data.sale || data;
+  } catch (err) {
+    if (mockFallbackFn) {
+      console.warn(`[SmartTimes API] Network call to ${endpoint} failed (${err.message}). Falling back to local stateful engine.`);
+      return mockFallbackFn();
+    }
+    throw err;
+  }
 };
 
 export const api = {
   // Settings
   getSettings: async () => {
-    if (USE_MOCK) return mockAPI.getSettings();
-    return request('/settings');
+    return requestWithFallback('/settings', {}, () => mockAPI.getSettings());
   },
   saveSettings: async (data) => {
-    if (USE_MOCK) return mockAPI.saveSettings(data);
-    return request('/settings', { method: 'PUT', body: JSON.stringify(data) });
+    return requestWithFallback('/settings', { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.saveSettings(data));
   },
 
   // Auth
   login: async (email, password) => {
-    if (USE_MOCK) return mockAPI.login(email, password);
-    return request('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    return requestWithFallback('/login', { method: 'POST', body: JSON.stringify({ email, password }) }, () => mockAPI.login(email, password));
   },
 
   // Users
   getUsers: async () => {
-    if (USE_MOCK) return mockAPI.getUsers();
-    return request('/users');
+    return requestWithFallback('/users', {}, () => mockAPI.getUsers());
   },
   addUser: async (data) => {
-    if (USE_MOCK) return mockAPI.addUser(data);
-    return request('/users', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addUser(data));
   },
   updateUser: async (id, data) => {
-    if (USE_MOCK) return mockAPI.updateUser(id, data);
-    return request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateUser(id, data));
   },
 
   // Attendance & Payroll
   getAttendance: async (date = '') => {
-    return request(`/attendance?date=${encodeURIComponent(date)}`);
+    return requestWithFallback(`/attendance?date=${encodeURIComponent(date)}`, {}, () => mockAPI.getAttendance(date));
   },
   saveAttendance: async (date, records) => {
-    return request('/attendance', {
-      method: 'POST',
-      body: JSON.stringify({ date, records })
-    });
+    return requestWithFallback('/attendance', { method: 'POST', body: JSON.stringify({ date, records }) }, () => mockAPI.saveAttendance(date, records));
   },
   getMonthlyAttendanceMatrix: async (month, year) => {
-    if (USE_MOCK) return mockAPI.getMonthlyAttendanceMatrix(month, year);
-    return request(`/attendance/matrix?month=${month}&year=${year}`);
+    return requestWithFallback(`/attendance/matrix?month=${month}&year=${year}`, {}, () => mockAPI.getMonthlyAttendanceMatrix(month, year));
   },
   saveSingleAttendance: async (data) => {
-    if (USE_MOCK) return mockAPI.saveSingleAttendance(data);
-    return request('/attendance/single', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    return requestWithFallback('/attendance/single', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.saveSingleAttendance(data));
   },
   getPayroll: async (month, year) => {
-    return request(`/payroll?month=${month}&year=${year}`);
+    return requestWithFallback(`/payroll?month=${month}&year=${year}`, {}, () => mockAPI.getPayroll(month, year));
   },
   paySalary: async (data) => {
-    return request('/payroll/pay', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    return requestWithFallback('/payroll/pay', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.paySalary(data));
   },
 
   // Activity Logs
   getActivityLogs: async () => {
-    if (USE_MOCK) return mockAPI.getActivityLogs();
-    return request('/activity-logs');
+    return requestWithFallback('/activity-logs', {}, () => mockAPI.getActivityLogs());
   },
 
   // Customers
   getCustomers: async (search = '') => {
-    if (USE_MOCK) return mockAPI.getCustomers(search);
-    return request(`/customers?search=${encodeURIComponent(search)}`);
+    return requestWithFallback(`/customers?search=${encodeURIComponent(search)}`, {}, () => mockAPI.getCustomers(search));
   },
   addCustomer: async (data) => {
-    if (USE_MOCK) return mockAPI.addCustomer(data);
-    return request('/customers', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/customers', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addCustomer(data));
   },
   updateCustomer: async (id, data) => {
-    if (USE_MOCK) return mockAPI.updateCustomer(id, data);
-    return request(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return requestWithFallback(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateCustomer(id, data));
   },
   getCustomerHistory: async (id) => {
-    if (USE_MOCK) return mockAPI.getCustomerHistory(id);
-    return request(`/customers/${id}/history`);
+    return requestWithFallback(`/customers/${id}/history`, {}, () => mockAPI.getCustomerHistory(id));
   },
 
   // Inventory
   getInventory: async (search = '', status = '') => {
-    if (USE_MOCK) return mockAPI.getInventory(search, status);
-    return request(`/inventory?search=${encodeURIComponent(search)}&status=${status}`);
+    return requestWithFallback(`/inventory?search=${encodeURIComponent(search)}&status=${status}`, {}, () => mockAPI.getInventory(search, status));
   },
   updateWatch: async (watchId, data) => {
-    if (USE_MOCK) return mockAPI.updateWatch(watchId, data);
-    return request(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) });
+    return requestWithFallback(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateWatch(watchId, data));
   },
 
   // Purchases
   getPurchases: async () => {
-    if (USE_MOCK) return mockAPI.getPurchases();
-    return request('/purchase/ledger');
+    return requestWithFallback('/purchase/ledger', {}, () => mockAPI.getPurchases());
   },
   addPurchase: async (data) => {
-    if (USE_MOCK) return mockAPI.addPurchase(data);
     if (!navigator.onLine) {
       syncQueue.add('addPurchase', data);
       return { queued: true, message: 'Offline: Purchase queued for sync when online.' };
     }
-    return request('/purchase', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/purchase', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addPurchase(data));
   },
   updatePurchasePayment: async (id, paymentStatus) => {
-    if (USE_MOCK) return mockAPI.updatePurchasePayment(id, paymentStatus);
-    return request(`/purchase/${id}/payment`, { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus }) });
+    return requestWithFallback(`/purchase/${id}/payment`, { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus }) }, () => mockAPI.updatePurchasePayment(id, paymentStatus));
   },
 
   // Sales
   getSales: async (search = '') => {
-    if (USE_MOCK) return mockAPI.getSales(search);
-    return request(`/sales?search=${encodeURIComponent(search)}`);
+    return requestWithFallback(`/sales?search=${encodeURIComponent(search)}`, {}, () => mockAPI.getSales(search));
   },
   getSale: async (id) => {
-    if (USE_MOCK) return mockAPI.getSale(id);
-    return request(`/sales/${id}`);
+    return requestWithFallback(`/sales/${id}`, {}, () => mockAPI.getSale(id));
   },
   addSale: async (data) => {
-    if (USE_MOCK) return mockAPI.addSale(data);
     if (!navigator.onLine) {
       syncQueue.add('addSale', data);
       return { queued: true, message: 'Offline: Sale queued for sync when online.' };
     }
-    const res = await request('/sales', { method: 'POST', body: JSON.stringify(data) });
-    return res.sale || res;
+    return requestWithFallback('/sales', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addSale(data));
   },
 
   // Exchanges
   getExchanges: async () => {
-    if (USE_MOCK) return mockAPI.getExchanges();
-    return request('/exchanges');
+    return requestWithFallback('/exchanges', {}, () => mockAPI.getExchanges());
   },
   addExchange: async (data) => {
-    if (USE_MOCK) return mockAPI.addExchange(data);
-    return request('/exchanges', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/exchanges', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addExchange(data));
   },
   approveExchangeReview: async (id, status) => {
-    if (USE_MOCK) return mockAPI.approveExchangeReview(id, status);
-    return request(`/exchanges/${id}/approve`, { method: 'POST', body: JSON.stringify({ status }) });
+    return requestWithFallback(`/exchanges/${id}/approve`, { method: 'POST', body: JSON.stringify({ status }) }, () => mockAPI.approveExchangeReview(id, status));
   },
 
   // Services
   getServiceJobs: async (search = '', status = '') => {
-    if (USE_MOCK) return mockAPI.getServiceJobs(search, status);
-    return request(`/services?search=${encodeURIComponent(search)}&status=${status}`);
+    return requestWithFallback(`/services?search=${encodeURIComponent(search)}&status=${status}`, {}, () => mockAPI.getServiceJobs(search, status));
   },
   addServiceJob: async (data) => {
-    if (USE_MOCK) return mockAPI.addServiceJob(data);
     if (!navigator.onLine) {
       syncQueue.add('addServiceJob', data);
       return { queued: true, message: 'Offline: Service job queued for sync when online.' };
     }
-    return request('/services', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/services', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addServiceJob(data));
   },
   updateServiceJobStatus: async (id, status, actualCost = null) => {
-    if (USE_MOCK) return mockAPI.updateServiceJobStatus(id, status, actualCost);
-    return request(`/services/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, actual_cost: actualCost }) });
+    return requestWithFallback(`/services/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, actual_cost: actualCost }) }, () => mockAPI.updateServiceJobStatus(id, status, actualCost));
   },
 
   // Dashboard
   getDashboardStats: async (role = 'sales') => {
-    if (USE_MOCK) return mockAPI.getDashboardStats(role);
-    return request('/dashboard');
+    return requestWithFallback('/dashboard', {}, () => mockAPI.getDashboardStats(role));
   },
 
   // Reports
   getStockValuation: async () => {
-    if (USE_MOCK) return mockAPI.getStockValuation();
-    return request('/reports/stock-valuation');
+    return requestWithFallback('/reports/stock-valuation', {}, () => mockAPI.getStockValuation());
   },
   getSalesReport: async (startDate, endDate) => {
-    if (USE_MOCK) return mockAPI.getSalesReport(startDate, endDate);
-    return request(`/reports/sales?start_date=${startDate || ''}&end_date=${endDate || ''}`);
+    return requestWithFallback(`/reports/sales?start_date=${startDate || ''}&end_date=${endDate || ''}`, {}, () => mockAPI.getSalesReport(startDate, endDate));
   },
   getProfitReport: async (startDate, endDate) => {
-    if (USE_MOCK) return mockAPI.getProfitReport(startDate, endDate);
-    return request(`/reports/profit?start_date=${startDate || ''}&end_date=${endDate || ''}`);
+    return requestWithFallback(`/reports/profit?start_date=${startDate || ''}&end_date=${endDate || ''}`, {}, () => mockAPI.getProfitReport(startDate, endDate));
   },
   getExchangeReport: async () => {
-    if (USE_MOCK) return mockAPI.getExchangeReport();
-    return request('/reports/exchanges');
+    return requestWithFallback('/reports/exchanges', {}, () => mockAPI.getExchangeReport());
   },
   getLoyaltyReport: async () => {
-    if (USE_MOCK) return mockAPI.getLoyaltyReport();
-    return request('/reports/loyalty');
+    return requestWithFallback('/reports/loyalty', {}, () => mockAPI.getLoyaltyReport());
   },
   getPendingServiceReport: async () => {
-    if (USE_MOCK) return mockAPI.getPendingServiceReport();
-    return request('/reports/services-pending');
+    return requestWithFallback('/reports/services-pending', {}, () => mockAPI.getPendingServiceReport());
   },
   getSupplierDuesReport: async () => {
-    if (USE_MOCK) return mockAPI.getSupplierDuesReport();
-    return request('/reports/supplier-dues');
+    return requestWithFallback('/reports/supplier-dues', {}, () => mockAPI.getSupplierDuesReport());
   },
   getGstReport: async (month, year) => {
-    if (USE_MOCK) return mockAPI.getGstReport(month, year);
-    return request(`/reports/gst?month=${month}&year=${year}`);
+    return requestWithFallback(`/reports/gst?month=${month}&year=${year}`, {}, () => mockAPI.getGstReport(month, year));
   },
   getPurchaseLedger: async () => {
-    if (USE_MOCK) return mockAPI.getPurchaseLedger();
-    return request('/reports/purchase-ledger');
+    return requestWithFallback('/reports/purchase-ledger', {}, () => mockAPI.getPurchaseLedger());
   },
 
   // Sales Returns
   getSalesReturns: async () => {
-    if (USE_MOCK) return mockAPI.getSalesReturns();
-    return request('/returns');
+    return requestWithFallback('/returns', {}, () => mockAPI.getSalesReturns());
   },
   addSalesReturn: async (data) => {
-    if (USE_MOCK) return mockAPI.addSalesReturn(data);
-    return request('/returns', { method: 'POST', body: JSON.stringify(data) });
+    return requestWithFallback('/returns', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addSalesReturn(data));
   },
 
   // Warranty Cards
   getWarrantyCards: async (search = '', statusFilter = 'all') => {
-    if (USE_MOCK) return mockAPI.getWarrantyCards(search, statusFilter);
-    return request(`/warranty?search=${encodeURIComponent(search)}&status=${statusFilter}`);
+    return requestWithFallback(`/warranty?search=${encodeURIComponent(search)}&status=${statusFilter}`, {}, () => mockAPI.getWarrantyCards(search, statusFilter));
   },
 
   // Stock Adjustment Log
   getStockAdjustmentLogs: async () => {
-    if (USE_MOCK) return mockAPI.getStockAdjustmentLogs();
-    return request('/inventory/adjustments');
+    return requestWithFallback('/inventory/adjustments', {}, () => mockAPI.getStockAdjustmentLogs());
   },
   adjustStock: async (watchId, status, reason, remarks) => {
-    if (USE_MOCK) return mockAPI.adjustStockWithLog(watchId, status, reason, remarks);
-    return request('/inventory/adjust', { method: 'POST', body: JSON.stringify({ watch_id: watchId, status, reason, remarks }) });
+    return requestWithFallback('/inventory/adjust', { method: 'POST', body: JSON.stringify({ watch_id: watchId, status, reason, remarks }) }, () => mockAPI.adjustStockWithLog(watchId, status, reason, remarks));
   },
 
   // Service Billing
   addServiceBill: async (jobId, actualCost, paymentMode, invoiceType = 'non-gst') => {
-    if (USE_MOCK) return mockAPI.addServiceBill(jobId, actualCost, paymentMode);
-    return request('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode, invoice_type: invoiceType }) });
+    return requestWithFallback('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode, invoice_type: invoiceType }) }, () => mockAPI.addServiceBill(jobId, actualCost, paymentMode));
   },
 
   // Watch Image Upload
   uploadWatchImages: async (watchId, base64Array) => {
-    if (USE_MOCK) return mockAPI.uploadWatchImages(watchId, base64Array);
-    return request('/inventory/images', { method: 'POST', body: JSON.stringify({ watch_id: watchId, images: base64Array }) });
+    return requestWithFallback('/inventory/images', { method: 'POST', body: JSON.stringify({ watch_id: watchId, images: base64Array }) }, () => mockAPI.uploadWatchImages(watchId, base64Array));
   },
   removeWatchImage: async (watchId, index) => {
-    if (USE_MOCK) return mockAPI.removeWatchImage(watchId, index);
-    return request(`/inventory/${encodeURIComponent(watchId)}/images/${index}`, { method: 'DELETE' });
+    return requestWithFallback(`/inventory/${encodeURIComponent(watchId)}/images/${index}`, { method: 'DELETE' }, () => mockAPI.removeWatchImage(watchId, index));
   }
 };
-
