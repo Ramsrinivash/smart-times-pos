@@ -589,12 +589,12 @@ const Settings = () => {
               )}
 
               <div className="card">
-                {/* Exclude Admin role from Employee/Staff listing for attendance & payroll purposes */}
+                {/* Display all registered staff and admin accounts */}
                 {(() => {
-                  const employees = users.filter(u => u.role !== 'admin');
+                  const employees = users;
                   return (
                     <>
-                      <h3 style={{ marginBottom: '1.25rem' }}>Current Employees / Staff ({employees.length})</h3>
+                      <h3 style={{ marginBottom: '1.25rem' }}>Current Employees & Staff Accounts ({employees.length})</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {employees.length > 0 ? (
                           employees.map(u => (

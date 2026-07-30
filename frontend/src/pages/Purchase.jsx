@@ -563,7 +563,8 @@ const Purchase = () => {
                           className="form-control" 
                           placeholder="Cost"
                           value={item.cost_price}
-                          readOnly
+                          onChange={(e) => handleItemChange(index, 'cost_price', e.target.value)}
+                          required
                           style={{ color: 'var(--primary-gold)', fontWeight: 600, height: '36px', background: 'rgba(212,175,55,0.05)', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </td>
