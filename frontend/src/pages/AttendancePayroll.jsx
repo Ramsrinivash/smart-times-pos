@@ -51,8 +51,22 @@ const AttendancePayroll = () => {
   // Single cell edit modal state
   const [editingCell, setEditingCell] = useState(null); // { user_id, user_name, date, status, notes }
   const [editStatus, setEditStatus] = useState('present');
+  const [editInTime, setEditInTime] = useState('09:30');
+  const [editOutTime, setEditOutTime] = useState('20:30');
   const [editNotes, setEditNotes] = useState('');
   const [savingCell, setSavingCell] = useState(false);
+
+  // Helper to calculate hours worked between HH:MM strings
+  const calculateHours = (inTime, outTime) => {
+    if (!inTime || !outTime) return 0;
+    const [inH, inM] = String(inTime).split(':').map(Number);
+    const [outH, outM] = String(outTime).split(':').map(Number);
+    if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+    let inMinutes = inH * 60 + inM;
+    let outMinutes = outH * 60 + outM;
+    if (outMinutes < inMinutes) outMinutes += 24 * 60;
+    return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+  };
 
   // Active slip for printing
   const [activeSlip, setActiveSlip] = useState(null);
@@ -112,6 +126,10 @@ const AttendancePayroll = () => {
     setDailyRecords(prev => prev.map(r => r.user_id === userId ? { ...r, status } : r));
   };
 
+  const handleDailyTimeChange = (userId, field, value) => {
+    setDailyRecords(prev => prev.map(r => r.user_id === userId ? { ...r, [field]: value } : r));
+  };
+
   const handleDailyNotesChange = (userId, notes) => {
     setDailyRecords(prev => prev.map(r => r.user_id === userId ? { ...r, notes } : r));
   };
@@ -124,15 +142,18 @@ const AttendancePayroll = () => {
   const halfDayToday = safeDailyRecords.filter(r => r.status === 'half_day').length;
   const absentToday = safeDailyRecords.filter(r => r.status === 'absent').length;
   const safePayrollRecords = Array.isArray(payrollRecords) ? payrollRecords : [];
+
   const handleSaveDailyRegister = async () => {
     try {
       const payload = dailyRecords.map(r => ({
         user_id: r.user_id,
         status: r.status,
+        in_time: r.in_time || '09:30',
+        out_time: r.out_time || '20:30',
         notes: r.notes
       }));
       await api.saveAttendance(selectedDate, payload);
-      alertService.success('Saved', `Attendance for ${selectedDate} saved successfully.`);
+      alertService.success('Saved', `Attendance & working hours for ${selectedDate} saved successfully.`);
       fetchDailyAttendance(selectedDate);
     } catch (err) {
       alertService.error('Error', 'Failed to save daily register: ' + err.message);
@@ -153,6 +174,8 @@ const AttendancePayroll = () => {
       date: dateStr
     });
     setEditStatus(dayInfo.status || 'present');
+    setEditInTime(dayInfo.in_time || '09:30');
+    setEditOutTime(dayInfo.out_time || '20:30');
     setEditNotes(dayInfo.notes || '');
   };
 
@@ -164,9 +187,11 @@ const AttendancePayroll = () => {
         user_id: editingCell.user_id,
         date: editingCell.date,
         status: editStatus,
+        in_time: editInTime,
+        out_time: editOutTime,
         notes: editNotes
       });
-      alertService.success('Updated', `Attendance for ${editingCell.user_name} on ${editingCell.date} set to ${STATUS_CONFIG[editStatus]?.label || editStatus}`);
+      alertService.success('Updated', `Attendance & time log for ${editingCell.user_name} on ${editingCell.date} saved.`);
       setEditingCell(null);
       fetchMonthlyMatrix(selectedMonth, selectedYear);
     } catch (err) {
@@ -378,6 +403,7 @@ const AttendancePayroll = () => {
                       <th style={{ padding: '0.4rem 0.5rem', textAlign: 'center', background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>HD</th>
                       <th style={{ padding: '0.4rem 0.5rem', textAlign: 'center', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>A</th>
                       <th style={{ padding: '0.4rem 0.5rem', textAlign: 'center', background: 'var(--primary-gold-glow)', color: 'var(--primary-gold)', fontWeight: 800 }}>Paid Days</th>
+                      <th style={{ padding: '0.4rem 0.6rem', textAlign: 'center', background: 'rgba(212,175,55,0.15)', color: 'var(--primary-gold)', fontWeight: 800, minWidth: '95px' }}>Total Hours</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -400,12 +426,13 @@ const AttendancePayroll = () => {
                           const dayData = emp.days[dayNum];
                           const stKey = dayData?.status;
                           const cfg = STATUS_CONFIG[stKey];
+                          const hoursText = dayData?.in_time ? ` (In: ${dayData.in_time} - Out: ${dayData.out_time} | ${dayData.hours || 0} hrs)` : '';
 
                           return (
                             <td 
                               key={dayNum}
                               onClick={() => handleOpenCellEdit(emp, dayNum)}
-                              title={`${emp.user_name} - Day ${dayNum}: ${cfg ? cfg.label : 'Unrecorded'}${dayData?.notes ? ' (' + dayData.notes + ')' : ''} [Click to Edit]`}
+                              title={`${emp.user_name} - Day ${dayNum}: ${cfg ? cfg.label : 'Unrecorded'}${hoursText}${dayData?.notes ? ' [' + dayData.notes + ']' : ''} (Click to edit)`}
                               style={{ 
                                 textAlign: 'center', 
                                 padding: '0.35rem 0.1rem',
@@ -459,6 +486,9 @@ const AttendancePayroll = () => {
                         <td style={{ textAlign: 'center', fontWeight: 700, color: '#ef4444' }}>{emp.summary.absent}</td>
                         <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--primary-gold)', fontSize: '0.85rem' }}>
                           {emp.summary.payable_days}
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--primary-gold)', fontSize: '0.85rem' }}>
+                          ⏰ {emp.summary.total_hours || 0} hrs
                         </td>
                       </tr>
                     ))}
@@ -541,51 +571,97 @@ const AttendancePayroll = () => {
                       <tr>
                         <th>Employee Name</th>
                         <th>Role</th>
-                        <th style={{ width: '220px' }}>Attendance Status</th>
+                        <th style={{ width: '190px' }}>Attendance Status</th>
+                        <th style={{ width: '130px' }}>In-Time (Check-In)</th>
+                        <th style={{ width: '130px' }}>Out-Time (Check-Out)</th>
+                        <th style={{ width: '120px', textAlign: 'center' }}>Daily Hours</th>
                         <th>Remarks / Leave Reason</th>
                       </tr>
                     </thead>
                     <tbody>
                       {safeDailyRecords.length > 0 ? (
-                        safeDailyRecords.map(rec => (
-                          <tr key={rec.user_id}>
-                            <td style={{ fontWeight: 600 }}>{rec.user_name}</td>
-                            <td>
-                              <span className={`badge badge-${rec.user_role === 'manager' ? 'warning' : 'info'}`}>
-                                {rec.user_role}
-                              </span>
-                            </td>
-                            <td>
-                              <select 
-                                className="form-control"
-                                value={rec.status}
-                                onChange={(e) => handleDailyStatusChange(rec.user_id, e.target.value)}
-                                style={{ 
-                                  fontWeight: 600,
-                                  color: STATUS_CONFIG[rec.status]?.color || 'inherit'
-                                }}
-                              >
-                                <option value="present">🟢 Present (P)</option>
-                                <option value="half_day">🟡 Half Day (HD)</option>
-                                <option value="cl">🔵 Casual Leave (CL)</option>
-                                <option value="ml">🟣 Medical Leave (ML)</option>
-                                <option value="absent">🔴 Absent (A)</option>
-                                <option value="leave">🟠 Unpaid Leave (L)</option>
-                              </select>
-                            </td>
-                            <td>
-                              <input 
-                                type="text"
-                                className="form-control"
-                                placeholder="e.g. Fever - ML, Family function - CL..."
-                                value={rec.notes}
-                                onChange={(e) => handleDailyNotesChange(rec.user_id, e.target.value)}
-                              />
-                            </td>
-                          </tr>
-                        ))
+                        safeDailyRecords.map(rec => {
+                          const inTime = rec.in_time || '09:30';
+                          const outTime = rec.out_time || '20:30';
+                          const isWorking = rec.status === 'present' || rec.status === 'half_day';
+                          const hrs = isWorking ? calculateHours(inTime, outTime) : 0;
+
+                          return (
+                            <tr key={rec.user_id}>
+                              <td style={{ fontWeight: 600 }}>{rec.user_name}</td>
+                              <td>
+                                <span className={`badge badge-${rec.user_role === 'manager' ? 'warning' : 'info'}`}>
+                                  {rec.user_role}
+                                </span>
+                              </td>
+                              <td>
+                                <select 
+                                  className="form-control"
+                                  value={rec.status}
+                                  onChange={(e) => handleDailyStatusChange(rec.user_id, e.target.value)}
+                                  style={{ 
+                                    fontWeight: 600,
+                                    color: STATUS_CONFIG[rec.status]?.color || 'inherit'
+                                  }}
+                                >
+                                  <option value="present">🟢 Present (P)</option>
+                                  <option value="half_day">🟡 Half Day (HD)</option>
+                                  <option value="cl">🔵 Casual Leave (CL)</option>
+                                  <option value="ml">🟣 Medical Leave (ML)</option>
+                                  <option value="absent">🔴 Absent (A)</option>
+                                  <option value="leave">🟠 Unpaid Leave (L)</option>
+                                </select>
+                              </td>
+                              <td>
+                                <input 
+                                  type="time" 
+                                  className="form-control" 
+                                  value={inTime}
+                                  onChange={(e) => handleDailyTimeChange(rec.user_id, 'in_time', e.target.value)}
+                                  disabled={!isWorking}
+                                  style={{ fontSize: '0.85rem' }}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="time" 
+                                  className="form-control" 
+                                  value={outTime}
+                                  onChange={(e) => handleDailyTimeChange(rec.user_id, 'out_time', e.target.value)}
+                                  disabled={!isWorking}
+                                  style={{ fontSize: '0.85rem' }}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {isWorking ? (
+                                  <span style={{ 
+                                    padding: '4px 8px', 
+                                    borderRadius: '4px', 
+                                    background: 'var(--primary-gold-glow)', 
+                                    color: 'var(--primary-gold)', 
+                                    fontWeight: 800, 
+                                    fontSize: '0.82rem' 
+                                  }}>
+                                    ⏰ {hrs} hrs
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>0 hrs</span>
+                                )}
+                              </td>
+                              <td>
+                                <input 
+                                  type="text"
+                                  className="form-control"
+                                  placeholder="e.g. Fever - ML, Family function - CL..."
+                                  value={rec.notes}
+                                  onChange={(e) => handleDailyNotesChange(rec.user_id, e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
-                        <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No employees found.</td></tr>
+                        <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No employees found.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -773,6 +849,36 @@ const AttendancePayroll = () => {
                 </select>
               </div>
 
+              {(editStatus === 'present' || editStatus === 'half_day') && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">In-Time (Check-In)</label>
+                    <input 
+                      type="time" 
+                      className="form-control"
+                      value={editInTime}
+                      onChange={(e) => setEditInTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Out-Time (Check-Out)</label>
+                    <input 
+                      type="time" 
+                      className="form-control"
+                      value={editOutTime}
+                      onChange={(e) => setEditOutTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(editStatus === 'present' || editStatus === 'half_day') && (
+                <div style={{ background: 'var(--primary-gold-glow)', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary-gold)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Calculated Hours Worked:</span>
+                  <span>⏰ {calculateHours(editInTime, editOutTime)} hrs</span>
+                </div>
+              )}
+
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Remarks / Leave Reason (Optional)</label>
                 <input 
@@ -852,6 +958,12 @@ const AttendancePayroll = () => {
                 <td style={{ padding: '0.5rem' }}>Attendance Breakdown</td>
                 <td style={{ padding: '0.5rem', textAlign: 'right' }}>
                   P: {activeSlip.present_days || 0} | CL: {activeSlip.cl_days || 0} | ML: {activeSlip.ml_days || 0} | HD: {activeSlip.half_days || 0} | Absent: {activeSlip.absent_days || 0}
+                </td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '0.5rem' }}>Total Hours Worked</td>
+                <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700, color: '#d4af37' }}>
+                  ⏰ {activeSlip.total_hours || 0} hrs
                 </td>
               </tr>
               <tr style={{ borderBottom: '2px solid #333', fontWeight: 700, fontSize: '1.1rem' }}>

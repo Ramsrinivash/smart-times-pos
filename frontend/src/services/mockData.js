@@ -1273,16 +1273,37 @@ export const mockAPI = {
   // ═══════════════════════════════════════════════
   // ATTENDANCE & PAYROLL MOCK IMPLEMENTATIONS
   // ═══════════════════════════════════════════════
+  // Helper to calculate hours between in_time and out_time (HH:MM format)
   getAttendance: (date) => {
     const db = loadDB();
     const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    const calculateHours = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      const [inH, inM] = inTime.split(':').map(Number);
+      const [outH, outM] = outTime.split(':').map(Number);
+      if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+      let inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) outMinutes += 24 * 60;
+      return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+    };
+
     return db.users.map(u => {
       const rec = (db.attendance || []).find(a => a.user_id === u.id && a.date === targetDate);
+      const inTime = rec?.in_time || '09:30';
+      const outTime = rec?.out_time || '20:30';
+      const status = rec ? rec.status : 'present';
+      const hours = status === 'present' || status === 'half_day' ? calculateHours(inTime, outTime) : 0;
+
       return {
         user_id: u.id,
         user_name: u.name,
         user_role: u.role,
-        status: rec ? rec.status : 'present',
+        status,
+        in_time: inTime,
+        out_time: outTime,
+        hours_worked: hours,
         notes: rec ? rec.notes || '' : ''
       };
     });
@@ -1292,17 +1313,40 @@ export const mockAPI = {
     const db = loadDB();
     if (!db.attendance) db.attendance = [];
     const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const calculateHours = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      const [inH, inM] = inTime.split(':').map(Number);
+      const [outH, outM] = outTime.split(':').map(Number);
+      if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+      let inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) outMinutes += 24 * 60;
+      return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+    };
+
     records.forEach(r => {
       const idx = db.attendance.findIndex(a => a.user_id === r.user_id && a.date === targetDate);
+      const inTime = r.in_time || '09:30';
+      const outTime = r.out_time || '20:30';
+      const hours = r.status === 'present' || r.status === 'half_day' ? calculateHours(inTime, outTime) : 0;
+
+      const itemData = {
+        user_id: r.user_id,
+        date: targetDate,
+        status: r.status,
+        in_time: inTime,
+        out_time: outTime,
+        hours_worked: hours,
+        notes: r.notes || ''
+      };
+
       if (idx >= 0) {
-        db.attendance[idx] = { ...db.attendance[idx], status: r.status, notes: r.notes || '' };
+        db.attendance[idx] = { ...db.attendance[idx], ...itemData };
       } else {
         db.attendance.push({
           id: db.attendance.length + 1,
-          user_id: r.user_id,
-          date: targetDate,
-          status: r.status,
-          notes: r.notes || ''
+          ...itemData
         });
       }
     });
@@ -1317,21 +1361,45 @@ export const mockAPI = {
     const daysInMonth = new Date(y, m, 0).getDate();
     const attendance = db.attendance || [];
 
+    const calculateHours = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      const [inH, inM] = inTime.split(':').map(Number);
+      const [outH, outM] = outTime.split(':').map(Number);
+      if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+      let inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) outMinutes += 24 * 60;
+      return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+    };
+
     const employees = db.users.map(u => {
       const days = {};
-      let present = 0, cl = 0, ml = 0, halfDay = 0, absent = 0, leave = 0;
+      let present = 0, cl = 0, ml = 0, halfDay = 0, absent = 0, leave = 0, totalHours = 0;
 
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const rec = attendance.find(a => a.user_id === u.id && a.date === dateStr);
         if (rec) {
-          days[day] = { status: rec.status, notes: rec.notes || '' };
+          const inTime = rec.in_time || '09:30';
+          const outTime = rec.out_time || '20:30';
+          const h = rec.hours_worked !== undefined ? rec.hours_worked : (rec.status === 'present' ? calculateHours(inTime, outTime) : rec.status === 'half_day' ? 5.5 : 0);
+
+          days[day] = { 
+            status: rec.status, 
+            in_time: inTime,
+            out_time: outTime,
+            hours: h,
+            notes: rec.notes || '' 
+          };
+
           if (rec.status === 'present') present++;
           else if (rec.status === 'cl') cl++;
           else if (rec.status === 'ml') ml++;
           else if (rec.status === 'half_day') halfDay++;
           else if (rec.status === 'absent') absent++;
           else if (rec.status === 'leave') leave++;
+
+          totalHours += Number(h || 0);
         }
       }
 
@@ -1349,7 +1417,8 @@ export const mockAPI = {
           half_day: halfDay,
           absent,
           leave,
-          payable_days: payableDays
+          payable_days: payableDays,
+          total_hours: Number(totalHours.toFixed(1))
         }
       };
     });
@@ -1362,19 +1431,42 @@ export const mockAPI = {
     };
   },
 
-  saveSingleAttendance: ({ user_id, date, status, notes }) => {
+  saveSingleAttendance: ({ user_id, date, status, in_time, out_time, notes }) => {
     const db = loadDB();
     if (!db.attendance) db.attendance = [];
     const idx = db.attendance.findIndex(a => a.user_id === Number(user_id) && a.date === date);
+
+    const calculateHours = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      const [inH, inM] = inTime.split(':').map(Number);
+      const [outH, outM] = outTime.split(':').map(Number);
+      if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+      let inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) outMinutes += 24 * 60;
+      return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+    };
+
+    const inTime = in_time || '09:30';
+    const outTime = out_time || '20:30';
+    const hours = status === 'present' || status === 'half_day' ? calculateHours(inTime, outTime) : 0;
+
+    const itemData = {
+      user_id: Number(user_id),
+      date,
+      status,
+      in_time: inTime,
+      out_time: outTime,
+      hours_worked: hours,
+      notes: notes || ''
+    };
+
     if (idx >= 0) {
-      db.attendance[idx] = { ...db.attendance[idx], status, notes: notes || '' };
+      db.attendance[idx] = { ...db.attendance[idx], ...itemData };
     } else {
       db.attendance.push({
         id: db.attendance.length + 1,
-        user_id: Number(user_id),
-        date,
-        status,
-        notes: notes || ''
+        ...itemData
       });
     }
     saveDB(db);
@@ -1391,15 +1483,31 @@ export const mockAPI = {
 
     const defaultSalaries = { admin: 50000, manager: 30000, sales: 18000 };
 
+    const calculateHours = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      const [inH, inM] = inTime.split(':').map(Number);
+      const [outH, outM] = outTime.split(':').map(Number);
+      if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0;
+      let inMinutes = inH * 60 + inM;
+      let outMinutes = outH * 60 + outM;
+      if (outMinutes < inMinutes) outMinutes += 24 * 60;
+      return Number(((outMinutes - inMinutes) / 60).toFixed(1));
+    };
+
     return db.users.map(u => {
       const baseSalary = u.base_salary || defaultSalaries[u.role] || 20000;
-      let presentDays = 0, clDays = 0, mlDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, recordedCount = 0;
+      let presentDays = 0, clDays = 0, mlDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, recordedCount = 0, totalHours = 0;
 
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const rec = attendance.find(a => a.user_id === u.id && a.date === dateStr);
         if (rec) {
           recordedCount++;
+          const inTime = rec.in_time || '09:30';
+          const outTime = rec.out_time || '20:30';
+          const h = rec.hours_worked !== undefined ? rec.hours_worked : (rec.status === 'present' ? calculateHours(inTime, outTime) : rec.status === 'half_day' ? 5.5 : 0);
+          totalHours += Number(h || 0);
+
           if (rec.status === 'present') presentDays++;
           else if (rec.status === 'cl') clDays++;
           else if (rec.status === 'ml') mlDays++;
@@ -1429,6 +1537,7 @@ export const mockAPI = {
         leave_days: leaveDays,
         unrecorded_days: unrecordedDays,
         total_days: daysInMonth,
+        total_hours: Number(totalHours.toFixed(1)),
         net_salary: netSalary,
         status: payRecord ? payRecord.status : 'unpaid',
         attendance_incomplete: unrecordedDays > 0
