@@ -48,8 +48,11 @@ const Settings = () => {
   const [myPassword, setMyPassword] = useState('');
   const [myConfirmPassword, setMyConfirmPassword] = useState('');
 
-  // Staff password edit state
+  // Staff edit state
   const [editingUser, setEditingUser] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingEmail, setEditingEmail] = useState('');
+  const [editingRole, setEditingRole] = useState('sales');
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffSalary, setNewStaffSalary] = useState('');
 
@@ -134,14 +137,19 @@ const Settings = () => {
     e.preventDefault();
     try {
       const payload = {
+        name: editingName,
+        email: editingEmail,
+        role: editingRole,
         base_salary: Number(newStaffSalary || 0)
       };
       if (newStaffPassword) {
         payload.password = newStaffPassword;
       }
       await api.updateUser(editingUser.id, payload);
-      alertService.success('Success', `Details updated successfully for user "${editingUser.name}".`);
+      alertService.success('Success', `Details updated successfully for user "${editingName}".`);
       setEditingUser(null);
+      setEditingName('');
+      setEditingEmail('');
       setNewStaffPassword('');
       setNewStaffSalary('');
       const u = await api.getUsers();
@@ -514,10 +522,43 @@ const Settings = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Edit Details / Reset Password Form Inline */}
+              {/* Edit Details / Reset Password Form Inline */}
               {editingUser && (
                 <div className="card" style={{ border: '1px solid var(--primary-gold)' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary-gold)' }}>Edit Details: {editingUser.name}</h3>
+                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary-gold)' }}>Edit Staff Account: {editingUser.name}</h3>
                   <form onSubmit={handleUpdateStaff} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Full Name *</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        required 
+                        value={editingName} 
+                        onChange={e => setEditingName(e.target.value)} 
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Email (Login ID) *</label>
+                      <input 
+                        type="email" 
+                        className="form-control" 
+                        required 
+                        value={editingEmail} 
+                        onChange={e => setEditingEmail(e.target.value)} 
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Role *</label>
+                      <select 
+                        className="form-control" 
+                        value={editingRole} 
+                        onChange={e => setEditingRole(e.target.value)}
+                      >
+                        <option value="sales">Sales Staff</option>
+                        <option value="manager">Store Manager</option>
+                        <option value="admin">System Admin</option>
+                      </select>
+                    </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Base Salary (₹/month) *</label>
                       <input 
@@ -572,7 +613,10 @@ const Settings = () => {
                                 </span>
                                 <button 
                                   onClick={() => { 
-                                    setEditingUser(u); 
+                                    setEditingUser(u);
+                                    setEditingName(u.name || '');
+                                    setEditingEmail(u.email || '');
+                                    setEditingRole(u.role || 'sales');
                                     setNewStaffPassword(''); 
                                     setNewStaffSalary(String(u.base_salary || 0));
                                   }}

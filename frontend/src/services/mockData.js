@@ -132,6 +132,7 @@ export const mockAPI = {
       email: data.email,
       password: data.password,
       role: data.role,
+      base_salary: Number(data.base_salary || 0),
       created_at: new Date().toISOString().split('T')[0]
     };
     db.users.push(newUser);
