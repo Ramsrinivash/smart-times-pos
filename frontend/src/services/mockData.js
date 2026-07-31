@@ -79,6 +79,14 @@ const saveDB = (db) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
 };
 
+// Helper: always returns local date string in YYYY-MM-DD (IST-safe, no UTC offset bug)
+const localDateStr = (d = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const logActivity = (db, userId, action, module, details) => {
   db.activity_logs.push({
     id: db.activity_logs.length + 1,
@@ -142,7 +150,7 @@ export const mockAPI = {
       password: data.password,
       role: data.role,
       base_salary: Number(data.base_salary || 0),
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: localDateStr()
     };
     db.users.push(newUser);
     logActivity(db, adminId, 'CREATE', 'Users', `Created user ${data.name} (${data.role})`);
@@ -626,7 +634,7 @@ export const mockAPI = {
     const difference = replacementCost - returnedCredit;
 
     const now = new Date();
-    const nowStr = now.toISOString().split('T')[0];
+    const nowStr = localDateStr(now);
     const year = now.getFullYear();
     const fy = (now.getMonth() + 1) >= 4 ? `${String(year).substring(2)}${String(year + 1).substring(2)}` : `${String(year - 1).substring(2)}${String(year).substring(2)}`;
 
@@ -829,7 +837,7 @@ export const mockAPI = {
     job.status = status;
     if (actualCost !== null) job.actual_cost = Number(actualCost);
     if (status === 'delivered') {
-      job.actual_delivery_date = new Date().toISOString().split('T')[0];
+      job.actual_delivery_date = localDateStr();
     }
     logActivity(db, userId, 'UPDATE', 'Service', `Job ${id} status → ${status}`);
     saveDB(db);
@@ -839,7 +847,7 @@ export const mockAPI = {
   // Dashboard Stats
   getDashboardStats: (role = 'sales') => {
     const db = loadDB();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateStr();
     const todaySales = db.sales.filter(s => s.invoice_date === todayStr);
 
     const todaySalesCount = todaySales.length;
@@ -1095,7 +1103,7 @@ export const mockAPI = {
         transaction_type: 'refund',
         reference_id: originalSale.id,
         remarks: 'Refund converted to loyalty points',
-        created_at: new Date().toISOString().split('T')[0]
+        created_at: localDateStr()
       });
     }
 
@@ -1119,7 +1127,7 @@ export const mockAPI = {
       original_sale_id: data.original_sale_id,
       watch_id: data.watch_id,
       customer_id: data.customer_id,
-      return_date: new Date().toISOString().split('T')[0],
+      return_date: localDateStr(),
       original_price: saleItem.price_sold - saleItem.discount_amount,
       refund_amount: data.refund_amount,
       refund_mode: data.refund_mode,
@@ -1139,7 +1147,7 @@ export const mockAPI = {
   // ═══════════════════════════════════════════════
   getWarrantyCards: (search = '', statusFilter = 'all') => {
     const db = loadDB();
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     let cards = db.warranty_cards.map(w => {
       const customer = db.customers.find(c => c.id === w.customer_id);
       const watch = db.watches.find(wt => wt.id === w.watch_id);
@@ -1232,7 +1240,7 @@ export const mockAPI = {
       customer_id: customer.id,
       user_id: userId,
       invoice_type: 'non-gst',
-      invoice_date: now.toISOString().split('T')[0],
+      invoice_date: localDateStr(now),
       subtotal: netAmount,
       discount_amount: 0,
       bill_discount_amount: 0,
@@ -1249,7 +1257,7 @@ export const mockAPI = {
     job.billing_invoice_id = invoiceId;
     job.actual_cost = netAmount;
     job.status = 'delivered';
-    job.actual_delivery_date = now.toISOString().split('T')[0];
+    job.actual_delivery_date = localDateStr(now);
 
     // Points for service payment
     const earnRate = settings.loyalty_earn_rate || 1;
@@ -1302,7 +1310,7 @@ export const mockAPI = {
   // Helper to calculate hours between in_time and out_time (HH:MM format)
   getAttendance: (date) => {
     const db = loadDB();
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || localDateStr();
     
     const calculateHours = (inTime, outTime) => {
       if (!inTime || !outTime) return 0;

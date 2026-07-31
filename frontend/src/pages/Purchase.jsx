@@ -6,7 +6,7 @@ import { alertService } from '../utils/alert';
 
 const Purchase = () => {
   const [supplierName, setSupplierName] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchaseDate, setPurchaseDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [remarks, setRemarks] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('paid');

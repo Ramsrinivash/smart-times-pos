@@ -317,8 +317,12 @@ const Sales = () => {
       await alertService.success('Success', 'Checkout completed successfully!');
       if (shouldPrintAndShare) {
         window.print();
-        const waText = `Dear ${detailInvoice.customer?.name}, thank you for shopping at ${settings?.store_name || 'Smart Times'}. Your invoice ${detailInvoice.id} amounting ₹${detailInvoice.net_amount} is ready.`;
-        const waUrl = `https://wa.me/${detailInvoice.customer?.phone}?text=${encodeURIComponent(waText)}`;
+        const custDisplayName = detailInvoice.customer_name || detailInvoice.customer?.name || custName || 'Valued Customer';
+        const custDisplayPhone = (detailInvoice.customer_phone || detailInvoice.customer?.phone || custPhone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+        const items = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
+        const waText = `Dear ${custDisplayName}, thank you for shopping at *${settings?.store_name || 'Smart Times'}*!\n\n📄 *Invoice: ${detailInvoice.id}*\n${items}\n\n💰 *Total Paid: ₹${Number(detailInvoice.net_amount).toLocaleString('en-IN')}*\nPayment: ${(detailInvoice.payment_mode || 'Cash').toUpperCase()}\n\n🙏 We value your trust. Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
+        const phoneNum = custDisplayPhone.length === 10 ? `91${custDisplayPhone}` : custDisplayPhone;
+        const waUrl = `https://wa.me/${phoneNum}?text=${encodeURIComponent(waText)}`;
         window.open(waUrl, '_blank');
       }
     } catch (err) {

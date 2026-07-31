@@ -13,7 +13,7 @@ const ServiceRepair = () => {
   const [settings, setSettings] = useState(null);
   
   const [registeredWatches, setRegisteredWatches] = useState([]);
-  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [receivedDate, setReceivedDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [jobs, setJobs] = useState([]);
   const [selectedJobsForCard, setSelectedJobsForCard] = useState(null); // Array of jobs to print on 1 job card
 
