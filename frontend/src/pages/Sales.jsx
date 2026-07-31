@@ -267,6 +267,7 @@ const Sales = () => {
 
       const payload = {
         customer_id: finalCustomerId,
+        customer_name: custName.trim() || 'Walk-in Customer',
         customer_phone: finalPhone,
         invoice_type: invoiceType,
         payment_mode: paymentMode,

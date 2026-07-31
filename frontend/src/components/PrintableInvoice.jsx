@@ -169,7 +169,7 @@ const PrintableInvoice = ({
             <div style={{ fontSize: fs.sm, color: '#111', fontWeight: 700, marginTop: '2px' }}>
               Call: {storeSettings?.phone || '97512 85945, 86672 88021'}
             </div>
-            {storeSettings?.gstin && (
+            {invoice.invoice_type === 'gst' && storeSettings?.gstin && (
               <div style={{ fontSize: fs.sm, fontWeight: 700, marginTop: '2px' }}>GSTIN: {storeSettings.gstin}</div>
             )}
           </div>
@@ -212,10 +212,12 @@ const PrintableInvoice = ({
             <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#555', marginBottom: '3px', fontSize: fs.sm }}>
               Billed To:
             </div>
-            <div style={{ fontWeight: 700, fontSize: fs.base }}>{invoice.customer?.name}</div>
-            <div>Phone: {invoice.customer?.phone}</div>
-            {t.showCustomerAddress && invoice.customer?.address && (
-              <div style={{ wordBreak: 'break-word' }}>{invoice.customer.address}</div>
+            <div style={{ fontWeight: 700, fontSize: fs.base }}>
+              {invoice.customer_name || invoice.customer?.name || (invoice.customer_id === 1 ? 'Walk-in Customer' : 'Customer')}
+            </div>
+            <div>Phone: {invoice.customer_phone || invoice.customer?.phone || '-'}</div>
+            {t.showCustomerAddress && (invoice.customer_address || invoice.customer?.address) && (
+              <div style={{ wordBreak: 'break-word' }}>{invoice.customer_address || invoice.customer?.address}</div>
             )}
           </div>
           <div style={{ textAlign: isThermal ? 'left' : 'right' }}>

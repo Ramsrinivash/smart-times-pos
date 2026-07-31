@@ -41,7 +41,7 @@ const Settings = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('sales');
-  const [newUserSalary, setNewUserSalary] = useState('15000');
+  const [newUserSalary, setNewUserSalary] = useState('');
 
   // Personal credentials edit state
   const [myEmail, setMyEmail] = useState(user?.email || '');
@@ -196,7 +196,7 @@ const Settings = () => {
         base_salary: Number(newUserSalary || 0)
       });
       alertService.success('Success', `User "${newUserName}" created successfully.`);
-      setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('15000');
+      setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('');
       const u = await api.getUsers();
       setUsers(u);
     } catch (err) {
@@ -475,7 +475,7 @@ const Settings = () => {
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Base Salary (₹/month) *</label>
-                  <input type="number" className="form-control" required value={newUserSalary} onChange={e => setNewUserSalary(e.target.value)} min="0" />
+                  <input type="number" className="form-control" required placeholder="e.g. 15000" value={newUserSalary} onChange={e => setNewUserSalary(e.target.value)} min="0" />
                 </div>
 
                 {/* Role description capabilities box */}

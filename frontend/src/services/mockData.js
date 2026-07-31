@@ -388,6 +388,14 @@ export const mockAPI = {
     const now = new Date();
     const settings = db.settings;
     
+    const getLocalDateStr = (d = new Date()) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const todayStr = getLocalDateStr(now);
+
     // Customer resolution logic
     let customer = null;
     if (data.customer_id) {
@@ -400,7 +408,14 @@ export const mockAPI = {
       }
     }
     if (!customer) {
-      customer = db.customers.find(c => c.id === 1) || db.customers[0] || { id: 1, name: 'Walk-in Customer', phone: '9999999999', points_balance: 0 };
+      customer = db.customers.find(c => c.id === 1) || db.customers[0] || { id: 1, name: data.customer_name || 'Walk-in Customer', phone: data.customer_phone || '9999999999', points_balance: 0 };
+    }
+
+    const finalCustName = data.customer_name || customer.name;
+    const finalCustPhone = data.customer_phone || customer.phone;
+    if (customer && data.customer_name && customer.name === 'Walk-in Customer') {
+      customer.name = data.customer_name;
+      customer.phone = finalCustPhone;
     }
 
     // Unique non-colliding invoice ID generation
@@ -440,7 +455,7 @@ export const mockAPI = {
           gst_rate: itemInput.gst_rate || 18,
           hsn_code: '9102',
           supplier_name: 'Direct Showroom',
-          purchase_date: now.toISOString().split('T')[0],
+          purchase_date: todayStr,
           invoice_number: 'DIRECT',
           status: 'sold',
           image_urls: []
@@ -506,7 +521,7 @@ export const mockAPI = {
         transaction_type: 'redemption',
         reference_id: invoiceId,
         remarks: `Points redeemed on invoice ${invoiceId}`,
-        created_at: now.toISOString().split('T')[0]
+        created_at: todayStr
       });
     }
 
@@ -522,16 +537,18 @@ export const mockAPI = {
         transaction_type: 'purchase',
         reference_id: invoiceId,
         remarks: `Points earned on invoice ${invoiceId}`,
-        created_at: now.toISOString().split('T')[0]
+        created_at: todayStr
       });
     }
 
     const newSale = {
       id: invoiceId,
       customer_id: customer.id,
+      customer_name: finalCustName,
+      customer_phone: finalCustPhone,
       user_id: userId,
       invoice_type: data.invoice_type,
-      invoice_date: now.toISOString().split('T')[0],
+      invoice_date: todayStr,
       subtotal,
       discount_amount: totalDiscount,
       bill_discount_amount: billDiscAmount,
@@ -556,7 +573,7 @@ export const mockAPI = {
     }));
     return {
       ...newSale,
-      customer,
+      customer: { ...customer, name: finalCustName, phone: finalCustPhone },
       user: db.users.find(u => u.id === userId) || { name: 'Owner Admin' },
       items: fullItems
     };
