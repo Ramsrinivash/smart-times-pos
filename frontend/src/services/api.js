@@ -63,6 +63,9 @@ export const api = {
   saveSettings: async (data) => {
     return requestWithFallback('/settings', { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.saveSettings(data));
   },
+  resetDatabase: async () => {
+    return mockAPI.resetDatabase();
+  },
 
   // Auth
   login: async (email, password) => {

@@ -43,20 +43,25 @@ const defaultDB = {
   payroll: []
 };
 
+export const resetDatabase = () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
+  return JSON.parse(JSON.stringify(defaultDB));
+};
+
 export const loadDB = () => {
   const data = localStorage.getItem(STORAGE_KEY);
   if (!data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-    return JSON.parse(JSON.stringify(defaultDB));
+    return resetDatabase();
   }
   const db = JSON.parse(data);
   if (!db.attendance) db.attendance = [];
   if (!db.payroll) db.payroll = [];
-  // Auto-reset legacy dummy mock data if detected
-  if (db.watches && db.watches.some(w => w.id === 'RLX-SUB-90812')) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-    return JSON.parse(JSON.stringify(defaultDB));
+
+  // Auto-clean any legacy sample test data from browser storage
+  if (db.watches && db.watches.some(w => w.id === 'RLX-SUB-90812' || (w.id && w.id.includes('Nuke')) || w.brand === 'Rolex')) {
+    return resetDatabase();
   }
+
   // Auto-apply current correct store info
   if (db.settings) {
     db.settings.store_name = defaultDB.settings.store_name;
@@ -65,7 +70,7 @@ export const loadDB = () => {
     db.settings.address = defaultDB.settings.address;
     db.settings.phone = defaultDB.settings.phone;
     db.settings.email = defaultDB.settings.email;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    saveDB(db);
   }
   return db;
 };
@@ -101,6 +106,10 @@ export const mockAPI = {
     db.settings = { ...db.settings, ...data };
     saveDB(db);
     return db.settings;
+  },
+
+  resetDatabase: () => {
+    return resetDatabase();
   },
 
   // Authentication

@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { alertService } from '../utils/alert';
+import Swal from 'sweetalert2';
 import BillTemplate from './BillTemplate';
 
 const Settings = () => {
@@ -213,6 +214,27 @@ const Settings = () => {
     link.download = `smarttimes_backup_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleResetDB = () => {
+    Swal.fire({
+      title: 'Reset to 100% Clean Database?',
+      text: 'This will remove all test sample data (dummy watches, test sales, sample job cards) and start your showroom with a clean slate.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Clear All Test Data',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: 'var(--border-color)',
+      background: 'var(--surface-color)',
+      color: 'var(--text-primary)'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        api.resetDatabase();
+        alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    });
   };
 
   const tabStyle = (tabId) => ({
@@ -679,20 +701,47 @@ const Settings = () => {
 
         {/* Backup & Data */}
         {activeTab === 'backup' && user?.role === 'admin' && (
-          <div className="card" style={{ maxWidth: '600px' }}>
-            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Database size={18} /> Backup & Data Export
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-              Export the entire showroom database as a JSON file for backup purposes. This backup can be used to restore data if needed.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <button onClick={handleExportDB} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}>
-                <Database size={15} /> Export Full Database Backup (.json)
-              </button>
-              <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                ⚠️ When connected to the live PHP/MySQL server, this will trigger a server-side backup download including all database tables.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '650px' }}>
+            <div className="card">
+              <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Database size={18} /> Backup & Data Export
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+                Export the entire showroom database as a JSON file for backup purposes. This backup can be used to restore data if needed.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <button onClick={handleExportDB} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}>
+                  <Database size={15} /> Export Full Database Backup (.json)
+                </button>
+                <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  ⚠️ When connected to the live PHP/MySQL server, this will trigger a server-side backup download including all database tables.
+                </div>
               </div>
+            </div>
+
+            <div className="card" style={{ border: '1px solid rgba(220, 38, 38, 0.3)' }}>
+              <h3 style={{ marginBottom: '1rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Shield size={18} /> Clear Test Data & Reset Database
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                Click below to wipe all sample test data (dummy watches, test sales, sample job cards) and reset your system to a 100% clean slate for real live showroom operations.
+              </p>
+              <button 
+                onClick={handleResetDB} 
+                className="btn" 
+                style={{ 
+                  background: '#dc2626', 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  width: 'fit-content',
+                  padding: '0.6rem 1.25rem'
+                }}
+              >
+                🗑️ Clear All Test Data & Reset Database
+              </button>
             </div>
           </div>
         )}
