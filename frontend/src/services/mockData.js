@@ -158,7 +158,8 @@ export const mockAPI = {
   // Authentication
   login: (email, password) => {
     const db = loadDB();
-    const user = db.users.find(u => u.email === email && u.password === password);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const user = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail && u.password === password);
     if (!user) throw new Error('Invalid email or password.');
     
     const sessionToken = `mock-session-${user.id}-${Date.now()}`;
@@ -171,6 +172,18 @@ export const mockAPI = {
       access_token: sessionToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     };
+  },
+
+  verifyActiveSession: (userId, currentToken) => {
+    const db = loadDB();
+    if (!userId || !currentToken) return { valid: true };
+    if (db.active_sessions && db.active_sessions[userId]) {
+      const activeToken = db.active_sessions[userId];
+      if (activeToken !== currentToken) {
+        throw new Error('SESSION_TERMINATED');
+      }
+    }
+    return { valid: true };
   },
 
   // User Management (Admin only)

@@ -73,7 +73,26 @@ export const AuthProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
 
+    // Periodic & window focus active session heartbeat check across browsers & PCs
+    const verifySession = async () => {
+      if (!user) return;
+      const currentToken = sessionStorage.getItem('watch_auth_token');
+      if (!currentToken) return;
+      try {
+        await api.checkSession(user.id, currentToken);
+      } catch (err) {
+        if (err.message === 'SESSION_TERMINATED' || (err.response && err.response.status === 401)) {
+          sessionStorage.setItem('watch_logout_reason', 'concurrent_login');
+          logout();
+          alertService.warning('Session Terminated', 'Your account was logged in from another browser or system. This session has been closed for security.');
+        }
+      }
+    };
+
+    window.addEventListener('focus', verifySession);
+
     const interval = setInterval(() => {
+      verifySession();
       const elapsed = Date.now() - lastActivityRef.current;
 
       if (elapsed >= INACTIVITY_TIMEOUT) {
@@ -87,11 +106,12 @@ export const AuthProvider = ({ children }) => {
       } else {
         setShowWarning(false);
       }
-    }, 1000);
+    }, 2000);
 
     return () => {
       events.forEach(event => window.removeEventListener(event, resetTimer));
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', verifySession);
       clearInterval(interval);
     };
   }, [user]);
