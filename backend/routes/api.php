@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [AuthController::class, 'getUsers'])->middleware('role:admin');
     Route::post('/users', [AuthController::class, 'addUser'])->middleware('role:admin');
     Route::put('/users/{id}', [AuthController::class, 'updateUser']);
+    Route::delete('/users/{id}', [AuthController::class, 'deleteUser'])->middleware('role:admin');
 
     // Dashboard Overview Route (Accessible by all roles)
     Route::get('/dashboard', [ReportController::class, 'dashboardOverview']);

@@ -73,15 +73,19 @@ class AuthController extends Controller
             'base_salary' => 'nullable|numeric|min:0',
         ]);
 
+        $salary = $request->has('base_salary') && $request->base_salary !== null && $request->base_salary !== ''
+            ? (float)$request->base_salary
+            : 0.00;
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
-            'base_salary' => $request->base_salary ?? 15000.00,
+            'base_salary' => $salary,
         ]);
 
-        ActivityLog::log($request->user()->id, 'CREATE', 'Users', "Created staff account for {$user->name} with role {$user->role}");
+        ActivityLog::log($request->user()->id, 'CREATE', 'Users', "Created staff account {$user->name} ({$user->role}) — Salary: ₹" . number_format($user->base_salary, 2));
 
         return response()->json($user, 201);
     }
@@ -102,7 +106,11 @@ class AuthController extends Controller
             'base_salary' => 'nullable|numeric|min:0',
         ]);
 
-        $user->fill($request->only(['name', 'email', 'role', 'base_salary']));
+        if ($request->has('base_salary') && $request->base_salary !== null && $request->base_salary !== '') {
+            $user->base_salary = (float)$request->base_salary;
+        }
+
+        $user->fill($request->only(['name', 'email', 'role']));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
@@ -110,8 +118,20 @@ class AuthController extends Controller
 
         $user->save();
 
-        ActivityLog::log($request->user()->id, 'UPDATE', 'Users', "Updated staff account/credentials for {$user->name}");
+        ActivityLog::log($request->user()->id, 'UPDATE', 'Users', "Updated staff account {$user->name} — Salary: ₹" . number_format($user->base_salary, 2));
 
         return response()->json($user);
+    }
+
+    public function deleteUser(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'Cannot delete your own admin account.'], 400);
+        }
+        $name = $user->name;
+        $user->delete();
+        ActivityLog::log($request->user()->id, 'DELETE', 'Users', "Removed staff account {$name}");
+        return response()->json(['message' => 'Staff account deleted successfully.']);
     }
 }

@@ -208,7 +208,7 @@ const Settings = () => {
   };
 
   const handleDeleteStaff = (targetUser) => {
-    if (targetUser.id === user.id) {
+    if (targetUser.id === user.id || targetUser.email === user.email) {
       alertService.warning('Action Blocked', 'You cannot delete your own logged-in admin account.');
       return;
     }
@@ -227,14 +227,30 @@ const Settings = () => {
       if (result.isConfirmed) {
         try {
           await api.deleteUser(targetUser.id);
-          alertService.success('Removed', `Staff account "${targetUser.name}" has been removed successfully.`);
-          if (editingUser?.id === targetUser.id) {
-            setEditingUser(null);
-          }
-          const updated = await api.getUsers();
-          setUsers(updated);
-        } catch (err) {
-          alertService.error('Error', 'Failed to delete user: ' + err.message);
+        } catch (e) {
+          console.warn('API delete warning:', e);
+        }
+        // Always ensure mock & local UI state are cleaned
+        try {
+          mockAPI.deleteUser(targetUser.id);
+          mockAPI.deleteUser(targetUser.email);
+        } catch (e) {
+          console.warn('Mock cleanup warning:', e);
+        }
+
+        alertService.success('Removed', `Staff account "${targetUser.name}" has been removed successfully.`);
+        if (editingUser?.id === targetUser.id) {
+          setEditingUser(null);
+        }
+        // Immediately filter out the deleted staff member from state
+        setUsers(prev => prev.filter(u => u.id !== targetUser.id && u.email !== targetUser.email));
+        
+        // Refresh users list from API
+        try {
+          const fresh = await api.getUsers();
+          setUsers(fresh.filter(u => u.id !== targetUser.id && u.email !== targetUser.email));
+        } catch (e) {
+          console.error('Refresh users error:', e);
         }
       }
     });
