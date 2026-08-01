@@ -51,6 +51,28 @@ export const AuthProvider = ({ children }) => {
 
     events.forEach(event => window.addEventListener(event, resetTimer));
 
+    // Cross-system / multi-device active session listener
+    const handleStorageChange = (e) => {
+      if (e.key === 'watch_showroom_db' && e.newValue && user) {
+        try {
+          const db = JSON.parse(e.newValue);
+          const currentToken = sessionStorage.getItem('watch_auth_token');
+          if (db.active_sessions && db.active_sessions[user.id]) {
+            const activeToken = db.active_sessions[user.id];
+            if (currentToken && currentToken.startsWith('mock-session-') && activeToken !== currentToken) {
+              sessionStorage.setItem('watch_logout_reason', 'concurrent_login');
+              logout();
+              alertService.warning('Session Terminated', 'Your account was logged in from another system/device. This session has been closed.');
+            }
+          }
+        } catch (err) {
+          console.error('Session sync error:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastActivityRef.current;
 
@@ -69,6 +91,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       events.forEach(event => window.removeEventListener(event, resetTimer));
+      window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
   }, [user]);

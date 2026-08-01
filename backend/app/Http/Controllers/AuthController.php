@@ -25,6 +25,9 @@ class AuthController extends Controller
             ]);
         }
 
+        // Single Session Policy: Revoke all previous tokens for this user so old devices get closed
+        $user->tokens()->delete();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         ActivityLog::log($user->id, 'LOGIN', 'Authentication', "User {$user->name} logged in successfully");

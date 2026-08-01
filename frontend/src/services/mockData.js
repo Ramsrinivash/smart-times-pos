@@ -134,10 +134,15 @@ export const mockAPI = {
     const db = loadDB();
     const user = db.users.find(u => u.email === email && u.password === password);
     if (!user) throw new Error('Invalid email or password.');
-    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in`);
+    
+    const sessionToken = `mock-session-${user.id}-${Date.now()}`;
+    if (!db.active_sessions) db.active_sessions = {};
+    db.active_sessions[user.id] = sessionToken;
+
+    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in (Session: ${sessionToken})`);
     saveDB(db);
     return {
-      access_token: 'mock-jwt-token-xyz',
+      access_token: sessionToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     };
   },
