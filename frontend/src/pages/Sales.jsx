@@ -539,17 +539,34 @@ const Sales = () => {
               </div>
 
               {custPhone.length >= 10 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--primary-gold-glow)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: 'var(--primary-gold-glow)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
                   <div>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Loyalty Balance</span>
                     <div style={{ fontWeight: 600, color: 'var(--primary-gold)' }}>
                       {loyaltyPoints} pts available
+                      {Number(redeemPoints || 0) > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '0.4rem' }}>
+                          ({loyaltyPoints - Number(redeemPoints || 0)} pts remaining after bill)
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <span className="badge badge-success" style={{ alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    <UserCheck size={12} />
-                    {selectedCustomerId ? 'Registered CRM' : 'New Profile'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {loyaltyPoints > 0 && (
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setRedeemPoints(String(loyaltyPoints))}
+                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                      >
+                        Redeem {loyaltyPoints} pts
+                      </button>
+                    )}
+                    <span className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <UserCheck size={12} />
+                      {selectedCustomerId ? 'Registered CRM' : 'New Profile'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -573,15 +590,41 @@ const Sales = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Redeem Reward Points</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  placeholder="0" 
-                  value={redeemPoints}
-                  onChange={(e) => setRedeemPoints(cleanNumberInput(e.target.value))}
-                  max={loyaltyPoints || 0}
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Redeem Reward Points</label>
+                  {loyaltyPoints > 0 && (
+                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                      <button 
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}
+                        onClick={() => setRedeemPoints(String(loyaltyPoints))}
+                      >
+                        Use Max ({loyaltyPoints} pts)
+                      </button>
+                      {Number(redeemPoints || 0) > 0 && (
+                        <button 
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem', color: 'var(--error)' }}
+                          onClick={() => setRedeemPoints('')}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    placeholder="0" 
+                    value={redeemPoints}
+                    onChange={(e) => setRedeemPoints(cleanNumberInput(e.target.value))}
+                    max={loyaltyPoints || 0}
+                  />
+                </div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   1 Point = ₹1.00 Discount. Max redeemable: {loyaltyPoints} pts.
                 </span>

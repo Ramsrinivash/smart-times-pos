@@ -183,20 +183,22 @@ const PrintableInvoice = ({
               Invoice No: <span style={{ fontFamily: 'monospace' }}>{invoice.id}</span>
             </div>
             <div style={{ fontSize: fs.sm, color: '#444' }}>Date: {invoice.invoice_date}</div>
-            <div style={{ marginTop: '4px' }}>
-              <span style={{
-                display: 'inline-block',
-                padding: '1px 6px',
-                background: invoice.invoice_type === 'gst' ? '#d1fae5' : '#e0f2fe',
-                color: invoice.invoice_type === 'gst' ? '#065f46' : '#0c4a6e',
-                borderRadius: '3px',
-                fontSize: fs.sm,
-                fontWeight: 700,
-                border: `1px solid ${invoice.invoice_type === 'gst' ? '#a7f3d0' : '#bae6fd'}`,
-              }}>
-                {invoice.invoice_type === 'gst' ? 'GST Invoice' : 'Non-GST Bill'}
-              </span>
-            </div>
+            {invoice.invoice_type === 'gst' && (
+              <div style={{ marginTop: '4px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '1px 6px',
+                  background: '#d1fae5',
+                  color: '#065f46',
+                  borderRadius: '3px',
+                  fontSize: fs.sm,
+                  fontWeight: 700,
+                  border: '1px solid #a7f3d0',
+                }}>
+                  GST Invoice
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
