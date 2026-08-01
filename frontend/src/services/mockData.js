@@ -71,8 +71,16 @@ export const loadDB = () => {
     db.settings.email = defaultDB.settings.email;
   }
 
-  // Ensure base_salary property and Suresh staff account (25,000) are set on all users
+  // Auto-purge legacy dummy staff accounts from browser storage
   if (db.users) {
+    db.users = db.users.filter(u => u.email !== 'manager@smarttimes.in' && u.email !== 'sales@smarttimes.in');
+    
+    db.users.forEach(u => {
+      if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
+        u.base_salary = 30000;
+      }
+    });
+
     const sureshUser = db.users.find(u => u.email && u.email.toLowerCase() === 'suresh@smarttimes.in');
     if (sureshUser) {
       sureshUser.base_salary = 25000;
@@ -88,7 +96,7 @@ export const loadDB = () => {
         email: 'suresh@smarttimes.in',
         password: 'suresh123',
         role: 'sales',
-        base_salary: 25000,
+ base_salary: 25000,
         created_at: localDateStr()
       });
     }
