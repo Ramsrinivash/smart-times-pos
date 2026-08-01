@@ -22,7 +22,7 @@ const defaultDB = {
   },
   users: [
     { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
-    { id: 2, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 15000, created_at: '2026-08-01' }
+    { id: 2, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 25000, created_at: '2026-08-01' }
   ],
   activity_logs: [],
   customers: [
@@ -71,10 +71,12 @@ export const loadDB = () => {
     db.settings.email = defaultDB.settings.email;
   }
 
-  // Ensure base_salary property and Suresh staff account are set on all users
+  // Ensure base_salary property and Suresh staff account (25,000) are set on all users
   if (db.users) {
-    const hasSuresh = db.users.some(u => u.email && u.email.toLowerCase() === 'suresh@smarttimes.in');
-    if (!hasSuresh) {
+    const sureshUser = db.users.find(u => u.email && u.email.toLowerCase() === 'suresh@smarttimes.in');
+    if (sureshUser) {
+      sureshUser.base_salary = 25000;
+    } else {
       let maxId = 0;
       db.users.forEach(u => {
         const nid = Number(u.id);
@@ -86,7 +88,7 @@ export const loadDB = () => {
         email: 'suresh@smarttimes.in',
         password: 'suresh123',
         role: 'sales',
-        base_salary: 15000,
+        base_salary: 25000,
         created_at: localDateStr()
       });
     }
