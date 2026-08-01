@@ -82,6 +82,9 @@ export const api = {
   updateUser: async (id, data) => {
     return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateUser(id, data));
   },
+  deleteUser: async (id) => {
+    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => mockAPI.deleteUser(id));
+  },
 
   // Attendance & Payroll
   getAttendance: async (date = '') => {

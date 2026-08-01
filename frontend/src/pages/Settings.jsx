@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { alertService } from '../utils/alert';
 import Swal from 'sweetalert2';
@@ -205,6 +205,39 @@ const Settings = () => {
     } catch (err) {
       alertService.error('Error', 'Failed to create user: ' + err.message);
     }
+  };
+
+  const handleDeleteStaff = (targetUser) => {
+    if (targetUser.id === user.id) {
+      alertService.warning('Action Blocked', 'You cannot delete your own logged-in admin account.');
+      return;
+    }
+    Swal.fire({
+      title: `Remove Staff Account?`,
+      text: `Are you sure you want to delete staff account "${targetUser.name}" (${targetUser.email})? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Remove Staff',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: 'var(--border-color)',
+      background: 'var(--surface-color)',
+      color: 'var(--text-primary)'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await api.deleteUser(targetUser.id);
+          alertService.success('Removed', `Staff account "${targetUser.name}" has been removed successfully.`);
+          if (editingUser?.id === targetUser.id) {
+            setEditingUser(null);
+          }
+          const updated = await api.getUsers();
+          setUsers(updated);
+        } catch (err) {
+          alertService.error('Error', 'Failed to delete user: ' + err.message);
+        }
+      }
+    });
   };
 
   const handleExportDB = () => {
@@ -635,20 +668,32 @@ const Settings = () => {
                                 <span className={`badge badge-${u.role === 'admin' ? 'danger' : u.role === 'manager' ? 'warning' : 'info'}`}>
                                   {u.role}
                                 </span>
-                                <button 
-                                  onClick={() => { 
-                                    setEditingUser(u);
-                                    setEditingName(u.name || '');
-                                    setEditingEmail(u.email || '');
-                                    setEditingRole(u.role || 'sales');
-                                    setNewStaffPassword(''); 
-                                    setNewStaffSalary(String(u.base_salary || 0));
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-                                >
-                                  Edit Staff
-                                </button>
+                                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                  <button 
+                                    onClick={() => { 
+                                      setEditingUser(u);
+                                      setEditingName(u.name || '');
+                                      setEditingEmail(u.email || '');
+                                      setEditingRole(u.role || 'sales');
+                                      setNewStaffPassword(''); 
+                                      setNewStaffSalary(String(u.base_salary || 0));
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                                  >
+                                    Edit Staff
+                                  </button>
+                                  {u.id !== user.id && (
+                                    <button 
+                                      onClick={() => handleDeleteStaff(u)}
+                                      className="btn btn-sm"
+                                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.45rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                                      title={`Delete staff account ${u.name}`}
+                                    >
+                                      <Trash2 size={12} /> Remove
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))

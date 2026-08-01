@@ -196,6 +196,17 @@ export const mockAPI = {
     return { ...db.users[idx], password: undefined };
   },
 
+  deleteUser: (userId, adminId) => {
+    const db = loadDB();
+    const idx = db.users.findIndex(u => u.id === Number(userId));
+    if (idx === -1) throw new Error('User not found.');
+    const userName = db.users[idx].name;
+    db.users.splice(idx, 1);
+    logActivity(db, adminId || 1, 'DELETE', 'Users', `Removed staff account "${userName}"`);
+    saveDB(db);
+    return { success: true };
+  },
+
   // Activity Logs
   getActivityLogs: () => {
     const db = loadDB();
