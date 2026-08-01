@@ -21,9 +21,7 @@ const defaultDB = {
     logo_url: null
   },
   users: [
-    { id: 1, name: 'Owner Admin', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
-    { id: 2, name: 'Store Manager', email: 'manager@smarttimes.in', password: 'manager123', role: 'manager', base_salary: 20000, created_at: '2026-07-01' },
-    { id: 3, name: 'Sales Counter', email: 'sales@smarttimes.in', password: 'sales123', role: 'sales', base_salary: 15000, created_at: '2026-07-01' }
+    { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' }
   ],
   activity_logs: [],
   customers: [

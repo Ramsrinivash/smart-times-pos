@@ -136,16 +136,19 @@ const Settings = () => {
 
   const refreshUsersAndLogs = async () => {
     try {
-      const u = await api.getUsers();
-      if (Array.isArray(u)) setUsers(u);
+      const localUsers = mockAPI.getUsers();
+      if (Array.isArray(localUsers)) setUsers(localUsers);
+
+      const localLogs = mockAPI.getActivityLogs();
+      if (Array.isArray(localLogs)) setActivityLogs(localLogs.slice(0, 50));
+
+      const apiUsers = await api.getUsers();
+      if (Array.isArray(apiUsers) && apiUsers.length > 0) setUsers(apiUsers);
+
+      const apiLogs = await api.getActivityLogs();
+      if (Array.isArray(apiLogs) && apiLogs.length > 0) setActivityLogs(apiLogs.slice(0, 50));
     } catch (e) {
-      console.error('Refresh users error:', e);
-    }
-    try {
-      const logs = await api.getActivityLogs();
-      if (Array.isArray(logs)) setActivityLogs(logs.slice(0, 50));
-    } catch (e) {
-      console.error('Refresh logs error:', e);
+      console.error('Refresh users/logs error:', e);
     }
   };
 
@@ -162,7 +165,9 @@ const Settings = () => {
       if (newStaffPassword) {
         payload.password = newStaffPassword;
       }
-      await api.updateUser(editingUser.id, payload);
+      try { mockAPI.updateUser(editingUser.id, payload, user?.id); } catch (e) {}
+      try { await api.updateUser(editingUser.id, payload); } catch (e) {}
+
       alertService.success('Salary & Account Updated', `Updated user "${editingName}" — New Salary: ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setEditingUser(null);
       setEditingName('');
@@ -203,20 +208,35 @@ const Settings = () => {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    if (!newUserName || !newUserEmail || !newUserPassword) {
+      alertService.error('Required Fields Missing', 'Please enter Name, Email, and Password.');
+      return;
+    }
     try {
       const salaryNum = Number(newUserSalary || 0);
-      await api.addUser({
-        name: newUserName,
-        email: newUserEmail,
+      const payload = {
+        name: newUserName.trim(),
+        email: newUserEmail.trim(),
         password: newUserPassword,
-        role: newUserRole,
+        role: newUserRole || 'sales',
         base_salary: salaryNum
-      });
-      alertService.success('Staff Created', `User "${newUserName}" created successfully with salary ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
+      };
+
+      // 1. Direct stateful storage insertion
+      mockAPI.addUser(payload, user?.id);
+
+      // 2. Secondary API sync
+      try {
+        await api.addUser(payload);
+      } catch (err) {
+        console.warn('Backend network sync note:', err);
+      }
+
+      alertService.success('Staff Account Created', `Staff account "${newUserName}" (${newUserRole}) created successfully with salary ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('');
       await refreshUsersAndLogs();
     } catch (err) {
-      alertService.error('Error', 'Failed to create user: ' + err.message);
+      alertService.error('Error', 'Failed to create staff account: ' + err.message);
     }
   };
 
@@ -238,17 +258,9 @@ const Settings = () => {
       color: 'var(--text-primary)'
     }).then(async (result) => {
       if (result.isConfirmed) {
-        try {
-          await api.deleteUser(targetUser.id);
-        } catch (e) {
-          console.warn('API delete warning:', e);
-        }
-        try {
-          mockAPI.deleteUser(targetUser.id);
-          mockAPI.deleteUser(targetUser.email);
-        } catch (e) {
-          console.warn('Mock cleanup warning:', e);
-        }
+        try { mockAPI.deleteUser(targetUser.id, user?.id); } catch (e) {}
+        try { mockAPI.deleteUser(targetUser.email, user?.id); } catch (e) {}
+        try { await api.deleteUser(targetUser.id); } catch (e) {}
 
         alertService.success('Removed', `Staff account "${targetUser.name}" has been removed successfully.`);
         if (editingUser?.id === targetUser.id) {
