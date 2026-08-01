@@ -21,9 +21,9 @@ const defaultDB = {
     logo_url: null
   },
   users: [
-    { id: 1, name: 'Owner Admin', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', created_at: '2026-07-01' },
-    { id: 2, name: 'Store Manager', email: 'manager@smarttimes.in', password: 'manager123', role: 'manager', created_at: '2026-07-01' },
-    { id: 3, name: 'Sales Counter', email: 'sales@smarttimes.in', password: 'sales123', role: 'sales', created_at: '2026-07-01' }
+    { id: 1, name: 'Owner Admin', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
+    { id: 2, name: 'Store Manager', email: 'manager@smarttimes.in', password: 'manager123', role: 'manager', base_salary: 20000, created_at: '2026-07-01' },
+    { id: 3, name: 'Sales Counter', email: 'sales@smarttimes.in', password: 'sales123', role: 'sales', base_salary: 15000, created_at: '2026-07-01' }
   ],
   activity_logs: [],
   customers: [
@@ -70,8 +70,17 @@ export const loadDB = () => {
     db.settings.address = defaultDB.settings.address;
     db.settings.phone = defaultDB.settings.phone;
     db.settings.email = defaultDB.settings.email;
-    saveDB(db);
   }
+
+  // Ensure base_salary property is set on all users
+  if (db.users) {
+    db.users.forEach(u => {
+      if (u.base_salary === undefined || u.base_salary === null) {
+        u.base_salary = u.role === 'admin' ? 30000 : u.role === 'manager' ? 20000 : 15000;
+      }
+    });
+  }
+  saveDB(db);
   return db;
 };
 
@@ -143,17 +152,20 @@ export const mockAPI = {
     const db = loadDB();
     const existing = db.users.find(u => u.email === data.email);
     if (existing) throw new Error('A user with this email already exists.');
+    const salaryVal = data.base_salary !== undefined && data.base_salary !== '' && !isNaN(data.base_salary)
+      ? Number(data.base_salary)
+      : 15000;
     const newUser = {
       id: db.users.length + 1,
       name: data.name,
       email: data.email,
       password: data.password,
       role: data.role,
-      base_salary: Number(data.base_salary || 0),
+      base_salary: salaryVal,
       created_at: localDateStr()
     };
     db.users.push(newUser);
-    logActivity(db, adminId, 'CREATE', 'Users', `Created user ${data.name} (${data.role})`);
+    logActivity(db, adminId, 'CREATE', 'Users', `Created user ${data.name} (${data.role}) with salary ₹${salaryVal}`);
     saveDB(db);
     return { ...newUser, password: undefined };
   },
@@ -162,8 +174,12 @@ export const mockAPI = {
     const db = loadDB();
     const idx = db.users.findIndex(u => u.id === Number(userId));
     if (idx === -1) throw new Error('User not found.');
-    db.users[idx] = { ...db.users[idx], ...data };
-    logActivity(db, adminId || userId, 'UPDATE', 'Users', `Updated credentials/role for user ${db.users[idx].name}`);
+    const updateObj = { ...data };
+    if (updateObj.base_salary !== undefined && updateObj.base_salary !== null && updateObj.base_salary !== '') {
+      updateObj.base_salary = Number(updateObj.base_salary);
+    }
+    db.users[idx] = { ...db.users[idx], ...updateObj };
+    logActivity(db, adminId || userId, 'UPDATE', 'Users', `Updated user details for ${db.users[idx].name} (Salary: ₹${db.users[idx].base_salary})`);
     saveDB(db);
     return { ...db.users[idx], password: undefined };
   },
@@ -1529,7 +1545,9 @@ export const mockAPI = {
     };
 
     return db.users.map(u => {
-      const baseSalary = u.base_salary || defaultSalaries[u.role] || 20000;
+      const baseSalary = (u.base_salary !== undefined && u.base_salary !== null && u.base_salary !== '')
+        ? Number(u.base_salary)
+        : (defaultSalaries[u.role] || 15000);
       let presentDays = 0, clDays = 0, mlDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, recordedCount = 0, totalHours = 0;
 
       for (let day = 1; day <= daysInMonth; day++) {
