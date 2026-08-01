@@ -77,16 +77,13 @@ export const api = {
     return requestWithFallback('/users', {}, () => mockAPI.getUsers());
   },
   addUser: async (data) => {
-    try { mockAPI.addUser(data); } catch (e) {}
-    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.getUsers());
+    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addUser(data));
   },
   updateUser: async (id, data) => {
-    try { mockAPI.updateUser(id, data); } catch (e) {}
-    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.getUsers());
+    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateUser(id, data));
   },
   deleteUser: async (id) => {
-    try { mockAPI.deleteUser(id); } catch (e) {}
-    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => ({ success: true }));
+    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => mockAPI.deleteUser(id));
   },
   getActivityLogs: async () => {
     return requestWithFallback('/activity-logs', {}, () => mockAPI.getActivityLogs());

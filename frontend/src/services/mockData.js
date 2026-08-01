@@ -150,22 +150,31 @@ export const mockAPI = {
 
   addUser: (data, adminId) => {
     const db = loadDB();
-    const existing = db.users.find(u => u.email === data.email);
-    if (existing) throw new Error('A user with this email already exists.');
+    const cleanEmail = (data.email || '').trim().toLowerCase();
+    const existing = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existing) throw new Error(`A staff account with email "${data.email}" already exists.`);
+
     const salaryVal = (data.base_salary !== undefined && data.base_salary !== '' && !isNaN(data.base_salary))
       ? Number(data.base_salary)
       : 0;
+
+    let maxId = 0;
+    db.users.forEach(u => {
+      const nid = Number(u.id);
+      if (!isNaN(nid) && nid > maxId) maxId = nid;
+    });
+
     const newUser = {
-      id: db.users.length + 1,
+      id: maxId + 1,
       name: data.name,
-      email: data.email,
+      email: data.email.trim(),
       password: data.password,
-      role: data.role,
+      role: data.role || 'sales',
       base_salary: salaryVal,
       created_at: localDateStr()
     };
     db.users.push(newUser);
-    logActivity(db, adminId, 'CREATE', 'Users', `Created staff account ${data.name} (${data.role}) — Salary: ₹${salaryVal.toLocaleString('en-IN')}`);
+    logActivity(db, adminId || 1, 'CREATE', 'Users', `Created staff account ${data.name} (${data.role}) — Salary: ₹${salaryVal.toLocaleString('en-IN')}`);
     saveDB(db);
     return { ...newUser, password: undefined };
   },
