@@ -152,9 +152,9 @@ export const mockAPI = {
     const db = loadDB();
     const existing = db.users.find(u => u.email === data.email);
     if (existing) throw new Error('A user with this email already exists.');
-    const salaryVal = data.base_salary !== undefined && data.base_salary !== '' && !isNaN(data.base_salary)
+    const salaryVal = (data.base_salary !== undefined && data.base_salary !== '' && !isNaN(data.base_salary))
       ? Number(data.base_salary)
-      : 15000;
+      : 0;
     const newUser = {
       id: db.users.length + 1,
       name: data.name,
@@ -165,7 +165,7 @@ export const mockAPI = {
       created_at: localDateStr()
     };
     db.users.push(newUser);
-    logActivity(db, adminId, 'CREATE', 'Users', `Created user ${data.name} (${data.role}) with salary ₹${salaryVal}`);
+    logActivity(db, adminId, 'CREATE', 'Users', `Created staff account ${data.name} (${data.role}) — Salary: ₹${salaryVal.toLocaleString('en-IN')}`);
     saveDB(db);
     return { ...newUser, password: undefined };
   },
@@ -174,12 +174,24 @@ export const mockAPI = {
     const db = loadDB();
     const idx = db.users.findIndex(u => u.id === Number(userId));
     if (idx === -1) throw new Error('User not found.');
-    const updateObj = { ...data };
-    if (updateObj.base_salary !== undefined && updateObj.base_salary !== null && updateObj.base_salary !== '') {
-      updateObj.base_salary = Number(updateObj.base_salary);
+
+    const newSalary = (data.base_salary !== undefined && data.base_salary !== null && data.base_salary !== '')
+      ? Number(data.base_salary)
+      : (db.users[idx].base_salary || 0);
+
+    db.users[idx] = {
+      ...db.users[idx],
+      name: data.name || db.users[idx].name,
+      email: data.email || db.users[idx].email,
+      role: data.role || db.users[idx].role,
+      base_salary: newSalary
+    };
+
+    if (data.password) {
+      db.users[idx].password = data.password;
     }
-    db.users[idx] = { ...db.users[idx], ...updateObj };
-    logActivity(db, adminId || userId, 'UPDATE', 'Users', `Updated user details for ${db.users[idx].name} (Salary: ₹${db.users[idx].base_salary})`);
+
+    logActivity(db, adminId || userId, 'UPDATE', 'Users', `Updated ${db.users[idx].name} — Salary set to ₹${newSalary.toLocaleString('en-IN')}`);
     saveDB(db);
     return { ...db.users[idx], password: undefined };
   },

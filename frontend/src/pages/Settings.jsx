@@ -137,17 +137,18 @@ const Settings = () => {
   const handleUpdateStaff = async (e) => {
     e.preventDefault();
     try {
+      const salaryNum = Number(newStaffSalary || 0);
       const payload = {
         name: editingName,
         email: editingEmail,
         role: editingRole,
-        base_salary: Number(newStaffSalary || 0)
+        base_salary: salaryNum
       };
       if (newStaffPassword) {
         payload.password = newStaffPassword;
       }
       await api.updateUser(editingUser.id, payload);
-      alertService.success('Success', `Details updated successfully for user "${editingName}".`);
+      alertService.success('Salary & Account Updated', `Updated user "${editingName}" — New Salary: ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setEditingUser(null);
       setEditingName('');
       setEditingEmail('');
@@ -189,14 +190,15 @@ const Settings = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
+      const salaryNum = Number(newUserSalary || 0);
       await api.addUser({
         name: newUserName,
         email: newUserEmail,
         password: newUserPassword,
         role: newUserRole,
-        base_salary: Number(newUserSalary || 0)
+        base_salary: salaryNum
       });
-      alertService.success('Success', `User "${newUserName}" created successfully.`);
+      alertService.success('Staff Created', `User "${newUserName}" created successfully with salary ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('');
       const u = await api.getUsers();
       setUsers(u);
