@@ -13,7 +13,7 @@ return new class extends Migration
     {
         if (!Schema::hasColumn('users', 'base_salary')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->decimal('base_salary', 10, 2)->default(15000.00)->after('role');
+                $table->decimal('base_salary', 10, 2)->default(0.00)->after('role');
             });
         }
 

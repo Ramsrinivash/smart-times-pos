@@ -76,7 +76,7 @@ export const loadDB = () => {
   if (db.users) {
     db.users.forEach(u => {
       if (u.base_salary === undefined || u.base_salary === null) {
-        u.base_salary = u.role === 'admin' ? 30000 : u.role === 'manager' ? 20000 : 15000;
+        u.base_salary = 0;
       }
     });
   }
