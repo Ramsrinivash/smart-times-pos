@@ -136,17 +136,30 @@ const Settings = () => {
 
   const refreshUsersAndLogs = async () => {
     try {
-      const localUsers = mockAPI.getUsers();
-      if (Array.isArray(localUsers)) setUsers(localUsers);
+      let combinedUsers = mockAPI.getUsers() || [];
+      try {
+        const apiUsers = await api.getUsers();
+        if (Array.isArray(apiUsers) && apiUsers.length > 0) {
+          const emailMap = new Map();
+          combinedUsers.forEach(u => u.email && emailMap.set(u.email.toLowerCase(), u));
+          apiUsers.forEach(u => u.email && emailMap.set(u.email.toLowerCase(), u));
+          combinedUsers = Array.from(emailMap.values());
+        }
+      } catch (e) {
+        console.warn('API users fetch note:', e);
+      }
+      setUsers(combinedUsers);
 
-      const localLogs = mockAPI.getActivityLogs();
-      if (Array.isArray(localLogs)) setActivityLogs(localLogs.slice(0, 50));
-
-      const apiUsers = await api.getUsers();
-      if (Array.isArray(apiUsers) && apiUsers.length > 0) setUsers(apiUsers);
-
-      const apiLogs = await api.getActivityLogs();
-      if (Array.isArray(apiLogs) && apiLogs.length > 0) setActivityLogs(apiLogs.slice(0, 50));
+      let combinedLogs = mockAPI.getActivityLogs() || [];
+      try {
+        const apiLogs = await api.getActivityLogs();
+        if (Array.isArray(apiLogs) && apiLogs.length > 0) {
+          combinedLogs = [...apiLogs, ...combinedLogs];
+        }
+      } catch (e) {
+        console.warn('API logs fetch note:', e);
+      }
+      setActivityLogs(combinedLogs.slice(0, 50));
     } catch (e) {
       console.error('Refresh users/logs error:', e);
     }
@@ -223,9 +236,15 @@ const Settings = () => {
       };
 
       // 1. Direct stateful storage insertion
-      mockAPI.addUser(payload, user?.id);
+      const createdStaff = mockAPI.addUser(payload, user?.id);
 
-      // 2. Secondary API sync
+      // 2. Immediate React UI state update (0ms delay)
+      setUsers(prev => {
+        const filtered = prev.filter(u => u.email.toLowerCase() !== payload.email.toLowerCase());
+        return [...filtered, createdStaff];
+      });
+
+      // 3. Secondary backend API sync
       try {
         await api.addUser(payload);
       } catch (err) {
