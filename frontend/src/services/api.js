@@ -77,13 +77,19 @@ export const api = {
     return requestWithFallback('/users', {}, () => mockAPI.getUsers());
   },
   addUser: async (data) => {
-    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addUser(data));
+    try { mockAPI.addUser(data); } catch (e) {}
+    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.getUsers());
   },
   updateUser: async (id, data) => {
-    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateUser(id, data));
+    try { mockAPI.updateUser(id, data); } catch (e) {}
+    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.getUsers());
   },
   deleteUser: async (id) => {
-    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => mockAPI.deleteUser(id));
+    try { mockAPI.deleteUser(id); } catch (e) {}
+    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => ({ success: true }));
+  },
+  getActivityLogs: async () => {
+    return requestWithFallback('/activity-logs', {}, () => mockAPI.getActivityLogs());
   },
 
   // Attendance & Payroll

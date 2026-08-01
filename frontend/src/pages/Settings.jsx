@@ -134,6 +134,21 @@ const Settings = () => {
     }
   };
 
+  const refreshUsersAndLogs = async () => {
+    try {
+      const u = await api.getUsers();
+      if (Array.isArray(u)) setUsers(u);
+    } catch (e) {
+      console.error('Refresh users error:', e);
+    }
+    try {
+      const logs = await api.getActivityLogs();
+      if (Array.isArray(logs)) setActivityLogs(logs.slice(0, 50));
+    } catch (e) {
+      console.error('Refresh logs error:', e);
+    }
+  };
+
   const handleUpdateStaff = async (e) => {
     e.preventDefault();
     try {
@@ -154,8 +169,7 @@ const Settings = () => {
       setEditingEmail('');
       setNewStaffPassword('');
       setNewStaffSalary('');
-      const u = await api.getUsers();
-      setUsers(u);
+      await refreshUsersAndLogs();
     } catch (err) {
       alertService.error('Error', 'Failed to update staff details: ' + err.message);
     }
@@ -200,8 +214,7 @@ const Settings = () => {
       });
       alertService.success('Staff Created', `User "${newUserName}" created successfully with salary ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('');
-      const u = await api.getUsers();
-      setUsers(u);
+      await refreshUsersAndLogs();
     } catch (err) {
       alertService.error('Error', 'Failed to create user: ' + err.message);
     }
@@ -230,7 +243,6 @@ const Settings = () => {
         } catch (e) {
           console.warn('API delete warning:', e);
         }
-        // Always ensure mock & local UI state are cleaned
         try {
           mockAPI.deleteUser(targetUser.id);
           mockAPI.deleteUser(targetUser.email);
@@ -242,16 +254,7 @@ const Settings = () => {
         if (editingUser?.id === targetUser.id) {
           setEditingUser(null);
         }
-        // Immediately filter out the deleted staff member from state
-        setUsers(prev => prev.filter(u => u.id !== targetUser.id && u.email !== targetUser.email));
-        
-        // Refresh users list from API
-        try {
-          const fresh = await api.getUsers();
-          setUsers(fresh.filter(u => u.id !== targetUser.id && u.email !== targetUser.email));
-        } catch (e) {
-          console.error('Refresh users error:', e);
-        }
+        await refreshUsersAndLogs();
       }
     });
   };
