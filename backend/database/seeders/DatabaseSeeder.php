@@ -49,10 +49,11 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Walk-in Customer',
                 'phone' => '9999999999',
                 'address' => 'Counter Sale',
-                'points_balance' => 0,
-                'tags' => 'Walk-in',
                 'notes' => 'Default billing account for unregistered walk-ins.'
             ]
         );
+
+        // 3. Import Service Book records from Excel
+        $this->call(ServiceBookSeeder::class);
     }
 }

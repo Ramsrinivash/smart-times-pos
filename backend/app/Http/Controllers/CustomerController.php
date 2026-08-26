@@ -90,4 +90,30 @@ class CustomerController extends Controller
         $history = $customer->sales()->with(['items.watch'])->latest()->get();
         return response()->json($history);
     }
+
+    public function update(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'phone' => 'sometimes|required|string|unique:customers,phone,' . $id,
+            'alt_phone' => 'nullable|string',
+            'email' => 'nullable|email',
+            'address' => 'nullable|string',
+            'dob' => 'nullable|date',
+            'anniversary' => 'nullable|date',
+            'tags' => 'nullable|string',
+            'notes' => 'nullable|string'
+        ]);
+
+        $customer->update($request->all());
+
+        ActivityLog::log($request->user()->id, 'UPDATE', 'Customers', "Updated customer details for {$customer->name}");
+
+        return response()->json([
+            'message' => 'Customer profile updated successfully',
+            'customer' => $customer
+        ]);
+    }
 }

@@ -45,6 +45,7 @@ class SalesController extends Controller
             'redeem_points' => 'nullable|integer|min:0',
             'bill_discount_amount' => 'nullable|numeric|min:0',
             'bill_discount_percent' => 'nullable|numeric|min:0',
+            'round_off_amount' => 'nullable|numeric',
             'is_credit_sale' => 'nullable|boolean',
         ]);
 
@@ -53,7 +54,7 @@ class SalesController extends Controller
             $user = $request->user();
             
             // Fix #2: Use SELECT FOR UPDATE to get an exclusive lock, preventing concurrent duplicate IDs
-            $rows = DB::select('SELECT MAX(CAST(id AS UNSIGNED)) AS max_id FROM sales WHERE id REGEXP \'^\'[0-9]+$\'\' FOR UPDATE');
+            $rows = DB::select('SELECT MAX(CAST(id AS UNSIGNED)) AS max_id FROM sales WHERE id REGEXP \'^[0-9]+$\' FOR UPDATE');
             $nextNum = 1;
             if ($rows && $rows[0]->max_id !== null) {
                 $nextNum = ((int) $rows[0]->max_id) + 1;
@@ -61,10 +62,10 @@ class SalesController extends Controller
             $invoiceId = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
             $subtotal = 0;
-            $totalDiscount = 0;
+            $totalItemDiscounts = 0;
             $totalGst = 0;
             
-            $itemsData = [];
+            $preparedItems = [];
             
             foreach ($request->items as $itemInput) {
                 $watch = Watch::findOrFail($itemInput['watch_id']);
@@ -72,14 +73,61 @@ class SalesController extends Controller
                     return response()->json(['message' => "Watch with Serial {$watch->id} is not in stock."], 422);
                 }
 
-                $sellingPrice = $watch->selling_price;
-                $itemDiscount = $itemInput['discount_amount'] ?? 0.00;
-                $netItemPrice = $sellingPrice - $itemDiscount;
-                
-                // GST calculations (selling price is treated as GST-inclusive)
-                $gstRate = $watch->gst_rate;
-                $priceBeforeGst = $netItemPrice / (1 + ($gstRate / 100));
-                $itemGstAmount = $netItemPrice - $priceBeforeGst;
+                $sellingPrice = (double) $watch->selling_price;
+                $itemDiscount = (double) ($itemInput['discount_amount'] ?? 0.00);
+
+                $subtotal += $sellingPrice;
+                $totalItemDiscounts += $itemDiscount;
+
+                $preparedItems[] = [
+                    'watch' => $watch,
+                    'selling_price' => $sellingPrice,
+                    'discount_amount' => $itemDiscount,
+                ];
+            }
+
+            // Calculate bill discount
+            $totalDiscount = $totalItemDiscounts;
+            $billDiscFlat = (double) ($request->bill_discount_amount ?? 0.00);
+            $billDiscPercent = (double) ($request->bill_discount_percent ?? 0.00);
+            $billDiscAmount = $billDiscFlat;
+            if ($billDiscPercent > 0) {
+                $billDiscAmount = ($subtotal - $totalItemDiscounts) * ($billDiscPercent / 100);
+            }
+            $totalDiscount += $billDiscAmount;
+
+            // Reward Points conversion
+            $pointsRedeemed = (int) ($request->redeem_points ?? 0);
+            $pointsValue = 0.00;
+            if ($pointsRedeemed > 0) {
+                if ($customer->points_balance < $pointsRedeemed) {
+                    return response()->json(['message' => 'Insufficient reward points.'], 422);
+                }
+                $pointsValue = (double) $pointsRedeemed; // Configurable redemption rate (1 point = Rs 1)
+                $totalDiscount += $pointsValue;
+            }
+
+            $roundOffAmount = (double) ($request->round_off_amount ?? 0.00);
+            $taxableBase = max(0, $subtotal - $totalDiscount + $roundOffAmount);
+
+            $totalInitialItemNet = 0;
+            foreach ($preparedItems as $pi) {
+                $totalInitialItemNet += ($pi['selling_price'] - $pi['discount_amount']);
+            }
+
+            $itemsData = [];
+            foreach ($preparedItems as $pi) {
+                $watch = $pi['watch'];
+                $sellingPrice = $pi['selling_price'];
+                $itemDiscount = $pi['discount_amount'];
+                $itemInitialNet = $sellingPrice - $itemDiscount;
+
+                $allocatedItemBase = ($totalInitialItemNet > 0)
+                    ? ($itemInitialNet * ($taxableBase / $totalInitialItemNet))
+                    : ($taxableBase / count($preparedItems));
+
+                $gstRate = (double) $watch->gst_rate;
+                $itemGstAmount = ($request->invoice_type === 'gst') ? ($allocatedItemBase * ($gstRate / 100)) : 0.00;
 
                 $itemsData[] = [
                     'watch' => $watch,
@@ -90,33 +138,10 @@ class SalesController extends Controller
                     'gst_amount' => $itemGstAmount,
                 ];
 
-                $subtotal += $sellingPrice;
-                $totalDiscount += $itemDiscount;
                 $totalGst += $itemGstAmount;
             }
 
-            // Calculate bill discount
-            $billDiscFlat = (double) ($request->bill_discount_amount ?? 0.00);
-            $billDiscPercent = (double) ($request->bill_discount_percent ?? 0.00);
-            $billDiscAmount = $billDiscFlat;
-            if ($billDiscPercent > 0) {
-                $billDiscAmount = ($subtotal - $totalDiscount) * ($billDiscPercent / 100);
-            }
-            $totalDiscount += $billDiscAmount;
-
-            // Reward Points conversion
-            $pointsRedeemed = $request->redeem_points ?? 0;
-            $pointsValue = 0.00;
-            if ($pointsRedeemed > 0) {
-                if ($customer->points_balance < $pointsRedeemed) {
-                    return response()->json(['message' => 'Insufficient reward points.'], 422);
-                }
-                $pointsValue = (double) $pointsRedeemed; // Configurable redemption rate (1 point = Rs 1)
-                $totalDiscount += $pointsValue;
-            }
-
-            $netAmount = $subtotal - $totalDiscount;
-            if ($netAmount < 0) $netAmount = 0;
+            $netAmount = ($request->invoice_type === 'gst') ? ($taxableBase + $totalGst) : $taxableBase;
 
             $isCreditSale = filter_var($request->is_credit_sale ?? false, FILTER_VALIDATE_BOOLEAN);
 

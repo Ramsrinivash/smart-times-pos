@@ -18,14 +18,11 @@ const getHeaders = () => {
  * If backend request fails due to network, 404, 502/503, or dummy URL,
  * it seamlessly executes mockFallbackFn to guarantee 100% operational uptime.
  */
-const requestWithFallback = async (endpoint, options = {}, mockFallbackFn = null) => {
-  if (USE_MOCK && mockFallbackFn) {
-    return mockFallbackFn();
-  }
-
-  // If BASE_URL is dummy placeholder or localhost without backend, fallback immediately
-  if (mockFallbackFn && (BASE_URL.includes('your-backend.railway.app') || BASE_URL.includes('example.com'))) {
-    return mockFallbackFn();
+const requestWithFallback = async (endpoint, options = {}) => {
+  if (USE_MOCK) {
+    // Only use mock if explicitly enabled via VITE_USE_MOCK=true
+    const mockFallbackFn = arguments[2];
+    if (mockFallbackFn) return mockFallbackFn();
   }
 
   try {
@@ -37,20 +34,13 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn = null
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      if (mockFallbackFn && (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 500)) {
-        console.warn(`[SmartTimes API] Backend ${endpoint} returned HTTP ${response.status}. Seamlessly falling back to stateful Mock API.`);
-        return mockFallbackFn();
-      }
-      throw new Error(errData.message || 'Something went wrong on the server.');
+      throw new Error(errData.message || `Server returned HTTP ${response.status}`);
     }
 
     const data = await response.json();
     return data.sale || data;
   } catch (err) {
-    if (mockFallbackFn) {
-      console.warn(`[SmartTimes API] Network call to ${endpoint} failed (${err.message}). Falling back to local stateful engine.`);
-      return mockFallbackFn();
-    }
+    console.error(`[SmartTimes API Error] Network call to ${endpoint} failed:`, err.message);
     throw err;
   }
 };

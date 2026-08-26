@@ -20,8 +20,9 @@ class ReportController extends Controller
         $user = $request->user();
         $today = Carbon::now()->toDateString();
 
-        $todaySalesCount = Sale::where('invoice_date', $today)->count();
-        $todaySalesSum = (double) Sale::where('invoice_date', $today)->sum('net_amount');
+        $todaySalesQuery = Sale::whereDate('invoice_date', $today)->where('is_returned', 0);
+        $todaySalesCount = (int) $todaySalesQuery->count();
+        $todaySalesSum = (double) $todaySalesQuery->sum('net_amount');
 
         // Low stock: grouping by model where count in stock < 3
         $lowStockAlerts = Watch::select('brand', 'model', DB::raw('count(*) as count'))
@@ -30,25 +31,28 @@ class ReportController extends Controller
             ->having('count', '<', 3)
             ->get();
 
-        $jobsDueToday = ServiceJob::where('expected_delivery_date', $today)
-            ->whereIn('status', ['received', 'in_repair', 'ready'])
+        $activeStatuses = ['received', 'in_repair', 'ready'];
+        $jobsDueToday = ServiceJob::whereDate('expected_delivery_date', $today)
+            ->whereIn('status', $activeStatuses)
             ->count();
-        $jobsOverdue = ServiceJob::where('expected_delivery_date', '<', $today)
-            ->whereIn('status', ['received', 'in_repair', 'ready'])
+        $jobsOverdue = ServiceJob::whereDate('expected_delivery_date', '<', $today)
+            ->whereIn('status', $activeStatuses)
             ->count();
         $jobsReady = ServiceJob::where('status', 'ready')->count();
-        $jobsActive = ServiceJob::whereIn('status', ['received', 'in_repair', 'ready'])->count();
+        $jobsActive = ServiceJob::whereIn('status', $activeStatuses)->count();
 
         $pendingPaymentsCount = Purchase::where('payment_status', 'pending')->count();
         $pendingPaymentsSum = (double) Purchase::where('payment_status', 'pending')->sum('total_amount');
 
         $profitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
+            $todayGstTax = (double) Sale::whereDate('invoice_date', $today)->where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
             $totalCost = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sales.invoice_date', $today)
+                ->whereDate('sales.invoice_date', $today)
+                ->where('sales.is_returned', 0)
                 ->sum('sale_items.cost_price');
-            $profitSnap = $todaySalesSum - $totalCost;
+            $profitSnap = round(($todaySalesSum - $todayGstTax) - $totalCost, 2);
         }
 
         // Outstanding customer dues

@@ -112,4 +112,31 @@ class InventoryController extends Controller
 
         return response()->json($watch);
     }
+
+    public function update(Request $request, $id)
+    {
+        $watch = Watch::findOrFail($id);
+
+        $request->validate([
+            'brand' => 'sometimes|required|string',
+            'model' => 'sometimes|required|string',
+            'category' => 'nullable|string',
+            'gender' => 'nullable|string',
+            'strap_type' => 'nullable|string',
+            'dial_color' => 'nullable|string',
+            'movement_type' => 'nullable|string',
+            'mrp' => 'sometimes|required|numeric|min:0',
+            'selling_price' => 'sometimes|required|numeric|min:0',
+            'cost_price' => 'sometimes|required|numeric|min:0',
+            'gst_rate' => 'nullable|numeric|min:0',
+            'status' => 'nullable|string'
+        ]);
+
+        $watch->update($request->all());
+
+        return response()->json([
+            'message' => 'Watch details updated successfully',
+            'watch' => $watch
+        ]);
+    }
 }

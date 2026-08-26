@@ -614,7 +614,7 @@ const Reports = () => {
                     <td>{s.invoice_date}</td>
                     <td>{s.customer?.name}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{si.watch_id}</td>
-                    <td>{fmt(si.price_sold - si.discount_amount - si.gst_amount)}</td>
+                    <td>{fmt(si.price_sold - si.discount_amount)}</td>
                     <td>{fmt(si.gst_amount / 2)}</td>
                     <td>{fmt(si.gst_amount / 2)}</td>
                     <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(si.gst_amount)}</td>

@@ -198,7 +198,7 @@ const Sales = () => {
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
   const rawNet = Math.max(0, subtotal - totalDiscount);
   const roundOffVal = Number(roundOffAmount || 0);
-  const netAmount = Math.max(0, rawNet + roundOffVal);
+  const taxableBase = Math.max(0, rawNet + roundOffVal);
 
   const autoRoundToNearest100 = () => {
     const remainder = rawNet % 100;
@@ -218,12 +218,17 @@ const Sales = () => {
     }
   };
 
-  // GST calculations
+  // GST calculations (exclusive on net taxable base balance)
+  const totalInitialItemNet = cart.reduce((acc, item) => acc + (Number(item.selling_price) - Number(item.discount_amount || 0)), 0);
   const totalGst = cart.reduce((acc, item) => {
-    const itemNet = item.selling_price - Number(item.discount_amount || 0);
-    const itemGst = invoiceType === 'gst' ? (itemNet - (itemNet / (1 + (item.gst_rate / 100)))) : 0;
+    if (invoiceType !== 'gst') return 0;
+    const itemInitialNet = Number(item.selling_price) - Number(item.discount_amount || 0);
+    const allocatedItemBase = totalInitialItemNet > 0 ? (itemInitialNet * (taxableBase / totalInitialItemNet)) : (taxableBase / (cart.length || 1));
+    const itemGst = allocatedItemBase * (Number(item.gst_rate || 18) / 100);
     return acc + itemGst;
   }, 0);
+
+  const netAmount = invoiceType === 'gst' ? (taxableBase + totalGst) : taxableBase;
 
   // Handle Checkout (with optional print + WhatsApp share redirect)
   const handleCheckout = async (shouldPrintAndShare = false) => {
@@ -732,16 +737,20 @@ const Sales = () => {
                     <span>{roundOffVal < 0 ? `-₹${Math.abs(roundOffVal).toLocaleString()}` : `+₹${roundOffVal.toLocaleString()}`}</span>
                   </div>
                  )}
-                {invoiceType === 'gst' && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    <span>Included GST (18%):</span>
-                    <span>₹{totalGst.toFixed(2)}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-gold)', marginTop: '0.25rem' }}>
-                  <span>Net Amount Due:</span>
-                  <span>₹{netAmount.toLocaleString()}</span>
-                </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                   <span>Net Taxable Base:</span>
+                   <span>₹{taxableBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                 </div>
+                 {invoiceType === 'gst' && (
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                     <span>GST Output Tax (+18%):</span>
+                     <span>+₹{totalGst.toFixed(2)}</span>
+                   </div>
+                 )}
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-gold)', marginTop: '0.25rem' }}>
+                   <span>Net Amount Due:</span>
+                   <span>₹{netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>

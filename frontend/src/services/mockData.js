@@ -550,6 +550,8 @@ export const mockAPI = {
     let totalGst = 0;
     const itemsData = [];
 
+    // First pass: collect watch items, calculate subtotal and item-level discounts
+    const preparedItems = [];
     for (const itemInput of data.items) {
       let watch = db.watches.find(w => w.id === itemInput.watch_id || w.id.toLowerCase() === (itemInput.watch_id || '').toLowerCase());
       if (!watch) {
@@ -581,25 +583,9 @@ export const mockAPI = {
       }
 
       const itemDisc = Number(itemInput.discount_amount || 0);
-      const netItemPrice = watch.selling_price - itemDisc;
-      const gstAmt = data.invoice_type === 'gst'
-        ? (netItemPrice - (netItemPrice / (1 + (watch.gst_rate / 100))))
-        : 0;
-
-      itemsData.push({
-        id: db.sale_items.length + itemsData.length + 1,
-        sale_id: invoiceId,
-        watch_id: watch.id,
-        price_sold: watch.selling_price,
-        discount_amount: itemDisc,
-        cost_price: watch.cost_price,
-        gst_rate: watch.gst_rate,
-        gst_amount: gstAmt
-      });
-
       subtotal += watch.selling_price;
       totalItemDiscounts += itemDisc;
-      totalGst += gstAmt;
+      preparedItems.push({ watch, itemDisc });
     }
 
     // Bill-level discount (flat amount or percentage)
@@ -618,7 +604,31 @@ export const mockAPI = {
     const roundOffAmount = Number(data.round_off_amount || 0);
 
     const totalDiscount = totalItemDiscounts + billDiscAmount + pointsValue;
-    const netAmount = Math.max(0, subtotal - totalDiscount + roundOffAmount);
+    const taxableBase = Math.max(0, subtotal - totalDiscount + roundOffAmount);
+
+    // Second pass: Calculate GST per item based on allocated taxable base
+    const totalInitialItemNet = preparedItems.reduce((acc, pi) => acc + (pi.watch.selling_price - pi.itemDisc), 0);
+    for (const pi of preparedItems) {
+      const { watch, itemDisc } = pi;
+      const itemInitialNet = watch.selling_price - itemDisc;
+      const allocatedItemBase = totalInitialItemNet > 0 ? (itemInitialNet * (taxableBase / totalInitialItemNet)) : (taxableBase / (preparedItems.length || 1));
+      const gstAmt = data.invoice_type === 'gst' ? (allocatedItemBase * ((watch.gst_rate || 18) / 100)) : 0;
+
+      itemsData.push({
+        id: db.sale_items.length + itemsData.length + 1,
+        sale_id: invoiceId,
+        watch_id: watch.id,
+        price_sold: watch.selling_price,
+        discount_amount: itemDisc,
+        cost_price: watch.cost_price,
+        gst_rate: watch.gst_rate,
+        gst_amount: gstAmt
+      });
+
+      totalGst += gstAmt;
+    }
+
+    const netAmount = data.invoice_type === 'gst' ? (taxableBase + totalGst) : taxableBase;
 
     // Credit sale tracking
     const isCreditSale = data.is_credit_sale || false;
@@ -946,29 +956,24 @@ export const mockAPI = {
   getDashboardStats: (role = 'sales') => {
     const db = loadDB();
     const todayStr = localDateStr();
-    const todaySales = db.sales.filter(s => s.invoice_date === todayStr);
+    
+    // Safely match sales created today (slice(0, 10) prevents failure if ISO timestamp is stored)
+    const todaySales = db.sales.filter(s => s.invoice_date && s.invoice_date.slice(0, 10) === todayStr && !s.is_returned);
 
     const todaySalesCount = todaySales.length;
-    const todaySalesSum = todaySales.reduce((acc, s) => acc + s.net_amount, 0);
+    const todaySalesSum = todaySales.reduce((acc, s) => acc + (s.net_amount || 0), 0);
 
-    // Low stock: < 3 units in stock per model (matches backend threshold)
-    const stockCounts = {};
-    db.watches.filter(w => w.status === 'in_stock').forEach(w => {
-      const key = `${w.brand} — ${w.model}`;
-      stockCounts[key] = (stockCounts[key] || 0) + 1;
-    });
-    const lowStockAlerts = Object.keys(stockCounts)
-      .map(key => ({ model: key, count: stockCounts[key] }))
-      .filter(item => item.count < 3);
-
-    const today = new Date(todayStr);
-    const jobsDueToday = db.service_jobs.filter(j => j.expected_delivery_date === todayStr && j.status !== 'delivered').length;
-    const jobsOverdue = db.service_jobs.filter(j => j.expected_delivery_date && new Date(j.expected_delivery_date) < today && j.status !== 'delivered').length;
+    // Active repair jobs statuses: received, in_repair, ready (excludes delivered and cancelled)
+    const activeStatuses = ['received', 'in_repair', 'ready'];
+    const jobsActive = db.service_jobs.filter(j => activeStatuses.includes(j.status)).length;
+    const jobsDueToday = db.service_jobs.filter(j => j.expected_delivery_date && j.expected_delivery_date.slice(0, 10) === todayStr && activeStatuses.includes(j.status)).length;
+    const jobsOverdue = db.service_jobs.filter(j => j.expected_delivery_date && j.expected_delivery_date.slice(0, 10) < todayStr && activeStatuses.includes(j.status)).length;
     const jobsReady = db.service_jobs.filter(j => j.status === 'ready').length;
 
+    // Supplier pending payments
     const pendingSuppliers = db.purchases.filter(p => p.payment_status === 'pending');
     const pendingPaymentsCount = pendingSuppliers.length;
-    const pendingPaymentsSum = pendingSuppliers.reduce((acc, p) => acc + p.total_amount, 0);
+    const pendingPaymentsSum = pendingSuppliers.reduce((acc, p) => acc + (p.total_amount || 0), 0);
 
     // Outstanding customer dues
     const outstandingDuesTotal = db.customers.reduce((acc, c) => acc + (c.outstanding_dues || 0), 0);
@@ -978,13 +983,25 @@ export const mockAPI = {
     if (role === 'admin' || role === 'manager') {
       let profit = 0;
       todaySales.forEach(s => {
-        // net_amount already reflects all discounts; cost is summed from sale_items
         const items = db.sale_items.filter(si => si.sale_id === s.id);
         const totalCost = items.reduce((acc, si) => acc + (si.cost_price || 0), 0);
-        profit += (s.net_amount - totalCost);
+        // Deduct GST tax from revenue for net profit calculation
+        const gstTax = (s.invoice_type === 'gst' && s.gst_amount) ? Number(s.gst_amount) : 0;
+        const netRevenueExclGst = (s.net_amount || 0) - gstTax;
+        profit += (netRevenueExclGst - totalCost);
       });
-      profitSnapshot = profit;
+      profitSnapshot = Math.round(profit * 100) / 100;
     }
+
+    // Low stock: < 3 units in stock per model
+    const stockCounts = {};
+    db.watches.filter(w => w.status === 'in_stock').forEach(w => {
+      const key = `${w.brand} — ${w.model}`;
+      stockCounts[key] = (stockCounts[key] || 0) + 1;
+    });
+    const lowStockAlerts = Object.keys(stockCounts)
+      .map(key => ({ model: key, count: stockCounts[key] }))
+      .filter(item => item.count < 3);
 
     // Today's birthdays
     const todayMD = todayStr.slice(5); // MM-DD
@@ -1000,6 +1017,7 @@ export const mockAPI = {
       jobs_due_today: jobsDueToday,
       jobs_overdue: jobsOverdue,
       jobs_ready: jobsReady,
+      jobs_active: jobsActive,
       pending_supplier_payments_count: pendingPaymentsCount,
       pending_supplier_payments_sum: pendingPaymentsSum,
       outstanding_dues_total: outstandingDuesTotal,
@@ -1007,7 +1025,6 @@ export const mockAPI = {
       birthdays_today: birthdaysToday,
       profit_snapshot: profitSnapshot
     };
-
   },
 
   // Reports

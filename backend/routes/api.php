@@ -121,10 +121,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::post('/customers', [CustomerController::class, 'store']);
     Route::get('/customers/{id}', [CustomerController::class, 'show']);
+    Route::put('/customers/{id}', [CustomerController::class, 'update']);
     Route::get('/customers/{id}/history', [CustomerController::class, 'purchaseHistory']);
 
     // Inventory Routes
     Route::get('/inventory', [InventoryController::class, 'index']);
+    Route::put('/inventory/{id}', [InventoryController::class, 'update']);
     Route::get('/inventory/adjustments', [InventoryController::class, 'getAdjustmentLogs'])
          ->middleware('role:admin,manager');
     Route::post('/inventory/adjust', [InventoryController::class, 'adjustStock'])

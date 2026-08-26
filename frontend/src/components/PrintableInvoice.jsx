@@ -369,10 +369,16 @@ const PrintableInvoice = ({
               </div>
             )}
             {invoice.invoice_type === 'gst' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
-                <span style={{ color: '#555' }}>GST Included</span>
-                <span>{fmt(invoice.gst_amount)}</span>
-              </div>
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm, fontWeight: 600 }}>
+                  <span style={{ color: '#555' }}>Net Taxable Amount</span>
+                  <span>{fmt(invoice.subtotal - (invoice.discount_amount || 0) + (invoice.round_off_amount || 0))}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs.sm }}>
+                  <span style={{ color: '#555' }}>GST Output Tax</span>
+                  <span style={{ fontWeight: 600 }}>+{fmt(invoice.gst_amount)}</span>
+                </div>
+              </>
             )}
             <div style={{
               display: 'flex', justifyContent: 'space-between',
