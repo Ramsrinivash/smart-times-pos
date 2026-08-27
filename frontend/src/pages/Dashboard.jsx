@@ -102,8 +102,13 @@ const Dashboard = () => {
                 <TrendingUp size={24} />
               </div>
             </div>
-            <div className="card-footer">
+            <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{stats?.today_sales_count || 0} invoice(s) generated today</span>
+              {(stats?.month_sales_sum > 0 || stats?.total_sales_sum > 0) && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
+                  This Month: ₹{(stats?.month_sales_sum || stats?.total_sales_sum || 0).toLocaleString('en-IN')}
+                </span>
+              )}
             </div>
           </div>
 
@@ -121,8 +126,13 @@ const Dashboard = () => {
                   <DollarSign size={24} />
                 </div>
               </div>
-              <div className="card-footer">
-                <span>Net revenue minus cost of goods sold today</span>
+              <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Net revenue minus COGS today</span>
+                {(stats?.month_profit_snapshot !== undefined && stats?.month_profit_snapshot !== null) && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
+                    Month Profit: ₹{(stats.month_profit_snapshot).toLocaleString('en-IN')}
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -146,7 +156,7 @@ const Dashboard = () => {
           </div>
 
           {/* Customer Outstanding Dues */}
-          <div className="card">
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/customers')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span className="card-title">Customer Dues</span>

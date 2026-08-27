@@ -956,12 +956,21 @@ export const mockAPI = {
   getDashboardStats: (role = 'sales') => {
     const db = loadDB();
     const todayStr = localDateStr();
+    const monthPrefix = todayStr.slice(0, 7);
     
     // Safely match sales created today (slice(0, 10) prevents failure if ISO timestamp is stored)
-    const todaySales = db.sales.filter(s => s.invoice_date && s.invoice_date.slice(0, 10) === todayStr && !s.is_returned);
+    const allValidSales = (db.sales || []).filter(s => !s.is_returned);
+    const todaySales = allValidSales.filter(s => s.invoice_date && s.invoice_date.slice(0, 10) === todayStr);
+    const monthSales = allValidSales.filter(s => s.invoice_date && s.invoice_date.slice(0, 7) === monthPrefix);
 
     const todaySalesCount = todaySales.length;
-    const todaySalesSum = todaySales.reduce((acc, s) => acc + (s.net_amount || 0), 0);
+    const todaySalesSum = todaySales.reduce((acc, s) => acc + Number(s.net_amount || 0), 0);
+
+    const monthSalesCount = monthSales.length;
+    const monthSalesSum = monthSales.reduce((acc, s) => acc + Number(s.net_amount || 0), 0);
+
+    const totalSalesCount = allValidSales.length;
+    const totalSalesSum = allValidSales.reduce((acc, s) => acc + Number(s.net_amount || 0), 0);
 
     // Active repair jobs statuses: received, in_repair, ready (excludes delivered and cancelled)
     const activeStatuses = ['received', 'in_repair', 'ready'];
@@ -973,24 +982,30 @@ export const mockAPI = {
     // Supplier pending payments
     const pendingSuppliers = db.purchases.filter(p => p.payment_status === 'pending');
     const pendingPaymentsCount = pendingSuppliers.length;
-    const pendingPaymentsSum = pendingSuppliers.reduce((acc, p) => acc + (p.total_amount || 0), 0);
+    const pendingPaymentsSum = pendingSuppliers.reduce((acc, p) => acc + Number(p.total_amount || 0), 0);
 
     // Outstanding customer dues
-    const outstandingDuesTotal = db.customers.reduce((acc, c) => acc + (c.outstanding_dues || 0), 0);
-    const outstandingDuesCount = db.customers.filter(c => (c.outstanding_dues || 0) > 0).length;
+    const outstandingDuesTotal = db.customers.reduce((acc, c) => acc + Number(c.outstanding_dues || 0), 0);
+    const outstandingDuesCount = db.customers.filter(c => Number(c.outstanding_dues || 0) > 0).length;
 
     let profitSnapshot = null;
+    let monthProfitSnapshot = null;
+    let totalProfitSnapshot = null;
     if (role === 'admin' || role === 'manager') {
-      let profit = 0;
-      todaySales.forEach(s => {
-        const items = db.sale_items.filter(si => si.sale_id === s.id);
-        const totalCost = items.reduce((acc, si) => acc + (si.cost_price || 0), 0);
-        // Deduct GST tax from revenue for net profit calculation
-        const gstTax = (s.invoice_type === 'gst' && s.gst_amount) ? Number(s.gst_amount) : 0;
-        const netRevenueExclGst = (s.net_amount || 0) - gstTax;
-        profit += (netRevenueExclGst - totalCost);
-      });
-      profitSnapshot = Math.round(profit * 100) / 100;
+      const calcProfit = (salesList) => {
+        let p = 0;
+        salesList.forEach(s => {
+          const items = db.sale_items.filter(si => si.sale_id === s.id);
+          const totalCost = items.reduce((acc, si) => acc + Number(si.cost_price || 0), 0);
+          const gstTax = (s.invoice_type === 'gst' && s.gst_amount) ? Number(s.gst_amount) : 0;
+          const netRevenueExclGst = Number(s.net_amount || 0) - gstTax;
+          p += (netRevenueExclGst - totalCost);
+        });
+        return Math.round(p * 100) / 100;
+      };
+      profitSnapshot = calcProfit(todaySales);
+      monthProfitSnapshot = calcProfit(monthSales);
+      totalProfitSnapshot = calcProfit(allValidSales);
     }
 
     // Low stock: < 3 units in stock per model
@@ -1013,6 +1028,10 @@ export const mockAPI = {
     return {
       today_sales_count: todaySalesCount,
       today_sales_sum: todaySalesSum,
+      month_sales_count: monthSalesCount,
+      month_sales_sum: monthSalesSum,
+      total_sales_count: totalSalesCount,
+      total_sales_sum: totalSalesSum,
       low_stock_alerts: lowStockAlerts,
       jobs_due_today: jobsDueToday,
       jobs_overdue: jobsOverdue,
@@ -1023,7 +1042,9 @@ export const mockAPI = {
       outstanding_dues_total: outstandingDuesTotal,
       outstanding_dues_count: outstandingDuesCount,
       birthdays_today: birthdaysToday,
-      profit_snapshot: profitSnapshot
+      profit_snapshot: profitSnapshot,
+      month_profit_snapshot: monthProfitSnapshot,
+      total_profit_snapshot: totalProfitSnapshot
     };
   },
 

@@ -143,7 +143,7 @@ class SalesController extends Controller
 
             $netAmount = ($request->invoice_type === 'gst') ? ($taxableBase + $totalGst) : $taxableBase;
 
-            $isCreditSale = filter_var($request->is_credit_sale ?? false, FILTER_VALIDATE_BOOLEAN);
+            $isCreditSale = ($request->payment_mode === 'credit') || filter_var($request->is_credit_sale ?? false, FILTER_VALIDATE_BOOLEAN);
 
             $sale = Sale::create([
                 'id' => $invoiceId,

@@ -19,10 +19,19 @@ class ReportController extends Controller
     {
         $user = $request->user();
         $today = Carbon::now()->toDateString();
+        $month = Carbon::now()->format('Y-m');
 
         $todaySalesQuery = Sale::whereDate('invoice_date', $today)->where('is_returned', 0);
         $todaySalesCount = (int) $todaySalesQuery->count();
         $todaySalesSum = (double) $todaySalesQuery->sum('net_amount');
+
+        $monthSalesQuery = Sale::where('invoice_date', 'like', "{$month}%")->where('is_returned', 0);
+        $monthSalesCount = (int) $monthSalesQuery->count();
+        $monthSalesSum = (double) $monthSalesQuery->sum('net_amount');
+
+        $totalSalesQuery = Sale::where('is_returned', 0);
+        $totalSalesCount = (int) $totalSalesQuery->count();
+        $totalSalesSum = (double) $totalSalesQuery->sum('net_amount');
 
         // Low stock: grouping by model where count in stock < 3
         $lowStockAlerts = Watch::select('brand', 'model', DB::raw('count(*) as count'))
@@ -45,14 +54,31 @@ class ReportController extends Controller
         $pendingPaymentsSum = (double) Purchase::where('payment_status', 'pending')->sum('total_amount');
 
         $profitSnap = null;
+        $monthProfitSnap = null;
+        $totalProfitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
             $todayGstTax = (double) Sale::whereDate('invoice_date', $today)->where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
-            $totalCost = (double) DB::table('sale_items')
+            $totalCostToday = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->whereDate('sales.invoice_date', $today)
                 ->where('sales.is_returned', 0)
                 ->sum('sale_items.cost_price');
-            $profitSnap = round(($todaySalesSum - $todayGstTax) - $totalCost, 2);
+            $profitSnap = round(($todaySalesSum - $todayGstTax) - $totalCostToday, 2);
+
+            $monthGstTax = (double) Sale::where('invoice_date', 'like', "{$month}%")->where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
+            $totalCostMonth = (double) DB::table('sale_items')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->where('sales.invoice_date', 'like', "{$month}%")
+                ->where('sales.is_returned', 0)
+                ->sum('sale_items.cost_price');
+            $monthProfitSnap = round(($monthSalesSum - $monthGstTax) - $totalCostMonth, 2);
+
+            $totalGstTax = (double) Sale::where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
+            $totalCostAll = (double) DB::table('sale_items')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->where('sales.is_returned', 0)
+                ->sum('sale_items.cost_price');
+            $totalProfitSnap = round(($totalSalesSum - $totalGstTax) - $totalCostAll, 2);
         }
 
         // Outstanding customer dues
@@ -68,6 +94,10 @@ class ReportController extends Controller
         return response()->json([
             'today_sales_count' => $todaySalesCount,
             'today_sales_sum' => $todaySalesSum,
+            'month_sales_count' => $monthSalesCount,
+            'month_sales_sum' => $monthSalesSum,
+            'total_sales_count' => $totalSalesCount,
+            'total_sales_sum' => $totalSalesSum,
             'low_stock_alerts' => $lowStockAlerts,
             'jobs_due_today' => $jobsDueToday,
             'jobs_overdue' => $jobsOverdue,
@@ -78,7 +108,9 @@ class ReportController extends Controller
             'outstanding_dues_total' => $outstandingDuesTotal,
             'outstanding_dues_count' => $outstandingDuesCount,
             'birthdays_today' => $birthdaysToday,
-            'profit_snapshot' => $profitSnap
+            'profit_snapshot' => $profitSnap,
+            'month_profit_snapshot' => $monthProfitSnap,
+            'total_profit_snapshot' => $totalProfitSnap
         ]);
     }
 
