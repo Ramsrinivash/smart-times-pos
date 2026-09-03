@@ -1,9 +1,6 @@
 import { mockAPI } from './mockData';
 import { syncQueue } from '../utils/syncQueue';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-
 const getHeaders = () => {
   const token = localStorage.getItem('watch_auth_token');
   return {
@@ -14,40 +11,13 @@ const getHeaders = () => {
 };
 
 /**
- * Resilient Network Request Wrapper with Automatic Mock Engine Failover.
- * If backend request fails due to network, 404, 502/503, or dummy URL,
- * it seamlessly executes mockFallbackFn to guarantee 100% operational uptime.
+ * Smart Times POS — Single Mode Engine
+ * All data operations run directly against the local mock database (localStorage).
+ * This guarantees 100% offline availability and instant response times.
  */
 const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
-  if (USE_MOCK) {
-    if (mockFallbackFn) return mockFallbackFn();
-  }
-
-  try {
-    const url = `${BASE_URL}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: { ...getHeaders(), ...options.headers }
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      const errMsg = errData.message || (errData.errors ? Object.values(errData.errors).flat().join(', ') : null);
-      if (errMsg) {
-        throw new Error(errMsg);
-      }
-      throw new Error(`Server returned HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.sale || data;
-  } catch (err) {
-    console.warn(`[SmartTimes API Warning] Network call to ${endpoint} failed (${err.message}). Falling back to client-side database.`);
-    if (mockFallbackFn) {
-      return mockFallbackFn();
-    }
-    throw err;
-  }
+  if (mockFallbackFn) return mockFallbackFn();
+  throw new Error('No handler available for: ' + endpoint);
 };
 
 export const api = {
