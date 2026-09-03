@@ -22,7 +22,9 @@ const defaultDB = {
   },
   users: [
     { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
-    { id: 2, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 25000, created_at: '2026-08-01' }
+    { id: 2, name: 'Store Manager', email: 'manager@smarttimes.in', password: 'manager123', role: 'manager', base_salary: 28000, created_at: '2026-07-01' },
+    { id: 3, name: 'Sales Counter', email: 'sales@smarttimes.in', password: 'sales123', role: 'sales', base_salary: 22000, created_at: '2026-07-01' },
+    { id: 4, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 25000, created_at: '2026-08-01' }
   ],
   activity_logs: [],
   customers: [
@@ -71,36 +73,19 @@ export const loadDB = () => {
     db.settings.email = defaultDB.settings.email;
   }
 
-  // Auto-purge legacy dummy staff accounts from browser storage
+  // Ensure default staff accounts are present
   if (db.users) {
-    db.users = db.users.filter(u => u.email !== 'manager@smarttimes.in' && u.email !== 'sales@smarttimes.in');
-    
+    defaultDB.users.forEach(defaultUser => {
+      const existing = db.users.find(u => u.email && u.email.toLowerCase() === defaultUser.email.toLowerCase());
+      if (!existing) {
+        db.users.push(defaultUser);
+      }
+    });
+
     db.users.forEach(u => {
       if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
         u.base_salary = 30000;
       }
-    });
-
-    const sureshUser = db.users.find(u => u.email && u.email.toLowerCase() === 'suresh@smarttimes.in');
-    if (sureshUser) {
-      sureshUser.base_salary = 25000;
-    } else {
-      let maxId = 0;
-      db.users.forEach(u => {
-        const nid = Number(u.id);
-        if (!isNaN(nid) && nid > maxId) maxId = nid;
-      });
-      db.users.push({
-        id: maxId + 1,
-        name: 'Suresh',
-        email: 'suresh@smarttimes.in',
-        password: 'suresh123',
-        role: 'sales',
- base_salary: 25000,
-        created_at: localDateStr()
-      });
-    }
-    db.users.forEach(u => {
       if (u.base_salary === undefined || u.base_salary === null) {
         u.base_salary = 0;
       }
