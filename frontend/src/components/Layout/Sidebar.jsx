@@ -55,7 +55,8 @@ const Sidebar = () => {
     { to: '/settings',               label: 'Settings',          icon: Settings,        roles: ['admin'] }
   ];
 
-  const visibleLinks = links.filter(link => link.roles.includes(user.role));
+  const userRole = user?.role || 'sales';
+  const visibleLinks = links.filter(link => link.roles.includes(userRole));
 
   const closeSidebar = () => setIsOpen(false);
 
@@ -118,9 +119,9 @@ const Sidebar = () => {
 
         <div className="sidebar-footer">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.name}</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user?.name || 'User'}</span>
             <span className="badge badge-info" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', width: 'fit-content' }}>
-              {user.role}
+              {user?.role || 'sales'}
             </span>
           </div>
           <button 

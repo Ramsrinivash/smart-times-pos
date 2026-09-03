@@ -63,7 +63,7 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
   const fetchNotifications = async () => {
     if (!user) return;
     try {
-      const stats = await api.getDashboardStats(user.role);
+      const stats = await api.getDashboardStats(user?.role || 'admin');
       const list = [];
       const dismissed = getDismissedNotifications();
       const todayStr = new Date().toISOString().split('T')[0];

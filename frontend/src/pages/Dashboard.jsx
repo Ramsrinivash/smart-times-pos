@@ -111,7 +111,7 @@ const Dashboard = () => {
           </div>
 
           {/* Profit Snapshot (Admin/Manager only) */}
-          {(user.role === 'admin' || user.role === 'manager') && (
+          {(user?.role === 'admin' || user?.role === 'manager') && (
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -172,7 +172,7 @@ const Dashboard = () => {
           </div>
 
           {/* Supplier Pending Payments (Admin/Manager only) */}
-          {(user.role === 'admin' || user.role === 'manager') && (
+          {(user?.role === 'admin' || user?.role === 'manager') && (
             <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/supplier-ledger')}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -204,7 +204,7 @@ const Dashboard = () => {
               <button id="dash-new-sale" onClick={() => navigate('/sales')} className="btn btn-primary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px' }}>
                 <Plus size={18} /> New Sales Bill
               </button>
-              {(user.role === 'admin' || user.role === 'manager') && (
+              {(user?.role === 'admin' || user?.role === 'manager') && (
                 <button id="dash-record-purchase" onClick={() => navigate('/purchase')} className="btn btn-secondary" style={{ height: '64px', fontSize: '0.85rem', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
                   <Package size={18} /> Record Purchase
                 </button>
