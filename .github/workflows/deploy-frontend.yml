@@ -40,4 +40,9 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx vercel --prod --token=$VERCEL_TOKEN --yes
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            npx vercel --prod --token=$VERCEL_TOKEN --yes
+          else
+            echo "ℹ️ Vercel Token secret not set in GitHub Secrets. Vercel's native GitHub integration automatically builds and deploys on push to main."
+          fi

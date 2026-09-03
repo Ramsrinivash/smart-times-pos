@@ -36,4 +36,9 @@ jobs:
         working-directory: backend
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: npx @railway/cli up --service smart-times-backend --detach
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then
+            npx @railway/cli up --service smart-times-backend --detach
+          else
+            echo "ℹ️ Railway Token secret not set in GitHub Secrets. Railway's native GitHub integration automatically builds and deploys on push to main."
+          fi
