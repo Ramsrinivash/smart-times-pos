@@ -145,7 +145,20 @@ export const mockAPI = {
     if (!db.active_sessions) db.active_sessions = {};
 
     // Check if active session exists and force is false
+    // Check if an active session already exists for this user
     if (db.active_sessions[user.id] && !force) {
+      const existingToken = db.active_sessions[user.id];
+      // Check if the existing session token matches what's stored in THIS browser's localStorage
+      // If it matches → same browser (page refresh or re-visit) → auto-reconnect silently, no conflict
+      const localToken = localStorage.getItem('watch_auth_token');
+      if (localToken && localToken === existingToken) {
+        // Same browser refreshing — just return the existing session, no conflict prompt
+        return {
+          access_token: existingToken,
+          user: { id: user.id, name: user.name, email: user.email, role: user.role }
+        };
+      }
+      // Different browser/device — show conflict prompt
       return {
         active_session_exists: true,
         user_name: user.name,
@@ -174,6 +187,14 @@ export const mockAPI = {
       }
     }
     return { valid: true };
+  },
+
+  clearActiveSession: (userId) => {
+    const db = loadDB();
+    if (db.active_sessions && userId) {
+      delete db.active_sessions[userId];
+      saveDB(db);
+    }
   },
 
   // User Management (Admin only)

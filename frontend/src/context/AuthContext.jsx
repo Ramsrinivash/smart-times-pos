@@ -34,14 +34,8 @@ export const AuthProvider = ({ children }) => {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
-
-    // Clear token on browser close (security)
-    const handleUnload = () => {
-      localStorage.removeItem(AUTH_USER_KEY);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-    };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
+    // NOTE: No beforeunload handler — inactivity timeout handles security
+    // beforeunload would also fire on page refresh causing unwanted logouts
   }, []);
 
   useEffect(() => {
@@ -71,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       bc.onmessage = (event) => {
         if (event.data && event.data.type === 'SESSION_REVOKED' && event.data.userId === user.id) {
           localStorage.setItem('watch_logout_reason', 'concurrent_login');
-          logout();
+          logout(user.id);
           alertService.warning('Session Closed', 'Your account logged in from another window. This session has been closed.');
         }
       };
@@ -87,7 +81,7 @@ export const AuthProvider = ({ children }) => {
             const activeToken = db.active_sessions[user.id];
             if (currentToken && currentToken.startsWith('mock-session-') && activeToken !== currentToken) {
               localStorage.setItem('watch_logout_reason', 'concurrent_login');
-              logout();
+              logout(user.id);
               alertService.warning('Session Terminated', 'Your account was logged in from another browser or device. This session has been closed.');
             }
           }
@@ -109,7 +103,7 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         if (err.message === 'SESSION_TERMINATED' || (err.response && err.response.status === 401)) {
           localStorage.setItem('watch_logout_reason', 'concurrent_login');
-          logout();
+          logout(user.id);
           alertService.warning('Session Terminated', 'Your account was logged in from another browser. This session has been closed for security.');
         }
       }
@@ -122,8 +116,8 @@ export const AuthProvider = ({ children }) => {
       const elapsed = Date.now() - lastActivityRef.current;
 
       if (elapsed >= INACTIVITY_TIMEOUT) {
-        sessionStorage.setItem('watch_logout_reason', 'inactivity');
-        logout();
+        localStorage.setItem('watch_logout_reason', 'inactivity');
+        logout(user.id);
         setShowWarning(false);
       } else if (elapsed >= WARNING_TIMEOUT) {
         setShowWarning(true);
@@ -172,7 +166,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (userId) => {
+    // Clear active session from mock DB so other browsers can login cleanly
+    if (userId) api.logout(userId).catch(() => {});
     setUser(null);
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -184,7 +180,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleManualLogout = () => {
-    logout();
+    logout(user?.id);
     setShowWarning(false);
   };
 

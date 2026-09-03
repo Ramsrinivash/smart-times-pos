@@ -69,6 +69,11 @@ export const api = {
   checkSession: async (userId, token) => {
     return requestWithFallback('/me', {}, () => mockAPI.verifyActiveSession(userId, token));
   },
+  logout: async (userId) => {
+    try {
+      await requestWithFallback('/logout', { method: 'POST' }, () => mockAPI.clearActiveSession(userId));
+    } catch (e) { /* ignore logout errors */ }
+  },
 
   // Users
   getUsers: async () => {
