@@ -46,22 +46,19 @@ const defaultDB = {
 
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
+  localStorage.setItem('watch_db_version', 'v2_clean');
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
 export const loadDB = () => {
+  const version = localStorage.getItem('watch_db_version');
   const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) {
+  if (!data || version !== 'v2_clean') {
     return resetDatabase();
   }
   const db = JSON.parse(data);
   if (!db.attendance) db.attendance = [];
   if (!db.payroll) db.payroll = [];
-
-  // Auto-clean any legacy sample test data from browser storage
-  if (db.watches && db.watches.some(w => w.id === 'RLX-SUB-90812' || (w.id && w.id.includes('Nuke')) || w.brand === 'Rolex')) {
-    return resetDatabase();
-  }
 
   // Auto-apply current correct store info
   if (db.settings) {
