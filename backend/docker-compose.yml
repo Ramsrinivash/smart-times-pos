@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=SmartTimes
+      - APP_ENV=local
+      - APP_KEY=base64:K8nG3pqR7mX2wL9vF1cJ5tY4sZ6hA0eB=
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=watch_showroom
+      - DB_USERNAME=watch_user
+      - DB_PASSWORD=watch_pass
+    depends_on:
+      - db
+    volumes:
+      - .:/var/www/html
+
+  db:
+    image: mysql:8.0
+    container_name: watch_mysql
+    environment:
+      MYSQL_DATABASE: watch_showroom
+      MYSQL_USER: watch_user
+      MYSQL_PASSWORD: watch_pass
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+
+volumes:
+  dbdata:

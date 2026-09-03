@@ -25,10 +25,15 @@ jobs:
 
       - name: 📦 Install Composer Dependencies
         working-directory: backend
-        run: composer install --no-dev --optimize-autoloader --no-interaction
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --no-dev --optimize-autoloader --no-interaction
+          else
+            composer update --no-dev --optimize-autoloader --no-interaction
+          fi
 
       - name: 🚀 Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: smart-times-backend
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npx @railway/cli up --service smart-times-backend --detach
