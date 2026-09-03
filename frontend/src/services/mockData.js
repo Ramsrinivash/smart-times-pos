@@ -27,9 +27,7 @@ const defaultDB = {
     { id: 4, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 25000, created_at: '2026-08-01' }
   ],
   activity_logs: [],
-  customers: [
-    { id: 1, name: 'Walk-in Customer', phone: '9999999999', alt_phone: '', email: 'walkin@smarttimes.in', address: 'Counter Sale', dob: null, anniversary: null, points_balance: 0, tags: 'Walk-in', notes: 'Default billing account for unregistered walk-ins.', outstanding_dues: 0, id_proof: '' }
-  ],
+  customers: [],
   purchases: [],
   watches: [],
   sales: [],
@@ -46,14 +44,14 @@ const defaultDB = {
 
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-  localStorage.setItem('watch_db_version', 'v2_clean');
+  localStorage.setItem('watch_db_version', 'v3_zero_customers');
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
 export const loadDB = () => {
   const version = localStorage.getItem('watch_db_version');
   const data = localStorage.getItem(STORAGE_KEY);
-  if (!data || version !== 'v2_clean') {
+  if (!data || version !== 'v3_zero_customers') {
     return resetDatabase();
   }
   const db = JSON.parse(data);

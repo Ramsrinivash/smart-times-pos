@@ -51,18 +51,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 2. Create Default Walk-in Customer Profile (required for POS cash/guest sales)
-        Customer::updateOrCreate(
-            ['email' => 'walkin@smarttimes.in'],
-            [
-                'name' => 'Walk-in Customer',
-                'phone' => '9999999999',
-                'address' => 'Counter Sale',
-                'notes' => 'Default billing account for unregistered walk-ins.'
-            ]
-        );
-
-        // 3. Import Service Book records from Excel
+        // 2. Service Book records import
         $this->call(ServiceBookSeeder::class);
     }
 }
