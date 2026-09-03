@@ -181,7 +181,7 @@ const Sales = () => {
     setCart(next);
   };
 
-  // Totals calculations
+  // Totals calculations (Inclusive GST: MRP includes GST)
   const subtotal = cart.reduce((acc, item) => acc + Number(item.selling_price), 0);
   const totalItemDiscounts = cart.reduce((acc, item) => acc + Number(item.discount_amount || 0), 0);
   const afterItemDisc = subtotal - totalItemDiscounts;
@@ -198,7 +198,9 @@ const Sales = () => {
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
   const rawNet = Math.max(0, subtotal - totalDiscount);
   const roundOffVal = Number(roundOffAmount || 0);
-  const taxableBase = Math.max(0, rawNet + roundOffVal);
+  
+  // Final Net Payable Amount by customer (MRP after discounts + roundoff)
+  const netAmount = Math.max(0, rawNet + roundOffVal);
 
   const autoRoundToNearest100 = () => {
     const remainder = rawNet % 100;
@@ -218,17 +220,20 @@ const Sales = () => {
     }
   };
 
-  // GST calculations (exclusive on net taxable base balance)
+  // GST calculations (Inclusive GST: Tax extracted from net amount)
   const totalInitialItemNet = cart.reduce((acc, item) => acc + (Number(item.selling_price) - Number(item.discount_amount || 0)), 0);
+  
   const totalGst = cart.reduce((acc, item) => {
     if (invoiceType !== 'gst') return 0;
     const itemInitialNet = Number(item.selling_price) - Number(item.discount_amount || 0);
-    const allocatedItemBase = totalInitialItemNet > 0 ? (itemInitialNet * (taxableBase / totalInitialItemNet)) : (taxableBase / (cart.length || 1));
-    const itemGst = allocatedItemBase * (Number(item.gst_rate || 18) / 100);
+    const allocatedItemNet = totalInitialItemNet > 0 ? (itemInitialNet * (netAmount / totalInitialItemNet)) : (netAmount / (cart.length || 1));
+    const gstRate = Number(item.gst_rate || 18);
+    const itemTaxableBase = allocatedItemNet / (1 + (gstRate / 100));
+    const itemGst = allocatedItemNet - itemTaxableBase;
     return acc + itemGst;
   }, 0);
 
-  const netAmount = invoiceType === 'gst' ? (taxableBase + totalGst) : taxableBase;
+  const taxableBase = invoiceType === 'gst' ? (netAmount - totalGst) : netAmount;
 
   // Handle Checkout (with optional print + WhatsApp share redirect)
   const handleCheckout = async (shouldPrintAndShare = false) => {
@@ -738,12 +743,12 @@ const Sales = () => {
                   </div>
                  )}
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                   <span>Net Taxable Base:</span>
+                   <span>Net Taxable Base (Excl. Tax):</span>
                    <span>₹{taxableBase.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                  </div>
                  {invoiceType === 'gst' && (
                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                     <span>GST Output Tax (+18%):</span>
+                     <span>GST Included (Output Tax):</span>
                      <span>+₹{totalGst.toFixed(2)}</span>
                    </div>
                  )}

@@ -107,11 +107,6 @@ export const api = {
     return requestWithFallback('/payroll/pay', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.paySalary(data));
   },
 
-  // Activity Logs
-  getActivityLogs: async () => {
-    return requestWithFallback('/activity-logs', {}, () => mockAPI.getActivityLogs());
-  },
-
   // Customers
   getCustomers: async (search = '') => {
     return requestWithFallback(`/customers?search=${encodeURIComponent(search)}`, {}, () => mockAPI.getCustomers(search));

@@ -108,7 +108,9 @@ class SalesController extends Controller
             }
 
             $roundOffAmount = (double) ($request->round_off_amount ?? 0.00);
-            $taxableBase = max(0, $subtotal - $totalDiscount + $roundOffAmount);
+            
+            // Inclusive GST: Net amount is final bill payable by customer (MRP after discounts + roundoff)
+            $netAmount = max(0, $subtotal - $totalDiscount + $roundOffAmount);
 
             $totalInitialItemNet = 0;
             foreach ($preparedItems as $pi) {
@@ -122,12 +124,17 @@ class SalesController extends Controller
                 $itemDiscount = $pi['discount_amount'];
                 $itemInitialNet = $sellingPrice - $itemDiscount;
 
-                $allocatedItemBase = ($totalInitialItemNet > 0)
-                    ? ($itemInitialNet * ($taxableBase / $totalInitialItemNet))
-                    : ($taxableBase / count($preparedItems));
+                $allocatedItemNet = ($totalInitialItemNet > 0)
+                    ? ($itemInitialNet * ($netAmount / $totalInitialItemNet))
+                    : ($netAmount / count($preparedItems));
 
                 $gstRate = (double) $watch->gst_rate;
-                $itemGstAmount = ($request->invoice_type === 'gst') ? ($allocatedItemBase * ($gstRate / 100)) : 0.00;
+                if ($request->invoice_type === 'gst') {
+                    $itemTaxableBase = $allocatedItemNet / (1 + ($gstRate / 100));
+                    $itemGstAmount = $allocatedItemNet - $itemTaxableBase;
+                } else {
+                    $itemGstAmount = 0.00;
+                }
 
                 $itemsData[] = [
                     'watch' => $watch,
@@ -141,7 +148,7 @@ class SalesController extends Controller
                 $totalGst += $itemGstAmount;
             }
 
-            $netAmount = ($request->invoice_type === 'gst') ? ($taxableBase + $totalGst) : $taxableBase;
+            $taxableBase = ($request->invoice_type === 'gst') ? ($netAmount - $totalGst) : $netAmount;
 
             $isCreditSale = ($request->payment_mode === 'credit') || filter_var($request->is_credit_sale ?? false, FILTER_VALIDATE_BOOLEAN);
 
