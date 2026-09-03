@@ -35,6 +35,11 @@ class ErrorBoundary extends React.Component {
   }
 
   handleReload = () => {
+    try {
+      localStorage.removeItem('watch_auth_user');
+      localStorage.removeItem('watch_auth_token');
+      localStorage.removeItem('watch_logout_reason');
+    } catch (e) {}
     window.location.href = '/login';
   };
 

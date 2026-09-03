@@ -203,10 +203,11 @@ export const mockAPI = {
     return { valid: true };
   },
 
-  clearActiveSession: (userId) => {
+  clearActiveSession: (userIdInput) => {
+    if (!userIdInput || (typeof userIdInput !== 'number' && typeof userIdInput !== 'string')) return;
     const db = loadDB();
-    if (db.active_sessions && userId) {
-      delete db.active_sessions[userId];
+    if (db && db.active_sessions && db.active_sessions[userIdInput]) {
+      delete db.active_sessions[userIdInput];
       saveDB(db);
     }
   },

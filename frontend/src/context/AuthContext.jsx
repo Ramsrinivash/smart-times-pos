@@ -166,9 +166,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = (userId) => {
-    // Clear active session from mock DB so other browsers can login cleanly
-    if (userId) api.logout(userId).catch(() => {});
+  const logout = (userIdInput) => {
+    const validId = (typeof userIdInput === 'number' || typeof userIdInput === 'string') ? userIdInput : user?.id;
+    if (validId) {
+      api.logout(validId).catch(() => {});
+    }
     setUser(null);
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
