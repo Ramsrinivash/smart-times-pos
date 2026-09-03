@@ -49,49 +49,63 @@ export const resetDatabase = () => {
 };
 
 export const loadDB = () => {
-  const version = localStorage.getItem('watch_db_version');
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data || version !== 'v3_zero_customers') {
+  try {
+    const version = localStorage.getItem('watch_db_version');
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data || version !== 'v3_zero_customers') {
+      return resetDatabase();
+    }
+    const db = JSON.parse(data);
+    if (!db || typeof db !== 'object') {
+      return resetDatabase();
+    }
+    if (!db.attendance) db.attendance = [];
+    if (!db.payroll) db.payroll = [];
+
+    // Auto-apply current correct store info
+    if (db.settings) {
+      db.settings.store_name = defaultDB.settings.store_name;
+      db.settings.tagline = defaultDB.settings.tagline;
+      db.settings.gstin = defaultDB.settings.gstin;
+      db.settings.address = defaultDB.settings.address;
+      db.settings.phone = defaultDB.settings.phone;
+      db.settings.email = defaultDB.settings.email;
+    }
+
+    // Ensure default staff accounts are present
+    if (db.users && Array.isArray(db.users)) {
+      defaultDB.users.forEach(defaultUser => {
+        const existing = db.users.find(u => u && u.email && u.email.toLowerCase() === defaultUser.email.toLowerCase());
+        if (!existing) {
+          db.users.push(defaultUser);
+        }
+      });
+
+      db.users.forEach(u => {
+        if (u) {
+          if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
+            u.base_salary = 30000;
+          }
+          if (u.base_salary === undefined || u.base_salary === null) {
+            u.base_salary = 0;
+          }
+        }
+      });
+    }
+    saveDB(db);
+    return db;
+  } catch (err) {
+    console.error('Database load error, resetting to clean default state:', err);
     return resetDatabase();
   }
-  const db = JSON.parse(data);
-  if (!db.attendance) db.attendance = [];
-  if (!db.payroll) db.payroll = [];
-
-  // Auto-apply current correct store info
-  if (db.settings) {
-    db.settings.store_name = defaultDB.settings.store_name;
-    db.settings.tagline = defaultDB.settings.tagline;
-    db.settings.gstin = defaultDB.settings.gstin;
-    db.settings.address = defaultDB.settings.address;
-    db.settings.phone = defaultDB.settings.phone;
-    db.settings.email = defaultDB.settings.email;
-  }
-
-  // Ensure default staff accounts are present
-  if (db.users) {
-    defaultDB.users.forEach(defaultUser => {
-      const existing = db.users.find(u => u.email && u.email.toLowerCase() === defaultUser.email.toLowerCase());
-      if (!existing) {
-        db.users.push(defaultUser);
-      }
-    });
-
-    db.users.forEach(u => {
-      if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
-        u.base_salary = 30000;
-      }
-      if (u.base_salary === undefined || u.base_salary === null) {
-        u.base_salary = 0;
-      }
-    });
-  }
-  saveDB(db);
-  return db;
 };
 
 const saveDB = (db) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  } catch (err) {
+    console.error('Database save error:', err);
+  }
 };
 
 // Helper: always returns local date string in YYYY-MM-DD (IST-safe, no UTC offset bug)

@@ -20,6 +20,47 @@ import SupplierLedger from './pages/SupplierLedger';
 import AttendancePayroll from './pages/AttendancePayroll';
 import BillTemplate from './pages/BillTemplate';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Uncaught application error:", error, errorInfo);
+  }
+
+  handleReload = () => {
+    window.location.href = '/login';
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem', background: '#0c0c0e', color: '#f3f4f6' }}>
+          <div style={{ maxWidth: '440px', width: '100%', padding: '2rem', background: '#1c1c24', border: '1px solid #2b2b35', borderRadius: '12px', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#d4af37', marginBottom: '0.75rem' }}>Smart Times System Alert</h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              A temporary display error occurred. Click below to reload and restore your session safely.
+            </p>
+            <button 
+              onClick={this.handleReload} 
+              style={{ background: '#d4af37', color: '#000', fontWeight: 700, padding: '0.75rem 1.5rem', border: 'none', borderRadius: '8px', cursor: 'pointer', width: '100%' }}
+            >
+              🔄 Reload Application
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const ProtectedLayout = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
@@ -47,11 +88,12 @@ const ProtectedLayout = ({ children, allowedRoles }) => {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
             
             {/* Dashboard */}
             <Route path="/dashboard" element={
@@ -156,6 +198,7 @@ function App() {
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

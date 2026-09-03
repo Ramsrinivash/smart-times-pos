@@ -42,7 +42,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const data = await api.getDashboardStats(user.role);
+        const data = await api.getDashboardStats(user?.role || 'admin');
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -51,7 +51,7 @@ const Dashboard = () => {
       }
     };
     fetchStats();
-  }, [user.role]);
+  }, [user?.role]);
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
@@ -70,7 +70,7 @@ const Dashboard = () => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 className="page-title">Welcome back, {user.name}</h1>
+            <h1 className="page-title">Welcome back, {user?.name || 'User'}</h1>
             <p className="page-subtitle">Showroom performance overview for today.</p>
           </div>
           {installAvailable && !pwaInstall.isInstalled() && (
