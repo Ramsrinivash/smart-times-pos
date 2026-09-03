@@ -220,7 +220,7 @@ const Sales = () => {
     }
   };
 
-  // GST calculations (Inclusive GST: Tax extracted from net amount)
+  // GST calculations (Flat 18% GST deduction from final net amount: 3495 * 18% = 629.10, Taxable Base = 2865.90)
   const totalInitialItemNet = cart.reduce((acc, item) => acc + (Number(item.selling_price) - Number(item.discount_amount || 0)), 0);
   
   const totalGst = cart.reduce((acc, item) => {
@@ -228,8 +228,7 @@ const Sales = () => {
     const itemInitialNet = Number(item.selling_price) - Number(item.discount_amount || 0);
     const allocatedItemNet = totalInitialItemNet > 0 ? (itemInitialNet * (netAmount / totalInitialItemNet)) : (netAmount / (cart.length || 1));
     const gstRate = Number(item.gst_rate || 18);
-    const itemTaxableBase = allocatedItemNet / (1 + (gstRate / 100));
-    const itemGst = allocatedItemNet - itemTaxableBase;
+    const itemGst = allocatedItemNet * (gstRate / 100);
     return acc + itemGst;
   }, 0);
 

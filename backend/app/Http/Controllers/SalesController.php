@@ -130,8 +130,7 @@ class SalesController extends Controller
 
                 $gstRate = (double) $watch->gst_rate;
                 if ($request->invoice_type === 'gst') {
-                    $itemTaxableBase = $allocatedItemNet / (1 + ($gstRate / 100));
-                    $itemGstAmount = $allocatedItemNet - $itemTaxableBase;
+                    $itemGstAmount = $allocatedItemNet * ($gstRate / 100);
                 } else {
                     $itemGstAmount = 0.00;
                 }
