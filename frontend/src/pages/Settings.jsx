@@ -867,7 +867,7 @@ const Settings = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
                     <Sparkles size={22} color="var(--primary-gold)" />
                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Smart Times POS System</h2>
-                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>v1.2.9</span>
+                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>v1.3.0</span>
                   </div>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
                     Live Production Release • Built for Watch Showroom Retail, Inventory & Service Operations
@@ -875,7 +875,7 @@ const Settings = () => {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Last Deployed Update: <strong style={{ color: 'var(--text-primary)' }}>Sept 03, 2026 at 01:07 PM IST</strong>
+                    Last Deployed Update: <strong style={{ color: 'var(--text-primary)' }}>Sept 03, 2026 at 04:05 PM IST</strong>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--success)' }}>
                     <CheckCircle size={14} /> <span>100% Operational & Verified</span>
@@ -902,6 +902,14 @@ const Settings = () => {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr>
+                      <td><span className="badge badge-gold">v1.3.0</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-03 04:05 PM</td>
+                      <td><span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>SECURITY ENGINE</span></td>
+                      <td>Authentication & Session Control</td>
+                      <td>Implemented <strong>Single Active Session Enforcement</strong> per user account with an interactive confirmation prompt on concurrent login attempts.</td>
+                      <td style={{ textAlign: 'center' }}><span className="badge badge-success">🟢 Live</span></td>
+                    </tr>
                     <tr>
                       <td><span className="badge badge-gold">v1.2.9</span></td>
                       <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-03 01:07 PM</td>

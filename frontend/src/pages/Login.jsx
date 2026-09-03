@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Watch, AlertCircle } from 'lucide-react';
+import { Watch, AlertCircle, ShieldAlert } from 'lucide-react';
 
 const Login = () => {
   const { user, login } = useAuth();
@@ -11,6 +11,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeSessionPayload, setActiveSessionPayload] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -23,16 +24,25 @@ const Login = () => {
     if (reason === 'inactivity') {
       setInfoMessage('You have been logged out due to inactivity.');
       sessionStorage.removeItem('watch_logout_reason');
+    } else if (reason === 'concurrent_login') {
+      setInfoMessage('Your session was closed because your account logged in from another browser or device.');
+      sessionStorage.removeItem('watch_logout_reason');
     }
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, force = false) => {
+    if (e) e.preventDefault();
     setError('');
     setInfoMessage('');
     setLoading(true);
     try {
-      await login(email, password);
+      const res = await login(email, password, force);
+      if (res && res.active_session_exists) {
+        setActiveSessionPayload(res);
+        setLoading(false);
+        return;
+      }
+      setActiveSessionPayload(null);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please verify credentials.');
@@ -66,7 +76,7 @@ const Login = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => handleSubmit(e, false)}>
           <div className="form-group">
             <label className="form-label">Email Address</label>
             <input 
@@ -96,6 +106,43 @@ const Login = () => {
           </button>
         </form>
       </div>
+
+      {/* Active Session Confirmation Modal */}
+      {activeSessionPayload && (
+        <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.85)', zIndex: 1000 }}>
+          <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '1.75rem', textAlign: 'center', border: '1px solid var(--primary-gold)' }}>
+            <div style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+              <ShieldAlert size={28} />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem' }}>Active Session Detected</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              An active session for <strong style={{ color: 'var(--text-primary)' }}>{activeSessionPayload.user_name || 'your account'}</strong> is currently running on another browser or device.
+            </p>
+            <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', textAlign: 'left' }}>
+              💡 <strong>Single Session Policy:</strong> Logging in here will automatically sign out the older session.
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button 
+                type="button" 
+                onClick={() => setActiveSessionPayload(null)} 
+                className="btn btn-secondary"
+                style={{ flex: 1, padding: '0.65rem' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={() => handleSubmit(null, true)} 
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '0.65rem', fontWeight: 700 }}
+                disabled={loading}
+              >
+                {loading ? 'Switching...' : 'Yes, Log In Here'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

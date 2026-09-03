@@ -15,6 +15,7 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'force' => 'nullable|boolean',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -25,12 +26,24 @@ class AuthController extends Controller
             ]);
         }
 
+        $force = filter_var($request->force ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        // Check if an active session token already exists for this user account
+        $existingTokensCount = $user->tokens()->count();
+        if ($existingTokensCount > 0 && !$force) {
+            return response()->json([
+                'active_session_exists' => true,
+                'user_name' => $user->name,
+                'message' => "An active session for account {$user->name} is already running on another browser or device."
+            ]);
+        }
+
         // Single Session Policy: Revoke all previous tokens for this user so old devices get closed
         $user->tokens()->delete();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        ActivityLog::log($user->id, 'LOGIN', 'Authentication', "User {$user->name} logged in successfully");
+        ActivityLog::log($user->id, 'LOGIN', 'Authentication', "User {$user->name} logged in successfully" . ($force ? " (Single Session Switch)" : ""));
 
         return response()->json([
             'access_token' => $token,

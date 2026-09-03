@@ -116,14 +116,17 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, force = false) => {
     setLoading(true);
     try {
-      const response = await api.login(email, password);
+      const response = await api.login(email, password, force);
+      if (response && response.active_session_exists) {
+        return response;
+      }
       setUser(response.user);
       sessionStorage.setItem('watch_user', JSON.stringify(response.user));
       sessionStorage.setItem('watch_auth_token', response.access_token);
-      return response.user;
+      return response;
     } catch (error) {
       setUser(null);
       throw error;

@@ -136,17 +136,27 @@ export const mockAPI = {
   },
 
   // Authentication
-  login: (email, password) => {
+  login: (email, password, force = false) => {
     const db = loadDB();
     const cleanEmail = (email || '').trim().toLowerCase();
     const user = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail && u.password === password);
     if (!user) throw new Error('Invalid email or password.');
     
-    const sessionToken = `mock-session-${user.id}-${Date.now()}`;
     if (!db.active_sessions) db.active_sessions = {};
+
+    // Check if active session exists and force is false
+    if (db.active_sessions[user.id] && !force) {
+      return {
+        active_session_exists: true,
+        user_name: user.name,
+        message: `An active session for account ${user.name} is already running on another browser or device.`
+      };
+    }
+
+    const sessionToken = `mock-session-${user.id}-${Date.now()}`;
     db.active_sessions[user.id] = sessionToken;
 
-    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in (Session: ${sessionToken})`);
+    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in${force ? ' (Single Session Switch)' : ''}`);
     saveDB(db);
     return {
       access_token: sessionToken,

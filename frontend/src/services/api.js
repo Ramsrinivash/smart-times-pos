@@ -63,8 +63,8 @@ export const api = {
   },
 
   // Auth
-  login: async (email, password) => {
-    return requestWithFallback('/login', { method: 'POST', body: JSON.stringify({ email, password }) }, () => mockAPI.login(email, password));
+  login: async (email, password, force = false) => {
+    return requestWithFallback('/login', { method: 'POST', body: JSON.stringify({ email, password, force }) }, () => mockAPI.login(email, password, force));
   },
   checkSession: async (userId, token) => {
     return requestWithFallback('/me', {}, () => mockAPI.verifyActiveSession(userId, token));
