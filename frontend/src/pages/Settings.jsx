@@ -59,11 +59,21 @@ const Settings = () => {
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const initialTab = searchParams.get('tab') || 'profile';
+  const initialTab = searchParams.get('tab') || localStorage.getItem('settings_active_tab') || 'profile';
 
   // Activity log
   const [activityLogs, setActivityLogs] = useState([]);
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  const handleTabChange = (tabKey) => {
+    setActiveTab(tabKey);
+    try {
+      localStorage.setItem('settings_active_tab', tabKey);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabKey);
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {}
+  };
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -343,36 +353,36 @@ const Settings = () => {
 
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <button style={tabStyle('profile')} onClick={() => setActiveTab('profile')}>
+          <button style={tabStyle('profile')} onClick={() => handleTabChange('profile')}>
             <SettingsIcon size={14} style={{ marginRight: '0.3rem' }} /> Showroom Profile
           </button>
-          <button style={tabStyle('invoice')} onClick={() => setActiveTab('invoice')}>
+          <button style={tabStyle('invoice')} onClick={() => handleTabChange('invoice')}>
             <FileText size={14} style={{ marginRight: '0.3rem' }} /> Invoice & Rules
           </button>
-          <button style={tabStyle('bill_designer')} onClick={() => setActiveTab('bill_designer')}>
+          <button style={tabStyle('bill_designer')} onClick={() => handleTabChange('bill_designer')}>
             <Printer size={14} style={{ marginRight: '0.3rem' }} /> Bill Designer
           </button>
-          <button style={tabStyle('loyalty')} onClick={() => setActiveTab('loyalty')}>
+          <button style={tabStyle('loyalty')} onClick={() => handleTabChange('loyalty')}>
             Loyalty Program
           </button>
-          <button style={tabStyle('jobcard')} onClick={() => setActiveTab('jobcard')}>
+          <button style={tabStyle('jobcard')} onClick={() => handleTabChange('jobcard')}>
             Job Card Terms
           </button>
-          <button style={tabStyle('my_account')} onClick={() => setActiveTab('my_account')}>
+          <button style={tabStyle('my_account')} onClick={() => handleTabChange('my_account')}>
             My Account
           </button>
-          <button style={tabStyle('version_history')} onClick={() => setActiveTab('version_history')}>
+          <button style={tabStyle('version_history')} onClick={() => handleTabChange('version_history')}>
             <History size={14} style={{ marginRight: '0.3rem' }} /> Version & Updates
           </button>
           {user?.role === 'admin' && (
             <>
-              <button style={tabStyle('users')} onClick={() => setActiveTab('users')}>
+              <button style={tabStyle('users')} onClick={() => handleTabChange('users')}>
                 <Users size={14} style={{ marginRight: '0.3rem' }} /> Staff Accounts
               </button>
-              <button style={tabStyle('activity')} onClick={() => setActiveTab('activity')}>
+              <button style={tabStyle('activity')} onClick={() => handleTabChange('activity')}>
                 <Shield size={14} style={{ marginRight: '0.3rem' }} /> Activity Log
               </button>
-              <button style={tabStyle('backup')} onClick={() => setActiveTab('backup')}>
+              <button style={tabStyle('backup')} onClick={() => handleTabChange('backup')}>
                 <Database size={14} style={{ marginRight: '0.3rem' }} /> Backup & Data
               </button>
             </>
@@ -857,7 +867,7 @@ const Settings = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
                     <Sparkles size={22} color="var(--primary-gold)" />
                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Smart Times POS System</h2>
-                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>v1.2.8</span>
+                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>v1.2.9</span>
                   </div>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
                     Live Production Release • Built for Watch Showroom Retail, Inventory & Service Operations
@@ -865,7 +875,7 @@ const Settings = () => {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Last Deployed Update: <strong style={{ color: 'var(--text-primary)' }}>Sept 03, 2026 at 12:54 PM IST</strong>
+                    Last Deployed Update: <strong style={{ color: 'var(--text-primary)' }}>Sept 03, 2026 at 01:07 PM IST</strong>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--success)' }}>
                     <CheckCircle size={14} /> <span>100% Operational & Verified</span>
@@ -892,6 +902,14 @@ const Settings = () => {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr>
+                      <td><span className="badge badge-gold">v1.2.9</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-03 01:07 PM</td>
+                      <td><span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>UX & PRINT FIX</span></td>
+                      <td>Settings & POS Checkout</td>
+                      <td>Implemented tab state persistence on page refresh (`?tab=version_history`) and fixed checkout print receipt execution timing.</td>
+                      <td style={{ textAlign: 'center' }}><span className="badge badge-success">🟢 Live</span></td>
+                    </tr>
                     <tr>
                       <td><span className="badge badge-gold">v1.2.8</span></td>
                       <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-03 12:54 PM</td>

@@ -323,9 +323,12 @@ const Sales = () => {
       setCustDob('');
       loadCustomers(); // Reload customer list to update points balance
 
-      await alertService.success('Success', 'Checkout completed successfully!');
       if (shouldPrintAndShare) {
-        window.print();
+        // Trigger window.print after small DOM mount delay so receipt modal is rendered
+        setTimeout(() => {
+          window.print();
+        }, 350);
+
         const custDisplayName = detailInvoice.customer_name || detailInvoice.customer?.name || custName || 'Valued Customer';
         const custDisplayPhone = (detailInvoice.customer_phone || detailInvoice.customer?.phone || custPhone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
         const items = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
@@ -333,6 +336,8 @@ const Sales = () => {
         const phoneNum = custDisplayPhone.length === 10 ? `91${custDisplayPhone}` : custDisplayPhone;
         const waUrl = `https://wa.me/${phoneNum}?text=${encodeURIComponent(waText)}`;
         window.open(waUrl, '_blank');
+      } else {
+        await alertService.success('Success', 'Checkout completed successfully!');
       }
     } catch (err) {
       alertService.error('Checkout Failed', err.message || 'Checkout failed.');
