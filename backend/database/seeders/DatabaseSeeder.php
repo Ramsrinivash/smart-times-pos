@@ -42,6 +42,15 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        User::updateOrCreate(
+            ['email' => 'suresh@smarttimes.in'],
+            [
+                'name' => 'Sales Staff (Suresh)',
+                'password' => Hash::make('suresh123'),
+                'role' => 'sales',
+            ]
+        );
+
         // 2. Create Default Walk-in Customer Profile (required for POS cash/guest sales)
         Customer::updateOrCreate(
             ['email' => 'walkin@smarttimes.in'],
