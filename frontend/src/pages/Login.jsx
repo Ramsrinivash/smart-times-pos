@@ -20,13 +20,13 @@ const Login = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    const reason = sessionStorage.getItem('watch_logout_reason');
+    const reason = localStorage.getItem('watch_logout_reason');
     if (reason === 'inactivity') {
       setInfoMessage('You have been logged out due to inactivity.');
-      sessionStorage.removeItem('watch_logout_reason');
+      localStorage.removeItem('watch_logout_reason');
     } else if (reason === 'concurrent_login') {
       setInfoMessage('Your session was closed because your account logged in from another browser or device.');
-      sessionStorage.removeItem('watch_logout_reason');
+      localStorage.removeItem('watch_logout_reason');
     }
   }, []);
 

@@ -1,6 +1,10 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { api } from '../services/api';
 import { Clock } from 'lucide-react';
+import { alertService } from '../utils/alert';
+
+const AUTH_USER_KEY = 'watch_auth_user';
+const AUTH_TOKEN_KEY = 'watch_auth_token';
 
 const AuthContext = createContext(null);
 
@@ -23,12 +27,21 @@ export const AuthProvider = ({ children }) => {
   }, [showWarning]);
 
   useEffect(() => {
-    const storedUser = sessionStorage.getItem('watch_user');
-    const storedToken = sessionStorage.getItem('watch_auth_token');
+    // Use localStorage for token (cross-window sharing in same browser profile)
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
     if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
+
+    // Clear token on browser close (security)
+    const handleUnload = () => {
+      localStorage.removeItem(AUTH_USER_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
 
   useEffect(() => {
@@ -51,18 +64,31 @@ export const AuthProvider = ({ children }) => {
 
     events.forEach(event => window.addEventListener(event, resetTimer));
 
-    // Cross-system / multi-device active session listener
+    // BroadcastChannel: instant cross-tab session revocation (same browser)
+    let bc = null;
+    try {
+      bc = new BroadcastChannel('smarttimes_session');
+      bc.onmessage = (event) => {
+        if (event.data && event.data.type === 'SESSION_REVOKED' && event.data.userId === user.id) {
+          localStorage.setItem('watch_logout_reason', 'concurrent_login');
+          logout();
+          alertService.warning('Session Closed', 'Your account logged in from another window. This session has been closed.');
+        }
+      };
+    } catch (e) { /* BroadcastChannel not supported */ }
+
+    // Cross-system / multi-device active session listener (localStorage change)
     const handleStorageChange = (e) => {
       if (e.key === 'watch_showroom_db' && e.newValue && user) {
         try {
           const db = JSON.parse(e.newValue);
-          const currentToken = sessionStorage.getItem('watch_auth_token');
+          const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
           if (db.active_sessions && db.active_sessions[user.id]) {
             const activeToken = db.active_sessions[user.id];
             if (currentToken && currentToken.startsWith('mock-session-') && activeToken !== currentToken) {
-              sessionStorage.setItem('watch_logout_reason', 'concurrent_login');
+              localStorage.setItem('watch_logout_reason', 'concurrent_login');
               logout();
-              alertService.warning('Session Terminated', 'Your account was logged in from another system/device. This session has been closed.');
+              alertService.warning('Session Terminated', 'Your account was logged in from another browser or device. This session has been closed.');
             }
           }
         } catch (err) {
@@ -73,18 +99,18 @@ export const AuthProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
 
-    // Periodic & window focus active session heartbeat check across browsers & PCs
+    // Periodic & window focus active session heartbeat check
     const verifySession = async () => {
       if (!user) return;
-      const currentToken = sessionStorage.getItem('watch_auth_token');
+      const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
       if (!currentToken) return;
       try {
         await api.checkSession(user.id, currentToken);
       } catch (err) {
         if (err.message === 'SESSION_TERMINATED' || (err.response && err.response.status === 401)) {
-          sessionStorage.setItem('watch_logout_reason', 'concurrent_login');
+          localStorage.setItem('watch_logout_reason', 'concurrent_login');
           logout();
-          alertService.warning('Session Terminated', 'Your account was logged in from another browser or system. This session has been closed for security.');
+          alertService.warning('Session Terminated', 'Your account was logged in from another browser. This session has been closed for security.');
         }
       }
     };
@@ -113,6 +139,7 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', verifySession);
       clearInterval(interval);
+      if (bc) bc.close();
     };
   }, [user]);
 
@@ -124,8 +151,18 @@ export const AuthProvider = ({ children }) => {
         return response;
       }
       setUser(response.user);
-      sessionStorage.setItem('watch_user', JSON.stringify(response.user));
-      sessionStorage.setItem('watch_auth_token', response.access_token);
+      // Use localStorage so cross-window detection in same browser works
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
+      localStorage.setItem(AUTH_TOKEN_KEY, response.access_token);
+
+      // If force login, broadcast to other tabs to log them out
+      if (force) {
+        try {
+          const bc = new BroadcastChannel('smarttimes_session');
+          bc.postMessage({ type: 'SESSION_REVOKED', userId: response.user.id });
+          bc.close();
+        } catch (e) { /* not supported */ }
+      }
       return response;
     } catch (error) {
       setUser(null);
@@ -137,8 +174,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    sessionStorage.removeItem('watch_user');
-    sessionStorage.removeItem('watch_auth_token');
+    localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
   };
 
   const handleExtendSession = () => {

@@ -88,6 +88,30 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Offline/Mock Mode Notice */}
+        {useMock && (
+          <div style={{
+            background: 'rgba(234,179,8,0.08)',
+            border: '1px solid rgba(234,179,8,0.35)',
+            borderRadius: 'var(--radius-md)',
+            padding: '0.7rem 1rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            fontSize: '0.82rem',
+            color: 'var(--text-secondary)'
+          }}>
+            <AlertTriangle size={16} color="#eab308" style={{ flexShrink: 0 }} />
+            <span>
+              <strong style={{ color: '#eab308' }}>Offline / Demo Mode:</strong>{' '}
+              Data is stored locally in <em>this browser only</em>. 
+              Incognito windows, other browsers, and other devices have their own separate databases.
+              To share data across all devices, the backend server must be connected.
+            </span>
+          </div>
+        )}
+
         {/* KPIs Grid — Row 1 */}
         <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
 
