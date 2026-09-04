@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { alertService } from '../utils/alert';
 import Swal from 'sweetalert2';
@@ -61,9 +61,36 @@ const Settings = () => {
   const searchParams = new URLSearchParams(location.search);
   const initialTab = searchParams.get('tab') || localStorage.getItem('settings_active_tab') || 'profile';
 
-  // Activity log
+  // Activity log & GitHub live release history
   const [activityLogs, setActivityLogs] = useState([]);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [gitCommits, setGitCommits] = useState([]);
+  const [loadingCommits, setLoadingCommits] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+
+  const fetchGitHubCommits = async () => {
+    setLoadingCommits(true);
+    try {
+      const res = await fetch('https://api.github.com/repos/Ramsrinivash/smart-times-pos/commits?per_page=25');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setGitCommits(data);
+          setLastFetchTime(new Date());
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch GitHub commits:', err);
+    } finally {
+      setLoadingCommits(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'version_history') {
+      fetchGitHubCommits();
+    }
+  }, [activeTab]);
 
   const handleTabChange = (tabKey) => {
     setActiveTab(tabKey);
@@ -867,27 +894,139 @@ const Settings = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
                     <Sparkles size={22} color="var(--primary-gold)" />
                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Smart Times POS System</h2>
-                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>v1.3.0</span>
+                    <span style={{ background: 'var(--primary-gold)', color: '#000', fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
+                      {gitCommits.length > 0 && gitCommits[0].commit.message.match(/v\d+\.\d+\.\d+/i)
+                        ? gitCommits[0].commit.message.match(/v\d+\.\d+\.\d+/i)[0]
+                        : 'v1.3.8'}
+                    </span>
+                    <span style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></span> Live Git Sync Enabled
+                    </span>
                   </div>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                    Live Production Release • Built for Watch Showroom Retail, Inventory & Service Operations
+                    Live Production Release • Watch Showroom Retail POS, Inventory, Job Cards & WhatsApp Sharing
                   </p>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Last Deployed Update: <strong style={{ color: 'var(--text-primary)' }}>Sept 03, 2026 at 04:05 PM IST</strong>
+                    Last Git Push: <strong style={{ color: 'var(--text-primary)' }}>
+                      {gitCommits.length > 0
+                        ? new Date(gitCommits[0].commit.author.date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+                        : 'Sept 04, 2026 at 06:24 PM IST'}
+                    </strong>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--success)' }}>
-                    <CheckCircle size={14} /> <span>100% Operational & Verified</span>
-                  </div>
+                  <button
+                    onClick={fetchGitHubCommits}
+                    disabled={loadingCommits}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', gap: '0.4rem', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    <RefreshCw size={13} className={loadingCommits ? 'spin' : ''} />
+                    {loadingCommits ? 'Syncing Git...' : 'Refresh Live Commits'}
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Version Changelog History Table */}
+            {/* Live Auto-Synced GitHub Commits Table */}
+            <div className="card" style={{ border: '1px solid rgba(59,130,246,0.3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <GitBranch size={18} color="#3b82f6" /> Live GitHub Git Push Stream (Auto-Sync)
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {lastFetchTime ? `Auto-updated: ${lastFetchTime.toLocaleTimeString()}` : 'Connected to origin/main'}
+                </span>
+              </div>
+
+              {loadingCommits && gitCommits.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  <RefreshCw size={24} className="spin" style={{ marginBottom: '0.5rem' }} />
+                  <p>Fetching latest commits from GitHub...</p>
+                </div>
+              ) : gitCommits.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table" style={{ width: '100%', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '90px' }}>Commit SHA</th>
+                        <th style={{ width: '160px' }}>Pushed Date & Time</th>
+                        <th style={{ width: '120px' }}>Category</th>
+                        <th>Commit Message & Git Updates</th>
+                        <th style={{ width: '100px', textAlign: 'center' }}>Author</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gitCommits.map((c) => {
+                        const rawMsg = c.commit.message || '';
+                        const firstLine = rawMsg.split('\n')[0];
+                        const dateFormatted = new Date(c.commit.author.date).toLocaleString('en-IN', {
+                          timeZone: 'Asia/Kolkata',
+                          year: 'numeric',
+                          month: 'short',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        });
+                        
+                        let category = 'GIT PUSH';
+                        let catBg = 'rgba(59,130,246,0.15)';
+                        let catColor = '#3b82f6';
+                        
+                        if (firstLine.toLowerCase().includes('fix')) {
+                          category = 'BUG FIX';
+                          catBg = 'rgba(239,68,68,0.15)';
+                          catColor = '#ef4444';
+                        } else if (firstLine.toLowerCase().includes('feat')) {
+                          category = 'FEATURE';
+                          catBg = 'rgba(16,185,129,0.15)';
+                          catColor = '#10b981';
+                        } else if (firstLine.toLowerCase().includes('invoice') || firstLine.toLowerCase().includes('whatsapp')) {
+                          category = 'POS & BILLING';
+                          catBg = 'rgba(212,175,55,0.15)';
+                          catColor = 'var(--primary-gold)';
+                        }
+
+                        return (
+                          <tr key={c.sha}>
+                            <td>
+                              <a
+                                href={c.html_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-gold)' }}
+                              >
+                                {c.sha.substring(0, 7)}
+                              </a>
+                            </td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{dateFormatted}</td>
+                            <td>
+                              <span style={{ background: catBg, color: catColor, padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                {category}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight: 500 }}>{firstLine}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {c.commit.author.name || 'Developer'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  ℹ️ GitHub live sync ready. Every Git commit pushed to GitHub automatically displays here in real-time.
+                </div>
+              )}
+            </div>
+
+            {/* Version Changelog Release History Table */}
             <div className="card">
               <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <History size={18} /> System Release & Update Log History
+                <History size={18} /> Major System Release Log History
               </h3>
               <div className="table-responsive">
                 <table className="table" style={{ width: '100%', fontSize: '0.875rem' }}>
@@ -903,11 +1042,27 @@ const Settings = () => {
                   </thead>
                   <tbody>
                     <tr>
+                      <td><span className="badge badge-gold">v1.3.8</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-04 06:24 PM</td>
+                      <td><span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>BILLING & PRINT</span></td>
+                      <td>POS Billing & Invoice Modal</td>
+                      <td>Invoice modal pops up first before print/WhatsApp; isolated print tab prevents 2-bill duplicate printing; WhatsApp share button with pre-formatted invoice breakdown.</td>
+                      <td style={{ textAlign: 'center' }}><span className="badge badge-success">🟢 Live</span></td>
+                    </tr>
+                    <tr>
+                      <td><span className="badge badge-gold">v1.3.7</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-04 06:00 PM</td>
+                      <td><span style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>WHATSAPP SHARE</span></td>
+                      <td>POS Billing & Customer CRM</td>
+                      <td>Added instant WhatsApp invoice share button to transmit customer bill details directly to customer mobile number.</td>
+                      <td style={{ textAlign: 'center' }}><span className="badge badge-success">🟢 Live</span></td>
+                    </tr>
+                    <tr>
                       <td><span className="badge badge-gold">v1.3.0</span></td>
                       <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>2026-09-03 04:05 PM</td>
                       <td><span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>SECURITY ENGINE</span></td>
                       <td>Authentication & Session Control</td>
-                      <td>Implemented <strong>Single Active Session Enforcement</strong> per user account with an interactive confirmation prompt on concurrent login attempts.</td>
+                      <td>Implemented <strong>Single Active Session Enforcement</strong> per user account with interactive confirmation prompt on concurrent login attempts.</td>
                       <td style={{ textAlign: 'center' }}><span className="badge badge-success">🟢 Live</span></td>
                     </tr>
                     <tr>
