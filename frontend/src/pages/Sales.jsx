@@ -325,6 +325,8 @@ const Sales = () => {
       setRedeemPoints('');
       setBillDiscountAmount('');
       setBillDiscountPercent('');
+      setRoundOffAmount('');
+      setSelectedCustomerId(null);
       setIsCreditSale(false);
       setNotes('');
       setCustName('');

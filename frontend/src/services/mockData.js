@@ -630,15 +630,15 @@ export const mockAPI = {
     const roundOffAmount = Number(data.round_off_amount || 0);
 
     const totalDiscount = totalItemDiscounts + billDiscAmount + pointsValue;
-    const taxableBase = Math.max(0, subtotal - totalDiscount + roundOffAmount);
+    const finalNet = Math.max(0, subtotal - totalDiscount + roundOffAmount);
 
-    // Second pass: Calculate GST per item based on allocated taxable base
+    // Second pass: Calculate GST per item based on allocated taxable base (Inclusive GST)
     const totalInitialItemNet = preparedItems.reduce((acc, pi) => acc + (pi.watch.selling_price - pi.itemDisc), 0);
     for (const pi of preparedItems) {
       const { watch, itemDisc } = pi;
       const itemInitialNet = watch.selling_price - itemDisc;
-      const allocatedItemBase = totalInitialItemNet > 0 ? (itemInitialNet * (taxableBase / totalInitialItemNet)) : (taxableBase / (preparedItems.length || 1));
-      const gstAmt = data.invoice_type === 'gst' ? (allocatedItemBase * ((watch.gst_rate || 18) / 100)) : 0;
+      const allocatedItemNet = totalInitialItemNet > 0 ? (itemInitialNet * (finalNet / totalInitialItemNet)) : (finalNet / (preparedItems.length || 1));
+      const gstAmt = data.invoice_type === 'gst' ? (allocatedItemNet * ((watch.gst_rate || 18) / 100)) : 0;
 
       itemsData.push({
         id: db.sale_items.length + itemsData.length + 1,
@@ -654,7 +654,7 @@ export const mockAPI = {
       totalGst += gstAmt;
     }
 
-    const netAmount = data.invoice_type === 'gst' ? (taxableBase + totalGst) : taxableBase;
+    const netAmount = finalNet;
 
     // Credit sale tracking
     const isCreditSale = data.is_credit_sale || false;
