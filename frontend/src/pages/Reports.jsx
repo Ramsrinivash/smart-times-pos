@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { useAuth } from '../context/AuthContext';
-import { Download, FileText, BarChart2, TrendingUp, RefreshCw, Users, Wrench, Truck } from 'lucide-react';
+import { Download, FileText, BarChart2, TrendingUp, RefreshCw, Users, Wrench, Truck, Eye } from 'lucide-react';
 import { exportCSV, exportExcel } from '../utils/exportUtils';
+import PrintableInvoice from '../components/PrintableInvoice';
 
 const Reports = () => {
   const { user } = useAuth();
@@ -24,6 +25,22 @@ const Reports = () => {
   const [supplierDues, setSupplierDues] = useState([]);
   const [gstData, setGstData] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [storeSettings, setStoreSettings] = useState(null);
+
+  useEffect(() => {
+    api.getSettings().then(s => setStoreSettings(s)).catch(() => {});
+  }, []);
+
+  const handleViewInvoice = async (sale) => {
+    try {
+      const fullSale = await api.getSale(sale.id);
+      setSelectedInvoice(fullSale || sale);
+    } catch (err) {
+      setSelectedInvoice(sale);
+    }
+  };
 
   const loadReport = async (tabId) => {
     setLoading(true);
@@ -198,12 +215,31 @@ const Reports = () => {
               <table className="data-table">
                 <thead><tr>
                   <th>Invoice No</th><th>Date</th><th>Customer</th><th>Type</th>
-                  <th>Subtotal</th><th>Discount</th><th>GST</th><th>Net Amount</th><th>Mode</th>
+                  <th>Subtotal</th><th>Discount</th><th>GST</th><th>Net Amount</th><th>Mode</th><th style={{ textAlign: 'center' }}>Action</th>
                 </tr></thead>
                 <tbody>
                   {salesData.length > 0 ? salesData.map(s => (
                     <tr key={s.id}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => handleViewInvoice(s)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--primary-gold)',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: 0
+                          }}
+                          title="Click to view full bill receipt"
+                        >
+                          {s.id}
+                        </button>
+                      </td>
                       <td>{s.invoice_date}</td>
                       <td>{s.customer?.name}<br /><small style={{ color: 'var(--text-secondary)' }}>{s.customer?.phone}</small></td>
                       <td><span className={`badge badge-${s.invoice_type === 'gst' ? 'success' : 'info'}`}>{s.invoice_type.toUpperCase()}</span></td>
@@ -212,9 +248,19 @@ const Reports = () => {
                       <td>{fmt(s.gst_amount)}</td>
                       <td style={{ fontWeight: 700 }}>{fmt(s.net_amount)}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.payment_mode}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          onClick={() => handleViewInvoice(s)}
+                          title="View full generated bill invoice"
+                        >
+                          <Eye size={13} /> View Bill
+                        </button>
+                      </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sales data for selected period.</td></tr>
+                    <tr><td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sales data for selected period.</td></tr>
                   )}
                 </tbody>
                 {salesData.length > 0 && (
@@ -225,7 +271,7 @@ const Reports = () => {
                       <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0), 0))}</td>
                       <td>{fmt(salesData.reduce((a, s) => a + Number(s.gst_amount || 0), 0))}</td>
                       <td>{fmt(salesData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
-                      <td></td>
+                      <td colSpan="2"></td>
                     </tr>
                   </tfoot>
                 )}
@@ -635,6 +681,21 @@ const Reports = () => {
                 </tfoot>
               )}
             </table>
+          </div>
+        )}
+
+        {/* Printable Invoice View / Reprint Modal Overlay */}
+        {selectedInvoice && (
+          <div className="modal-overlay no-print" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
+            <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', padding: '1rem' }}>
+              <PrintableInvoice
+                invoice={selectedInvoice}
+                storeSettings={storeSettings}
+                currentUser={user}
+                onClose={() => setSelectedInvoice(null)}
+                onPrint={() => window.print()}
+              />
+            </div>
           </div>
         )}
 
