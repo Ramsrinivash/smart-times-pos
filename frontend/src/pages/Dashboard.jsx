@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Layout/Header';
 import { 
   TrendingUp, 
+  AlertTriangle,
   Wrench, 
   DollarSign, 
   Plus, 
