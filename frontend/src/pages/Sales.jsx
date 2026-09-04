@@ -43,6 +43,7 @@ const Sales = () => {
   };
   
   const [createdInvoice, setCreatedInvoice] = useState(null);
+  const [invoiceWhatsAppUrl, setInvoiceWhatsAppUrl] = useState(null);
   const [settings, setSettings] = useState(null);
 
   // Load Customers
@@ -308,6 +309,15 @@ const Sales = () => {
           console.error('Invoice fetch fallback:', e);
         }
       }
+      // Build WhatsApp URL from invoice details (for use in modal buttons)
+      const custDisplayName = detailInvoice.customer_name || detailInvoice.customer?.name || custName || 'Valued Customer';
+      const custDisplayPhone = (detailInvoice.customer_phone || detailInvoice.customer?.phone || custPhone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+      const items = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
+      const waText = `Dear ${custDisplayName}, thank you for shopping at *${settings?.store_name || 'Smart Times'}*!\n\n📄 *Invoice: ${detailInvoice.id}*\n${items}\n\n💰 *Total Paid: ₹${Number(detailInvoice.net_amount).toLocaleString('en-IN')}*\nPayment: ${(detailInvoice.payment_mode || 'Cash').toUpperCase()}\n\n🙏 We value your trust. Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
+      const phoneNum = custDisplayPhone.length === 10 ? `91${custDisplayPhone}` : custDisplayPhone;
+      const waUrl = custDisplayPhone.length >= 10 ? `https://wa.me/${phoneNum}?text=${encodeURIComponent(waText)}` : null;
+      setInvoiceWhatsAppUrl(waUrl);
+
       setCreatedInvoice(detailInvoice);
       
       // Clear checkout inputs
@@ -323,29 +333,25 @@ const Sales = () => {
       setCustDob('');
       loadCustomers(); // Reload customer list to update points balance
 
-      if (shouldPrintAndShare) {
-        // Trigger window.print after small DOM mount delay so receipt modal is rendered
-        setTimeout(() => {
-          window.print();
-        }, 350);
-
-        const custDisplayName = detailInvoice.customer_name || detailInvoice.customer?.name || custName || 'Valued Customer';
-        const custDisplayPhone = (detailInvoice.customer_phone || detailInvoice.customer?.phone || custPhone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
-        const items = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
-        const waText = `Dear ${custDisplayName}, thank you for shopping at *${settings?.store_name || 'Smart Times'}*!\n\n📄 *Invoice: ${detailInvoice.id}*\n${items}\n\n💰 *Total Paid: ₹${Number(detailInvoice.net_amount).toLocaleString('en-IN')}*\nPayment: ${(detailInvoice.payment_mode || 'Cash').toUpperCase()}\n\n🙏 We value your trust. Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
-        const phoneNum = custDisplayPhone.length === 10 ? `91${custDisplayPhone}` : custDisplayPhone;
-        const waUrl = `https://wa.me/${phoneNum}?text=${encodeURIComponent(waText)}`;
-        window.open(waUrl, '_blank');
-      } else {
-        await alertService.success('Success', 'Checkout completed successfully!');
+      if (!shouldPrintAndShare) {
+        await alertService.success('Sale Recorded', 'Checkout completed successfully!');
       }
+      // If shouldPrintAndShare: Invoice modal is shown, user clicks Print / WhatsApp from inside modal
     } catch (err) {
       alertService.error('Checkout Failed', err.message || 'Checkout failed.');
     }
   };
 
   const handlePrint = () => {
-    window.print();
+    // Use isolated print window to avoid double-bill issue
+    const invoiceEl = document.querySelector('.smarttimes-printable-invoice');
+    if (!invoiceEl) { window.print(); return; }
+    const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('');
+    const pw = window.open('', '_blank', 'width=900,height=700');
+    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title>${styleSheets}<style>body{margin:0;padding:14mm;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:12px;}</style></head><body>${invoiceEl.innerHTML}</body></html>`);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => { pw.print(); pw.close(); }, 350);
   };
 
   return (
@@ -791,14 +797,15 @@ const Sales = () => {
 
         {/* Printable Invoice Receipt Modal */}
         {createdInvoice && (
-          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="modal-overlay no-print" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
             <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', padding: '1rem' }}>
               <PrintableInvoice
                 invoice={createdInvoice}
                 storeSettings={settings}
                 currentUser={user}
-                onClose={() => setCreatedInvoice(null)}
-                onPrint={() => window.print()}
+                waUrl={invoiceWhatsAppUrl}
+                onClose={() => { setCreatedInvoice(null); setInvoiceWhatsAppUrl(null); }}
+                onPrint={handlePrint}
               />
             </div>
           </div>

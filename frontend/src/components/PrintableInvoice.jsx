@@ -61,6 +61,7 @@ const PrintableInvoice = ({
   currentUser,
   onClose,
   onPrint,
+  waUrl,             // Pre-built WhatsApp URL from Sales.jsx (with full invoice details)
   _templateOverride, // used by BillTemplate page for live preview
 }) => {
   const t = _templateOverride || getBillTemplate();
@@ -455,17 +456,18 @@ const PrintableInvoice = ({
           gap: '8px',
         }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {invoice.customer?.phone && (
+            {/* WhatsApp button: use pre-built detailed URL if available, fall back to simple */}
+            {(waUrl || invoice.customer?.phone) && (
               <a
-                href={`https://wa.me/${invoice.customer.phone}?text=${encodeURIComponent(
-                  `Dear ${invoice.customer.name}, thank you for shopping at ${storeSettings?.store_name || 'Smart Times'}. Your invoice ${invoice.id} amounting ₹${invoice.net_amount} is ready.`
+                href={waUrl || `https://wa.me/${invoice.customer.phone}?text=${encodeURIComponent(
+                  `Dear ${invoice.customer.name}, thank you for shopping at ${storeSettings?.store_name || 'Smart Times'}. Your invoice ${invoice.id} amounting \u20b9${invoice.net_amount} is ready.`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
                 className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.85rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.85rem', background: '#25D366', color: '#fff', borderColor: '#25D366' }}
               >
-                <Share2 size={15} /> WhatsApp
+                <Share2 size={15} /> WhatsApp Share
               </a>
             )}
           </div>
