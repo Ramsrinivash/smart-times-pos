@@ -254,31 +254,48 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Today's Birthdays */}
+          {/* Upcoming & Today's Birthdays */}
           <div className="card" style={{ height: 'fit-content' }}>
             <h3 style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Cake size={18} color="var(--primary-gold)" /> Today's Birthdays
+              <Cake size={18} color="var(--primary-gold)" /> Upcoming Birthdays (Next 30 Days)
             </h3>
-            {stats?.birthdays_today && stats.birthdays_today.length > 0 ? (
-              <ul style={{ listStyle: 'none' }}>
-                {stats.birthdays_today.map((c, idx) => (
+            {(stats?.upcoming_birthdays && stats.upcoming_birthdays.length > 0) || (stats?.birthdays_today && stats.birthdays_today.length > 0) ? (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {((stats.upcoming_birthdays && stats.upcoming_birthdays.length > 0) ? stats.upcoming_birthdays : stats.birthdays_today).map((c, idx) => (
                   <li key={c.id} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '0.625rem 0',
-                    borderBottom: idx === stats.birthdays_today.length - 1 ? 'none' : '1px solid var(--border-color)'
+                    padding: '0.65rem 0',
+                    borderBottom: idx === (stats.upcoming_birthdays || stats.birthdays_today).length - 1 ? 'none' : '1px solid var(--border-color)'
                   }}>
                     <div>
-                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>{c.phone}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '0.1rem 0.4rem',
+                          borderRadius: '4px',
+                          background: c.daysAway === 0 ? 'rgba(16,185,129,0.15)' : c.daysAway <= 7 ? 'rgba(212,175,55,0.15)' : 'rgba(59,130,246,0.15)',
+                          color: c.daysAway === 0 ? '#10b981' : c.daysAway <= 7 ? 'var(--primary-gold)' : '#3b82f6',
+                          border: `1px solid ${c.daysAway === 0 ? '#10b981' : c.daysAway <= 7 ? 'var(--primary-gold)' : '#3b82f6'}`
+                        }}>
+                          {c.badgeText || (c.isToday ? 'Today! 🎉' : 'Upcoming')}
+                        </span>
+                      </div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block', marginTop: '2px' }}>{c.phone}</span>
                     </div>
                     <a
-                      href={`https://wa.me/91${c.phone}?text=${encodeURIComponent(`Happy Birthday ${c.name}! Wishing you a wonderful day from Smart Times Watch Showroom. Visit us for exclusive birthday offers!`)}`}
+                      href={`https://wa.me/91${(c.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                        c.daysAway === 0
+                          ? `Happy Birthday ${c.name}! 🎉 Wishing you a wonderful day from Smart Times Watch Showroom. Visit us for exclusive birthday offers!`
+                          : `Hello ${c.name}! 🎂 Smart Times Watch Showroom wishes you an early Happy Birthday! Visit us this week for an exclusive birthday gift & discount on watches.`
+                      )}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', textDecoration: 'none' }}
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                     >
-                      WhatsApp Wish
+                      {c.daysAway === 0 ? '🎉 Wish WhatsApp' : '🎁 Send Offer'}
                     </a>
                   </li>
                 ))}
@@ -286,7 +303,7 @@ const Dashboard = () => {
             ) : (
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', padding: '1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Clock size={18} />
-                No customer birthdays today.
+                No customer birthdays in the next 30 days.
               </div>
             )}
           </div>

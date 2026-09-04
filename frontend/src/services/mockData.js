@@ -1044,12 +1044,50 @@ export const mockAPI = {
       .map(key => ({ model: key, count: stockCounts[key] }))
       .filter(item => item.count < 3);
 
-    // Today's birthdays
-    const todayMD = todayStr.slice(5); // MM-DD
-    const birthdaysToday = db.customers.filter(c => {
-      if (!c.dob) return false;
-      return c.dob.slice(5) === todayMD;
-    }).map(c => ({ id: c.id, name: c.name, phone: c.phone, dob: c.dob }));
+    // Upcoming & Today's Birthdays (within next 30 days)
+    const nowObj = new Date();
+    const currentYear = nowObj.getFullYear();
+    const todayMidnight = new Date(currentYear, nowObj.getMonth(), nowObj.getDate());
+    
+    const upcomingBirthdays = (db.customers || [])
+      .filter(c => c.dob)
+      .map(c => {
+        const parts = String(c.dob).split('-'); // YYYY-MM-DD
+        if (parts.length < 3) return null;
+        const bMonth = parseInt(parts[1], 10) - 1;
+        const bDay = parseInt(parts[2], 10);
+        
+        let nextBday = new Date(currentYear, bMonth, bDay);
+        if (nextBday < todayMidnight) {
+          nextBday = new Date(currentYear + 1, bMonth, bDay);
+        }
+        
+        const diffTime = nextBday.getTime() - todayMidnight.getTime();
+        const daysAway = Math.round(diffTime / (1000 * 3600 * 24));
+        
+        if (daysAway >= 0 && daysAway <= 30) {
+          const dateStr = nextBday.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+          let badgeText = `In ${daysAway} days (${dateStr})`;
+          if (daysAway === 0) badgeText = 'Today! 🎉';
+          else if (daysAway === 1) badgeText = `Tomorrow (${dateStr})`;
+
+          return {
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+            dob: c.dob,
+            daysAway,
+            dateStr,
+            badgeText,
+            isToday: daysAway === 0
+          };
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.daysAway - b.daysAway);
+
+    const birthdaysToday = upcomingBirthdays.filter(b => b.isToday);
 
     return {
       today_sales_count: todaySalesCount,
@@ -1058,15 +1096,18 @@ export const mockAPI = {
       month_sales_sum: monthSalesSum,
       total_sales_count: totalSalesCount,
       total_sales_sum: totalSalesSum,
-      low_stock_alerts: lowStockAlerts,
+      active_jobs_count: jobsActive,
       jobs_due_today: jobsDueToday,
       jobs_overdue: jobsOverdue,
       jobs_ready: jobsReady,
-      jobs_active: jobsActive,
-      pending_supplier_payments_count: pendingPaymentsCount,
-      pending_supplier_payments_sum: pendingPaymentsSum,
+      pending_payments_count: pendingPaymentsCount,
+      pending_payments_sum: pendingPaymentsSum,
       outstanding_dues_total: outstandingDuesTotal,
       outstanding_dues_count: outstandingDuesCount,
+      profit_today: profitSnapshot,
+      profit_month: monthProfitSnapshot,
+      profit_total: totalProfitSnapshot,
+      low_stock_alerts: lowStockAlerts,
       birthdays_today: birthdaysToday,
       profit_snapshot: profitSnapshot,
       month_profit_snapshot: monthProfitSnapshot,

@@ -45,6 +45,8 @@ const Sales = () => {
   const [createdInvoice, setCreatedInvoice] = useState(null);
   const [invoiceWhatsAppUrl, setInvoiceWhatsAppUrl] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [draftPayload, setDraftPayload] = useState(null);
 
   // Load Customers
   const loadCustomers = async () => {
@@ -235,18 +237,17 @@ const Sales = () => {
 
   const taxableBase = invoiceType === 'gst' ? (netAmount - totalGst) : netAmount;
 
-  // Handle Checkout (with optional print + WhatsApp share redirect)
-  const handleCheckout = async (shouldPrintAndShare = false) => {
+  // Step 1: Open Order Preview & Review Modal BEFORE saving to DB
+  const handleInitiateCheckout = (shouldPrintAndShare = false) => {
     if (cart.length === 0) {
-      alertService.warning('Cart Empty', 'Your cart is empty.');
+      alertService.warning('Cart Empty', 'Your cart is empty. Please add at least one watch.');
       return;
     }
     if (!custName || !custPhone) {
-      alertService.warning('Required Fields', 'Customer Name and Phone Number are required to generate a bill.');
+      alertService.warning('Required Fields', 'Customer Name and Phone Number are required to preview/generate a bill.');
       return;
     }
 
-    // Validate Phone Number format before checkout/registration
     let cleanPhone = custPhone.trim().replace(/\s+/g, '');
     if (cleanPhone.startsWith('+91')) {
       cleanPhone = cleanPhone.substring(3);
@@ -254,52 +255,72 @@ const Sales = () => {
     const cleanDigits = cleanPhone.replace(/\D/g, '');
     const finalPhone = cleanDigits.length === 10 ? '+91' + cleanDigits : '+91' + cleanDigits.padStart(10, '0');
 
+    let finalCustomerId = selectedCustomerId;
+    if (!finalCustomerId) {
+      const existing = customers.find(c => (c.phone || '').replace(/\D/g, '') === cleanDigits);
+      if (existing) {
+        finalCustomerId = existing.id;
+      }
+    }
+
+    const payload = {
+      shouldPrintAndShare,
+      customer_id: finalCustomerId,
+      customer_name: custName.trim() || 'Walk-in Customer',
+      customer_phone: finalPhone,
+      invoice_type: invoiceType,
+      payment_mode: paymentMode,
+      redeem_points: pointsToRedeem,
+      bill_discount_amount: billDiscFlat,
+      bill_discount_percent: billDiscPct,
+      round_off_amount: roundOffVal,
+      is_credit_sale: isCreditSale,
+      notes,
+      subtotal,
+      totalDiscount,
+      netAmount,
+      totalGst,
+      taxableBase,
+      items: cart.map(item => ({
+        watch_id: item.watch_id,
+        brand: item.brand,
+        model: item.model,
+        selling_price: item.selling_price,
+        gst_rate: item.gst_rate,
+        discount_amount: item.discount_amount
+      }))
+    };
+
+    setDraftPayload(payload);
+    setShowReviewModal(true);
+  };
+
+  // Step 2: User confirms draft order -> Actually record sale in DB and generate official bill
+  const executeFinalCheckout = async (payload) => {
+    setShowReviewModal(false);
     try {
-      let finalCustomerId = selectedCustomerId;
-      if (!finalCustomerId) {
-        const existing = customers.find(c => (c.phone || '').replace(/\D/g, '') === cleanDigits);
-        if (existing) {
-          finalCustomerId = existing.id;
-        } else {
-          try {
-            const newCust = await api.addCustomer({ 
-              name: custName, 
-              phone: finalPhone,
-              email: custEmail || null,
-              dob: custDob || null
-            });
-            finalCustomerId = newCust.customer ? newCust.customer.id : (newCust.id || 1);
-          } catch (e) {
-            finalCustomerId = 1;
-          }
+      let finalCustId = payload.customer_id;
+      if (!finalCustId) {
+        try {
+          const newCust = await api.addCustomer({ 
+            name: payload.customer_name, 
+            phone: payload.customer_phone,
+            email: custEmail || null,
+            dob: custDob || null
+          });
+          finalCustId = newCust.customer ? newCust.customer.id : (newCust.id || 1);
+        } catch (e) {
+          finalCustId = 1;
         }
       }
 
-      const payload = {
-        customer_id: finalCustomerId,
-        customer_name: custName.trim() || 'Walk-in Customer',
-        customer_phone: finalPhone,
-        invoice_type: invoiceType,
-        payment_mode: paymentMode,
-        redeem_points: pointsToRedeem,
-        bill_discount_amount: billDiscFlat,
-        bill_discount_percent: billDiscPct,
-        round_off_amount: roundOffVal,
-        is_credit_sale: isCreditSale,
-        notes,
-        items: cart.map(item => ({
-          watch_id: item.watch_id,
-          brand: item.brand,
-          model: item.model,
-          selling_price: item.selling_price,
-          gst_rate: item.gst_rate,
-          discount_amount: item.discount_amount
-        }))
+      const salePayload = {
+        ...payload,
+        customer_id: finalCustId
       };
 
-      const result = await api.addSale(payload, user.id);
+      const result = await api.addSale(salePayload, user.id);
       
-      // Use newly created invoice directly for receipt modal
       let detailInvoice = (result && result.items && result.customer) ? result : (result.sale || result);
       if (!detailInvoice || !detailInvoice.items || !detailInvoice.customer) {
         try {
@@ -309,11 +330,11 @@ const Sales = () => {
           console.error('Invoice fetch fallback:', e);
         }
       }
-      // Build WhatsApp URL from invoice details (for use in modal buttons)
+
       const custDisplayName = detailInvoice.customer_name || detailInvoice.customer?.name || custName || 'Valued Customer';
       const custDisplayPhone = (detailInvoice.customer_phone || detailInvoice.customer?.phone || custPhone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
-      const items = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
-      const waText = `Dear ${custDisplayName}, thank you for shopping at *${settings?.store_name || 'Smart Times'}*!\n\n📄 *Invoice: ${detailInvoice.id}*\n${items}\n\n💰 *Total Paid: ₹${Number(detailInvoice.net_amount).toLocaleString('en-IN')}*\nPayment: ${(detailInvoice.payment_mode || 'Cash').toUpperCase()}\n\n🙏 We value your trust. Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
+      const itemsText = (detailInvoice.items || []).map(i => `• ${i.watch?.brand || ''} ${i.watch?.model || ''}: ₹${Number(i.price_sold - (i.discount_amount || 0)).toLocaleString('en-IN')}`).join('\n');
+      const waText = `Dear ${custDisplayName}, thank you for shopping at *${settings?.store_name || 'Smart Times'}*!\n\n📄 *Invoice: ${detailInvoice.id}*\n${itemsText}\n\n💰 *Total Paid: ₹${Number(detailInvoice.net_amount).toLocaleString('en-IN')}*\nPayment: ${(detailInvoice.payment_mode || 'Cash').toUpperCase()}\n\n🙏 We value your trust. Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
       const phoneNum = custDisplayPhone.length === 10 ? `91${custDisplayPhone}` : custDisplayPhone;
       const waUrl = custDisplayPhone.length >= 10 ? `https://wa.me/${phoneNum}?text=${encodeURIComponent(waText)}` : null;
       setInvoiceWhatsAppUrl(waUrl);
@@ -333,12 +354,11 @@ const Sales = () => {
       setCustPhone('');
       setCustEmail('');
       setCustDob('');
-      loadCustomers(); // Reload customer list to update points balance
+      loadCustomers();
 
-      if (!shouldPrintAndShare) {
+      if (!payload.shouldPrintAndShare) {
         await alertService.success('Sale Recorded', 'Checkout completed successfully!');
       }
-      // If shouldPrintAndShare: Invoice modal is shown, user clicks Print / WhatsApp from inside modal
     } catch (err) {
       alertService.error('Checkout Failed', err.message || 'Checkout failed.');
     }
@@ -774,21 +794,21 @@ const Sales = () => {
                 {/* Single Quick Checkout, Print & WhatsApp Button */}
                 <button 
                   type="button" 
-                  onClick={() => handleCheckout(true)} 
+                  onClick={() => handleInitiateCheckout(true)} 
                   className="btn btn-primary" 
                   style={{ padding: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: 700 }}
                 >
-                  <Printer size={18} /> Pay, Print & WhatsApp Share
+                  <Printer size={18} /> Preview & Confirm Order (Print & WhatsApp)
                 </button>
                 
                 {/* Traditional Simple Checkout Button */}
                 <button 
                   type="button" 
-                  onClick={() => handleCheckout(false)} 
+                  onClick={() => handleInitiateCheckout(false)} 
                   className="btn btn-secondary" 
                   style={{ padding: '0.75rem', width: '100%', fontWeight: 600 }}
                 >
-                  Record Bill Only (Standard Cashout)
+                  Preview & Record Order Only
                 </button>
               </div>
             </div>
@@ -796,6 +816,113 @@ const Sales = () => {
           </div>
 
         </div>
+
+        {/* Draft Order Preview & Confirmation Modal BEFORE Bill Generation */}
+        {showReviewModal && draftPayload && (
+          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem' }}>
+            <div style={{ background: 'var(--surface-color)', color: 'var(--text-primary)', borderRadius: '12px', maxWidth: '800px', margin: '0 auto', border: '1px solid var(--primary-gold)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', color: 'var(--primary-gold)' }}>
+                  📋 Order Review & Pre-Bill Confirmation
+                </h3>
+                <span className="badge badge-warning">Draft Preview (Not Billed Yet)</span>
+              </div>
+
+              {/* Customer & Billing Info Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+                <div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Customer Details:</div>
+                  <strong style={{ fontSize: '1rem' }}>{draftPayload.customer_name}</strong>
+                  <div style={{ color: 'var(--text-secondary)' }}>Phone: {draftPayload.customer_phone}</div>
+                  {draftPayload.notes && <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px' }}>Note: {draftPayload.notes}</div>}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Invoice Type & Payment:</div>
+                  <div>Invoice: <strong style={{ color: 'var(--primary-gold)', textTransform: 'uppercase' }}>{draftPayload.invoice_type}</strong></div>
+                  <div>Payment Mode: <strong style={{ textTransform: 'uppercase' }}>{draftPayload.payment_mode}</strong></div>
+                </div>
+              </div>
+
+              {/* Watches Items List (Multi-Watch Support) */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Items in Order ({draftPayload.items.length} Watches)</h4>
+                <div className="table-responsive">
+                  <table className="table" style={{ width: '100%', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '30px' }}>#</th>
+                        <th>Watch ID / Serial</th>
+                        <th>Brand & Model</th>
+                        <th style={{ textAlign: 'right' }}>Selling Price</th>
+                        <th style={{ textAlign: 'right' }}>Discount</th>
+                        <th style={{ textAlign: 'right' }}>Final Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {draftPayload.items.map((item, idx) => {
+                        const finalP = Number(item.selling_price) - Number(item.discount_amount || 0);
+                        return (
+                          <tr key={idx}>
+                            <td>{idx + 1}</td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary-gold)' }}>{item.watch_id}</td>
+                            <td>{item.brand} — {item.model}</td>
+                            <td style={{ textAlign: 'right' }}>₹{Number(item.selling_price).toLocaleString()}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--error)' }}>-₹{Number(item.discount_amount || 0).toLocaleString()}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700 }}>₹{finalP.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Amount Breakdown */}
+              <div style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Gross Subtotal:</span>
+                  <span>₹{draftPayload.subtotal.toLocaleString()}</span>
+                </div>
+                {draftPayload.totalDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
+                    <span>Total Discount:</span>
+                    <span>-₹{draftPayload.totalDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                {draftPayload.round_off_amount !== 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: draftPayload.round_off_amount < 0 ? 'var(--error)' : 'var(--success)', marginBottom: '0.35rem' }}>
+                    <span>Manual Round Off Adjustment:</span>
+                    <span>{draftPayload.round_off_amount < 0 ? `-₹${Math.abs(draftPayload.round_off_amount)}` : `+₹${draftPayload.round_off_amount}`}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.5rem', fontWeight: 800, fontSize: '1.2rem', color: 'var(--primary-gold)' }}>
+                  <span>Net Amount Due:</span>
+                  <span>₹{draftPayload.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              {/* Modal Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
+                  onClick={() => setShowReviewModal(false)}
+                >
+                  ✏️ Edit Order / Back to Cart
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '0.65rem 1.5rem', fontSize: '0.95rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                  onClick={() => executeFinalCheckout(draftPayload)}
+                >
+                  <CheckCircle size={18} /> Confirm Order & Generate Bill
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Printable Invoice Receipt Modal */}
         {createdInvoice && (
