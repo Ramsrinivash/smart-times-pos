@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
+import { mockAPI } from '../services/mockData';
 import { useLocation } from 'react-router-dom';
 import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle, RefreshCw, MapPin, Globe, Monitor, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -278,27 +279,18 @@ const Settings = () => {
         base_salary: salaryNum
       };
 
-      // 1. Direct stateful storage insertion
-      const createdStaff = mockAPI.addUser(payload, user?.id);
+      const createdStaff = await api.addUser(payload);
 
-      // 2. Immediate React UI state update (0ms delay)
       setUsers(prev => {
-        const filtered = prev.filter(u => u.email.toLowerCase() !== payload.email.toLowerCase());
-        return [...filtered, createdStaff];
+        const filtered = prev.filter(u => u && u.email && u.email.toLowerCase() !== payload.email.toLowerCase());
+        return [...filtered, createdStaff || payload];
       });
-
-      // 3. Secondary backend API sync
-      try {
-        await api.addUser(payload);
-      } catch (err) {
-        console.warn('Backend network sync note:', err);
-      }
 
       alertService.success('Staff Account Created', `Staff account "${newUserName}" (${newUserRole}) created successfully with salary ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserRole('sales'); setNewUserSalary('');
       await refreshUsersAndLogs();
     } catch (err) {
-      alertService.error('Error', 'Failed to create staff account: ' + err.message);
+      alertService.error('Error', 'Failed to create staff account: ' + (err.message || err));
     }
   };
 
@@ -320,8 +312,6 @@ const Settings = () => {
       color: 'var(--text-primary)'
     }).then(async (result) => {
       if (result.isConfirmed) {
-        try { mockAPI.deleteUser(targetUser.id, user?.id); } catch (e) {}
-        try { mockAPI.deleteUser(targetUser.email, user?.id); } catch (e) {}
         try { await api.deleteUser(targetUser.id); } catch (e) {}
 
         alertService.success('Removed', `Staff account "${targetUser.name}" has been removed successfully.`);

@@ -41,23 +41,44 @@ const defaultDB = {
 
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-  localStorage.setItem('watch_db_version', 'v4_clean_users');
+  localStorage.setItem('watch_showroom_db_backup', JSON.stringify(defaultDB));
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
 export const loadDB = () => {
   try {
-    const version = localStorage.getItem('watch_db_version');
     const data = localStorage.getItem(STORAGE_KEY);
-    if (!data || version !== 'v4_clean_users') {
+    if (!data) {
+      // Check backup if main data key is missing
+      const backup = localStorage.getItem('watch_showroom_db_backup');
+      if (backup) {
+        localStorage.setItem(STORAGE_KEY, backup);
+        return JSON.parse(backup);
+      }
       return resetDatabase();
     }
+
     const db = JSON.parse(data);
     if (!db || typeof db !== 'object') {
       return resetDatabase();
     }
-    if (!db.attendance) db.attendance = [];
-    if (!db.payroll) db.payroll = [];
+
+    // Ensure all data arrays exist to prevent any UI/feature crashes
+    if (!Array.isArray(db.users)) db.users = defaultDB.users;
+    if (!Array.isArray(db.activity_logs)) db.activity_logs = [];
+    if (!Array.isArray(db.customers)) db.customers = [];
+    if (!Array.isArray(db.purchases)) db.purchases = [];
+    if (!Array.isArray(db.watches)) db.watches = [];
+    if (!Array.isArray(db.sales)) db.sales = [];
+    if (!Array.isArray(db.sale_items)) db.sale_items = [];
+    if (!Array.isArray(db.exchanges)) db.exchanges = [];
+    if (!Array.isArray(db.sales_returns)) db.sales_returns = [];
+    if (!Array.isArray(db.warranty_cards)) db.warranty_cards = [];
+    if (!Array.isArray(db.stock_adjustments)) db.stock_adjustments = [];
+    if (!Array.isArray(db.service_jobs)) db.service_jobs = [];
+    if (!Array.isArray(db.loyalty_ledgers)) db.loyalty_ledgers = [];
+    if (!Array.isArray(db.attendance)) db.attendance = [];
+    if (!Array.isArray(db.payroll)) db.payroll = [];
 
     // Auto-apply current correct store info
     if (db.settings) {
@@ -67,37 +88,46 @@ export const loadDB = () => {
       db.settings.address = defaultDB.settings.address;
       db.settings.phone = defaultDB.settings.phone;
       db.settings.email = defaultDB.settings.email;
+    } else {
+      db.settings = defaultDB.settings;
     }
 
     // Ensure primary admin account is present
-    if (db.users && Array.isArray(db.users)) {
-      const hasAdmin = db.users.some(u => u && u.role === 'admin');
-      if (!hasAdmin) {
-        db.users.unshift(defaultDB.users[0]);
-      }
-
-      db.users.forEach(u => {
-        if (u) {
-          if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
-            u.base_salary = 30000;
-          }
-          if (u.base_salary === undefined || u.base_salary === null) {
-            u.base_salary = 0;
-          }
-        }
-      });
+    const hasAdmin = db.users.some(u => u && u.role === 'admin');
+    if (!hasAdmin) {
+      db.users.unshift(defaultDB.users[0]);
     }
+
+    db.users.forEach(u => {
+      if (u) {
+        if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
+          u.base_salary = 30000;
+        }
+        if (u.base_salary === undefined || u.base_salary === null) {
+          u.base_salary = 0;
+        }
+      }
+    });
+
     saveDB(db);
     return db;
   } catch (err) {
-    console.error('Database load error, resetting to clean default state:', err);
+    console.error('Database load error:', err);
+    try {
+      const backup = localStorage.getItem('watch_showroom_db_backup');
+      if (backup) {
+        return JSON.parse(backup);
+      }
+    } catch (e) {}
     return resetDatabase();
   }
 };
 
 const saveDB = (db) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    const serialized = JSON.stringify(db);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    localStorage.setItem('watch_showroom_db_backup', serialized);
   } catch (err) {
     console.error('Database save error:', err);
   }
