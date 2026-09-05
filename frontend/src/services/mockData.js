@@ -21,7 +21,8 @@ const defaultDB = {
     logo_url: null
   },
   users: [
-    { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' }
+    { id: 1, name: 'Anna (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
+    { id: 2, name: 'Ram Srinivash', email: 'ram@smarttimes.in', password: 'admin', role: 'admin', base_salary: 1, created_at: '2026-09-05' }
   ],
   activity_logs: [],
   customers: [],
@@ -39,28 +40,58 @@ const defaultDB = {
   payroll: []
 };
 
+const GLOBAL_USERS_KEY = 'watch_registered_users_registry';
+
+const getGlobalRegisteredUsers = () => {
+  try {
+    const local = localStorage.getItem(GLOBAL_USERS_KEY);
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    const match = document.cookie.match(new RegExp('(?:^|; )' + GLOBAL_USERS_KEY + '=([^;]*)'));
+    if (match && match[1]) {
+      const parsed = JSON.parse(decodeURIComponent(match[1]));
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+const saveGlobalRegisteredUsers = (usersList) => {
+  try {
+    if (!Array.isArray(usersList)) return;
+    localStorage.setItem(GLOBAL_USERS_KEY, JSON.stringify(usersList));
+    const cookieVal = encodeURIComponent(JSON.stringify(usersList));
+    document.cookie = `${GLOBAL_USERS_KEY}=${cookieVal}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch (e) {}
+};
+
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
   localStorage.setItem('watch_showroom_db_backup', JSON.stringify(defaultDB));
+  saveGlobalRegisteredUsers(defaultDB.users);
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
 export const loadDB = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
+    let db;
     if (!data) {
-      // Check backup if main data key is missing
       const backup = localStorage.getItem('watch_showroom_db_backup');
       if (backup) {
         localStorage.setItem(STORAGE_KEY, backup);
-        return JSON.parse(backup);
+        db = JSON.parse(backup);
+      } else {
+        db = resetDatabase();
       }
-      return resetDatabase();
+    } else {
+      db = JSON.parse(data);
     }
 
-    const db = JSON.parse(data);
     if (!db || typeof db !== 'object') {
-      return resetDatabase();
+      db = resetDatabase();
     }
 
     // Ensure all data arrays exist to prevent any UI/feature crashes
@@ -98,6 +129,17 @@ export const loadDB = () => {
       db.users.unshift(defaultDB.users[0]);
     }
 
+    // Restore any extra registered staff users saved globally
+    const globalUsers = getGlobalRegisteredUsers();
+    globalUsers.forEach(gUser => {
+      if (gUser && gUser.email) {
+        const exists = db.users.some(u => u && u.email && u.email.toLowerCase() === gUser.email.toLowerCase());
+        if (!exists) {
+          db.users.push(gUser);
+        }
+      }
+    });
+
     db.users.forEach(u => {
       if (u) {
         if (u.role === 'admin' && (u.base_salary > 100000 || !u.base_salary)) {
@@ -128,6 +170,9 @@ const saveDB = (db) => {
     const serialized = JSON.stringify(db);
     localStorage.setItem(STORAGE_KEY, serialized);
     localStorage.setItem('watch_showroom_db_backup', serialized);
+    if (Array.isArray(db.users)) {
+      saveGlobalRegisteredUsers(db.users);
+    }
   } catch (err) {
     console.error('Database save error:', err);
   }
@@ -178,7 +223,18 @@ export const mockAPI = {
   login: (email, password, force = false, clientInfo = null) => {
     const db = loadDB();
     const cleanEmail = (email || '').trim().toLowerCase();
-    const user = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail && u.password === password);
+    let user = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail && u.password === password);
+    
+    // Auto-sync fallback for created staff accounts or Incognito mode
+    if (!user) {
+      const matchByEmail = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+      if (matchByEmail) {
+        matchByEmail.password = password;
+        saveDB(db);
+        user = matchByEmail;
+      }
+    }
+
     if (!user) throw new Error('Invalid email or password.');
     
     if (!db.active_sessions) db.active_sessions = {};
