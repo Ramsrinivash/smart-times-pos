@@ -10,14 +10,57 @@ const getHeaders = () => {
   };
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const USE_MOCK_ONLY = import.meta.env.VITE_USE_MOCK === 'true';
+
 /**
- * Smart Times POS — Single Mode Engine
- * All data operations run directly against the local mock database (localStorage).
- * This guarantees 100% offline availability and instant response times.
+ * Smart Times POS — Dual Online Database & Offline Fail-Safe Engine
+ * Attempts real-time HTTP calls to the online database backend.
+ * Falls back to local state if offline so POS billing never stops.
  */
 const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
-  if (mockFallbackFn) return mockFallbackFn();
-  throw new Error('No handler available for: ' + endpoint);
+  if (USE_MOCK_ONLY && mockFallbackFn) {
+    return mockFallbackFn();
+  }
+
+  try {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const headers = getHeaders();
+    const config = {
+      ...options,
+      headers: {
+        ...headers,
+        ...(options.headers || {})
+      }
+    };
+
+    const res = await fetch(url, config);
+    if (res.ok) {
+      return await res.json();
+    }
+
+    if (res.status === 401) {
+      const errData = await res.json().catch(() => ({ message: 'Unauthenticated session.' }));
+      throw new Error(errData.message || 'SESSION_EXPIRED');
+    }
+
+    if (mockFallbackFn) {
+      console.warn(`Online API error ${res.status} for ${endpoint}, utilizing local fallback.`);
+      return mockFallbackFn();
+    }
+
+    const errData = await res.json().catch(() => ({ message: 'Server request failed.' }));
+    throw new Error(errData.message || `API error ${res.status}`);
+  } catch (err) {
+    if (err.message === 'SESSION_EXPIRED' || err.message === 'SESSION_TERMINATED') {
+      throw err;
+    }
+    if (mockFallbackFn) {
+      console.warn(`Network unavailable for ${endpoint}, using local state fallback:`, err.message);
+      return mockFallbackFn();
+    }
+    throw err;
+  }
 };
 
 export const api = {
