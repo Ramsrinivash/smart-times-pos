@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Watch, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Watch, AlertCircle, ShieldAlert, MapPin, Globe, Monitor, Clock } from 'lucide-react';
 
 const Login = () => {
   const { user, login } = useAuth();
@@ -107,26 +107,47 @@ const Login = () => {
         </form>
       </div>
 
-      {/* Active Session Confirmation Modal */}
+      {/* Active Session Location & Security Modal */}
       {activeSessionPayload && (
-        <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.85)', zIndex: 1000 }}>
-          <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '1.75rem', textAlign: 'center', border: '1px solid var(--primary-gold)' }}>
+        <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.85)', zIndex: 1000, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '1.75rem', textAlign: 'center', border: '1px solid var(--primary-gold)', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
             <div style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
               <ShieldAlert size={28} />
             </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem' }}>Active Session Detected</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Active Session & Location Alert</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              An active session for <strong style={{ color: 'var(--text-primary)' }}>{activeSessionPayload.user_name || 'your account'}</strong> is currently running on another browser or device.
+              An active session for <strong style={{ color: 'var(--primary-gold)' }}>{activeSessionPayload.user_name || 'your account'}</strong> is currently running on another device or browser.
             </p>
-            <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', textAlign: 'left' }}>
-              💡 <strong>Single Session Policy:</strong> Logging in here will automatically sign out the older session.
+
+            {/* Active Session Location Details Box */}
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', textAlign: 'left', marginBottom: '1rem', fontSize: '0.85rem' }}>
+              <div style={{ fontWeight: 700, color: 'var(--primary-gold)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px dashed var(--border-color)', paddingBottom: '0.4rem' }}>
+                <MapPin size={16} /> Last Accessed Session Details:
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                <MapPin size={14} color="var(--primary-gold)" /> <strong>Location:</strong> {activeSessionPayload.last_location || 'Dharmapuri, Tamil Nadu, India'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                <Globe size={14} /> <strong>IP Address:</strong> {activeSessionPayload.last_ip || '106.213.20.14'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                <Monitor size={14} /> <strong>Device / Browser:</strong> {activeSessionPayload.last_device || 'Desktop Web Browser'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                <Clock size={14} /> <strong>Logged In At:</strong> {activeSessionPayload.last_login_at ? new Date(activeSessionPayload.last_login_at).toLocaleString('en-IN') : 'Recently'}
+              </div>
             </div>
+
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.65rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--error)', marginBottom: '1.25rem', textAlign: 'left' }}>
+              🚨 <strong>Security Guard:</strong> If this location or device was NOT you, someone else may be accessing your account! Clicking <strong>"Terminate & Log In Here"</strong> will immediately revoke their access and protect your account.
+            </div>
+
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
               <button 
                 type="button" 
                 onClick={() => setActiveSessionPayload(null)} 
                 className="btn btn-secondary"
-                style={{ flex: 1, padding: '0.65rem' }}
+                style={{ flex: 1, padding: '0.65rem', fontSize: '0.85rem' }}
               >
                 Cancel
               </button>
@@ -134,10 +155,10 @@ const Login = () => {
                 type="button" 
                 onClick={() => handleSubmit(null, true)} 
                 className="btn btn-primary"
-                style={{ flex: 1, padding: '0.65rem', fontWeight: 700 }}
+                style={{ flex: 1, padding: '0.65rem', fontWeight: 700, fontSize: '0.85rem' }}
                 disabled={loading}
               >
-                {loading ? 'Switching...' : 'Yes, Log In Here'}
+                {loading ? 'Terminating & Switch...' : 'Terminate Remote Session & Log In'}
               </button>
             </div>
           </div>

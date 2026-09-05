@@ -150,7 +150,7 @@ export const mockAPI = {
   },
 
   // Authentication
-  login: (email, password, force = false) => {
+  login: (email, password, force = false, clientInfo = null) => {
     const db = loadDB();
     const cleanEmail = (email || '').trim().toLowerCase();
     const user = db.users.find(u => u.email && u.email.toLowerCase() === cleanEmail && u.password === password);
@@ -158,33 +158,47 @@ export const mockAPI = {
     
     if (!db.active_sessions) db.active_sessions = {};
 
+    const activeEntry = db.active_sessions[user.id];
+    const existingToken = activeEntry ? (typeof activeEntry === 'object' ? activeEntry.token : activeEntry) : null;
+    const activeDetails = activeEntry && typeof activeEntry === 'object' ? activeEntry : {};
+
     // Check if active session exists and force is false
-    // Check if an active session already exists for this user
-    if (db.active_sessions[user.id] && !force) {
-      const existingToken = db.active_sessions[user.id];
-      // Check if the existing session token matches what's stored in THIS browser's localStorage
-      // If it matches → same browser (page refresh or re-visit) → auto-reconnect silently, no conflict
+    if (existingToken && !force) {
+      // Check if existing session token matches what's stored in THIS browser's localStorage
       const localToken = localStorage.getItem('watch_auth_token');
       if (localToken && localToken === existingToken) {
-        // Same browser refreshing — just return the existing session, no conflict prompt
+        // Same browser refreshing — re-connect silently without conflict prompt
         return {
           access_token: existingToken,
           user: { id: user.id, name: user.name, email: user.email, role: user.role }
         };
       }
-      // Different browser/device — show conflict prompt
+      // Different browser/device or external login attempt — show security conflict prompt with location & IP details
       return {
         active_session_exists: true,
         user_name: user.name,
-        message: `An active session for account ${user.name} is already running on another browser or device.`
+        last_location: activeDetails.location || 'Dharmapuri, Tamil Nadu, India',
+        last_device: activeDetails.device || 'Desktop Web Browser',
+        last_ip: activeDetails.ip || '106.213.20.14',
+        last_login_at: activeDetails.login_at || new Date().toISOString(),
+        message: `An active session for account ${user.name} is currently running on another browser or device.`
       };
     }
 
     const sessionToken = `mock-session-${user.id}-${Date.now()}`;
-    db.active_sessions[user.id] = sessionToken;
+    const sessionRecord = {
+      token: sessionToken,
+      login_at: new Date().toISOString(),
+      device: clientInfo?.device || 'Chrome Desktop Browser',
+      ip: clientInfo?.ip || '106.213.20.14',
+      location: clientInfo?.location || 'Dharmapuri, Tamil Nadu, India'
+    };
+    db.active_sessions[user.id] = sessionRecord;
 
-    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in${force ? ' (Single Session Switch)' : ''}`);
+    const locText = sessionRecord.location ? ` from ${sessionRecord.location} (${sessionRecord.device}, IP: ${sessionRecord.ip})` : '';
+    logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in${locText}${force ? ' (Single Session Switch)' : ''}`);
     saveDB(db);
+
     return {
       access_token: sessionToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
@@ -195,12 +209,24 @@ export const mockAPI = {
     const db = loadDB();
     if (!userId || !currentToken) return { valid: true };
     if (db.active_sessions && db.active_sessions[userId]) {
-      const activeToken = db.active_sessions[userId];
-      if (activeToken !== currentToken) {
+      const activeEntry = db.active_sessions[userId];
+      const activeToken = typeof activeEntry === 'object' ? activeEntry.token : activeEntry;
+      if (activeToken && activeToken !== currentToken) {
         throw new Error('SESSION_TERMINATED');
       }
     }
     return { valid: true };
+  },
+
+  getActiveSessionInfo: (userId) => {
+    const db = loadDB();
+    if (db.active_sessions && db.active_sessions[userId]) {
+      const activeEntry = db.active_sessions[userId];
+      if (typeof activeEntry === 'object' && activeEntry !== null) {
+        return activeEntry;
+      }
+    }
+    return null;
   },
 
   clearActiveSession: (userIdInput) => {

@@ -881,23 +881,23 @@ const Sales = () => {
               <div style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Gross Subtotal:</span>
-                  <span>₹{draftPayload.subtotal.toLocaleString()}</span>
+                  <span>₹{Number(draftPayload?.subtotal || 0).toLocaleString()}</span>
                 </div>
-                {draftPayload.totalDiscount > 0 && (
+                {Number(draftPayload?.totalDiscount || 0) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
                     <span>Total Discount:</span>
-                    <span>-₹{draftPayload.totalDiscount.toLocaleString()}</span>
+                    <span>-₹{Number(draftPayload?.totalDiscount || 0).toLocaleString()}</span>
                   </div>
                 )}
-                {draftPayload.round_off_amount !== 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: draftPayload.round_off_amount < 0 ? 'var(--error)' : 'var(--success)', marginBottom: '0.35rem' }}>
+                {Number(draftPayload?.round_off_amount || 0) !== 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: (draftPayload?.round_off_amount || 0) < 0 ? 'var(--error)' : 'var(--success)', marginBottom: '0.35rem' }}>
                     <span>Manual Round Off Adjustment:</span>
-                    <span>{draftPayload.round_off_amount < 0 ? `-₹${Math.abs(draftPayload.round_off_amount)}` : `+₹${draftPayload.round_off_amount}`}</span>
+                    <span>{(draftPayload?.round_off_amount || 0) < 0 ? `-₹${Math.abs(draftPayload?.round_off_amount || 0).toLocaleString()}` : `+₹${Number(draftPayload?.round_off_amount || 0).toLocaleString()}`}</span>
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.5rem', fontWeight: 800, fontSize: '1.2rem', color: 'var(--primary-gold)' }}>
                   <span>Net Amount Due:</span>
-                  <span>₹{draftPayload.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span>₹{Number(draftPayload?.netAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
 

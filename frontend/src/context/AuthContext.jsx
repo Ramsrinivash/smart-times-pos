@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useRef } from 'r
 import { api } from '../services/api';
 import { Clock } from 'lucide-react';
 import { alertService } from '../utils/alert';
+import { getClientSecurityDetails } from '../services/locationService';
 
 const AUTH_USER_KEY = 'watch_auth_user';
 const AUTH_TOKEN_KEY = 'watch_auth_token';
@@ -140,7 +141,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, force = false) => {
     setLoading(true);
     try {
-      const response = await api.login(email, password, force);
+      const clientInfo = await getClientSecurityDetails().catch(() => null);
+      const response = await api.login(email, password, force, clientInfo);
       if (response && response.active_session_exists) {
         return response;
       }
