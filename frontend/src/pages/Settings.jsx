@@ -294,15 +294,99 @@ const Settings = () => {
     });
   };
 
-  const handleExportDB = () => {
-    const dbStr = localStorage.getItem('watch_showroom_db') || '{}';
-    const blob = new Blob([dbStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `smarttimes_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleExportDB = async () => {
+    try {
+      const dump = await api.exportDatabase().catch(() => null);
+      const dataToExport = dump || JSON.parse(localStorage.getItem('watch_showroom_db') || '{}');
+      
+      const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `smarttimes_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      alertService.success('Export Ready', 'Database backup file exported successfully.');
+    } catch (e) {
+      alertService.error('Export Failed', 'Could not export backup: ' + e.message);
+    }
+  };
+
+  const handleImportDB = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const jsonContent = JSON.parse(event.target.result);
+        
+        Swal.fire({
+          title: 'Import Database Backup?',
+          text: `Are you sure you want to import "${file.name}" into your online database? This will update showroom records.`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Yes, Import Backup',
+          cancelButtonText: 'Cancel',
+          confirmButtonColor: 'var(--primary-gold)',
+          cancelButtonColor: 'var(--border-color)',
+          background: 'var(--surface-color)',
+          color: 'var(--text-primary)'
+        }).then(async (result) => {
+          if (result.isConfirmed) {
+            try {
+              await api.importDatabase(jsonContent);
+              alertService.success('Backup Restored', 'Database backup imported successfully!');
+              setTimeout(() => window.location.reload(), 1200);
+            } catch (err) {
+              alertService.error('Import Failed', err.message || 'Could not import backup file.');
+            }
+          }
+        });
+      } catch (err) {
+        alertService.error('Invalid Backup File', 'The selected file is not a valid JSON database backup.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleClearCache = () => {
+    Swal.fire({
+      title: 'Clear Cache & Reload?',
+      text: 'This will purge all local browser caches, service workers, and temporary storage, and perform a clean page reload.',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Clear Cache & Reload',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: 'var(--primary-gold)',
+      cancelButtonColor: 'var(--border-color)',
+      background: 'var(--surface-color)',
+      color: 'var(--text-primary)'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        if ('serviceWorker' in navigator) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let reg of regs) await reg.unregister();
+          } catch (e) {}
+        }
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            for (let key of keys) await caches.delete(key);
+          } catch (e) {}
+        }
+        try {
+          localStorage.removeItem('watch_showroom_db');
+          localStorage.removeItem('watch_showroom_db_backup');
+          localStorage.removeItem('watch_db_version');
+        } catch (e) {}
+
+        alertService.success('Cache Purged', 'Browser cache cleared cleanly. Reloading system...');
+        setTimeout(() => window.location.reload(true), 1000);
+      }
+    });
   };
 
   const handleResetDB = () => {
@@ -317,11 +401,15 @@ const Settings = () => {
       cancelButtonColor: 'var(--border-color)',
       background: 'var(--surface-color)',
       color: 'var(--text-primary)'
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        api.resetDatabase();
-        alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
-        setTimeout(() => window.location.reload(), 1000);
+        try {
+          await api.resetDatabase();
+          alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (err) {
+          alertService.error('Reset Failed', err.message || 'Database reset failed.');
+        }
       }
     });
   };
@@ -840,24 +928,50 @@ const Settings = () => {
 
         {/* Backup & Data */}
         {activeTab === 'backup' && user?.role === 'admin' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '650px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '700px' }}>
+            {/* Backup Export & Import Card */}
             <div className="card">
-              <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Database size={18} /> Backup & Data Export
+              <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-gold)' }}>
+                <Database size={18} /> Backup Export & Import
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                Export the entire showroom database as a JSON file for backup purposes. This backup can be used to restore data if needed.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                Export your entire showroom database as a JSON backup file or import a previously saved JSON backup to restore all customers, inventory, sales, and service jobs.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <button onClick={handleExportDB} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content' }}>
-                  <Database size={15} /> Export Full Database Backup (.json)
+              
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <button onClick={handleExportDB} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <Database size={15} /> Export Full Backup (.json)
                 </button>
-                <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  ⚠️ When connected to the live PHP/MySQL server, this will trigger a server-side backup download including all database tables.
-                </div>
+
+                <label className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
+                  📥 Import Backup (.json)
+                  <input type="file" accept=".json" onChange={handleImportDB} style={{ display: 'none' }} />
+                </label>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                💡 <strong>Backup Tip:</strong> Exporting backups regularly ensures your showroom records can be restored instantly on any device or cloud database.
               </div>
             </div>
 
+            {/* Clear Browser Cache Card */}
+            <div className="card" style={{ border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                <RefreshCw size={18} color="var(--primary-gold)" /> Browser Cache & Update Sync
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                If you ever experience display issues or want to force fetch the latest live system release across your device, click below to clear local caches cleanly.
+              </p>
+              <button 
+                onClick={handleClearCache} 
+                className="btn btn-secondary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+              >
+                🧹 Clear Browser Cache & Force Reload
+              </button>
+            </div>
+
+            {/* Reset Database Card */}
             <div className="card" style={{ border: '1px solid rgba(220, 38, 38, 0.3)' }}>
               <h3 style={{ marginBottom: '1rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Shield size={18} /> Clear Test Data & Reset Database

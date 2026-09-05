@@ -66,13 +66,19 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
 export const api = {
   // Settings
   getSettings: async () => {
-    return requestWithFallback('/settings', {}, () => mockAPI.getSettings());
+    return requestWithFallback('/settings');
   },
   saveSettings: async (data) => {
-    return requestWithFallback('/settings', { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.saveSettings(data));
+    return requestWithFallback('/settings', { method: 'PUT', body: JSON.stringify(data) });
   },
   resetDatabase: async () => {
-    return mockAPI.resetDatabase();
+    return requestWithFallback('/settings/reset-database', { method: 'POST' });
+  },
+  exportDatabase: async () => {
+    return requestWithFallback('/settings/export-database');
+  },
+  importDatabase: async (data) => {
+    return requestWithFallback('/settings/import-database', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Auth

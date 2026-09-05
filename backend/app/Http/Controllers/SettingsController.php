@@ -116,4 +116,91 @@ class SettingsController extends Controller
             ], 500);
         }
     }
+
+    public function exportDatabase(Request $request)
+    {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
+        }
+
+        return response()->json([
+            'settings' => Setting::first(),
+            'users' => \App\Models\User::all(['id', 'name', 'email', 'role', 'base_salary', 'created_at']),
+            'customers' => \App\Models\Customer::all(),
+            'watches' => \App\Models\Watch::all(),
+            'purchases' => \App\Models\Purchase::all(),
+            'sales' => \App\Models\Sale::with('items')->get(),
+            'service_jobs' => \App\Models\ServiceJob::all(),
+            'exchanges' => \App\Models\Exchange::all(),
+            'sales_returns' => \App\Models\SalesReturn::all(),
+            'stock_adjustments' => \App\Models\StockAdjustment::all(),
+            'exported_at' => now()->toISOString()
+        ]);
+    }
+
+    public function importDatabase(Request $request)
+    {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
+        }
+
+        $data = $request->all();
+        if (!$data || !is_array($data)) {
+            return response()->json(['message' => 'Invalid JSON backup data.'], 400);
+        }
+
+        try {
+            \DB::transaction(function() use ($data) {
+                if (isset($data['settings']) && is_array($data['settings'])) {
+                    $setting = Setting::firstOrCreate([]);
+                    $setting->update($data['settings']);
+                }
+
+                if (isset($data['customers']) && is_array($data['customers'])) {
+                    foreach ($data['customers'] as $c) {
+                        if (isset($c['name']) || isset($c['phone'])) {
+                            \App\Models\Customer::updateOrCreate(
+                                ['phone' => $c['phone'] ?? null],
+                                [
+                                    'name' => $c['name'] ?? 'Customer',
+                                    'email' => $c['email'] ?? null,
+                                    'points_balance' => $c['points_balance'] ?? 0
+                                ]
+                            );
+                        }
+                    }
+                }
+
+                if (isset($data['watches']) && is_array($data['watches'])) {
+                    foreach ($data['watches'] as $w) {
+                        if (isset($w['id']) || isset($w['brand'])) {
+                            \App\Models\Watch::updateOrCreate(
+                                ['id' => $w['id'] ?? null],
+                                [
+                                    'brand' => $w['brand'] ?? 'Watch',
+                                    'model' => $w['model'] ?? '',
+                                    'gender' => $w['gender'] ?? 'Unisex',
+                                    'mrp' => $w['mrp'] ?? 0,
+                                    'selling_price' => $w['selling_price'] ?? 0,
+                                    'cost_price' => $w['cost_price'] ?? 0,
+                                    'stock_quantity' => $w['stock_quantity'] ?? 1,
+                                    'status' => $w['status'] ?? 'in_stock'
+                                ]
+                            );
+                        }
+                    }
+                }
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Database backup imported successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Import failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
