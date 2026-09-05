@@ -59,4 +59,61 @@ class SettingsController extends Controller
             'settings' => $setting
         ]);
     }
+
+    public function resetDatabase(Request $request)
+    {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
+        }
+
+        try {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            
+            // Truncate all transaction and data tables
+            \DB::table('sale_items')->truncate();
+            \DB::table('sales')->truncate();
+            \DB::table('sales_returns')->truncate();
+            \DB::table('exchanges')->truncate();
+            \DB::table('service_jobs')->truncate();
+            \DB::table('purchases')->truncate();
+            \DB::table('watches')->truncate();
+            \DB::table('stock_adjustments')->truncate();
+            \DB::table('warranty_cards')->truncate();
+            \DB::table('customers')->truncate();
+            \DB::table('loyalty_ledgers')->truncate();
+            \DB::table('activity_logs')->truncate();
+            \DB::table('attendance')->truncate();
+            \DB::table('payrolls')->truncate();
+
+            // Delete non-admin staff users
+            \DB::table('users')->where('role', '!=', 'admin')->delete();
+
+            // Ensure primary admin account exists
+            $adminExists = \DB::table('users')->where('role', 'admin')->exists();
+            if (!$adminExists) {
+                \DB::table('users')->insert([
+                    'name' => 'Ram Srinivash (Admin)',
+                    'email' => 'admin@smarttimes.in',
+                    'password' => \Hash::make('admin123'),
+                    'role' => 'admin',
+                    'base_salary' => 30000,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Database successfully wiped clean! Only primary Admin account remains.'
+            ]);
+        } catch (\Exception $e) {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Database reset failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -167,6 +167,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings Routes
     Route::get('/settings', [SettingsController::class, 'show']);
     Route::put('/settings', [SettingsController::class, 'update']);
+    Route::post('/settings/reset-database', [SettingsController::class, 'resetDatabase'])->middleware('role:admin');
 
     // Warranty Card routes
     Route::get('/warranty', [WarrantyCardController::class, 'index']);
