@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
-import { mockAPI } from '../services/mockData';
 import { useLocation } from 'react-router-dom';
 import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle, RefreshCw, MapPin, Globe, Monitor, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -130,29 +129,33 @@ const Settings = () => {
           setExpiryMonths(s.loyalty_expiry_months || 12);
           setJobCardTerms(s.job_card_terms || '');
         }
-      } catch (err) {
-        console.error('Settings load error:', err);
+      } catch (e) {
+        console.error('Failed to load settings:', e);
       }
     };
-
-    const loadUsers = async () => {
-      if (user?.role === 'admin') {
-        const u = await api.getUsers();
-        setUsers(u);
-      }
-    };
-
-    const loadLogs = async () => {
-      if (user?.role === 'admin') {
-        const logs = await api.getActivityLogs();
-        setActivityLogs(logs.slice(0, 50));
-      }
-    };
-
     loadSettings();
-    loadUsers();
-    loadLogs();
-  }, [user]);
+  }, []);
+
+  const refreshUsersAndLogs = async () => {
+    try {
+      const apiUsers = await api.getUsers();
+      if (Array.isArray(apiUsers)) {
+        setUsers(apiUsers);
+      }
+      const apiLogs = await api.getActivityLogs();
+      if (Array.isArray(apiLogs)) {
+        setActivityLogs(apiLogs.slice(0, 50));
+      }
+    } catch (e) {
+      console.error('Refresh users/logs error:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (['users', 'activity'].includes(activeTab) && user?.role === 'admin') {
+      refreshUsersAndLogs();
+    }
+  }, [activeTab, user?.role]);
 
   useEffect(() => {
     if (user) {
@@ -178,37 +181,6 @@ const Settings = () => {
     }
   };
 
-  const refreshUsersAndLogs = async () => {
-    try {
-      let combinedUsers = mockAPI.getUsers() || [];
-      try {
-        const apiUsers = await api.getUsers();
-        if (Array.isArray(apiUsers) && apiUsers.length > 0) {
-          const emailMap = new Map();
-          combinedUsers.forEach(u => u.email && emailMap.set(u.email.toLowerCase(), u));
-          apiUsers.forEach(u => u.email && emailMap.set(u.email.toLowerCase(), u));
-          combinedUsers = Array.from(emailMap.values());
-        }
-      } catch (e) {
-        console.warn('API users fetch note:', e);
-      }
-      setUsers(combinedUsers);
-
-      let combinedLogs = mockAPI.getActivityLogs() || [];
-      try {
-        const apiLogs = await api.getActivityLogs();
-        if (Array.isArray(apiLogs) && apiLogs.length > 0) {
-          combinedLogs = [...apiLogs, ...combinedLogs];
-        }
-      } catch (e) {
-        console.warn('API logs fetch note:', e);
-      }
-      setActivityLogs(combinedLogs.slice(0, 50));
-    } catch (e) {
-      console.error('Refresh users/logs error:', e);
-    }
-  };
-
   const handleUpdateStaff = async (e) => {
     e.preventDefault();
     try {
@@ -222,8 +194,7 @@ const Settings = () => {
       if (newStaffPassword) {
         payload.password = newStaffPassword;
       }
-      try { mockAPI.updateUser(editingUser.id, payload, user?.id); } catch (e) {}
-      try { await api.updateUser(editingUser.id, payload); } catch (e) {}
+      await api.updateUser(editingUser.id, payload);
 
       alertService.success('Salary & Account Updated', `Updated user "${editingName}" — New Salary: ₹${salaryNum.toLocaleString('en-IN')}/mo.`);
       setEditingUser(null);
@@ -233,7 +204,7 @@ const Settings = () => {
       setNewStaffSalary('');
       await refreshUsersAndLogs();
     } catch (err) {
-      alertService.error('Error', 'Failed to update staff details: ' + err.message);
+      alertService.error('Error', 'Failed to update staff details: ' + (err.message || err));
     }
   };
 

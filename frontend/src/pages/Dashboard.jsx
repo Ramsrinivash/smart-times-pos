@@ -69,16 +69,16 @@ const Dashboard = () => {
       <Header searchPlaceholder="Search dashboard..." />
       <div className="page-container">
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
           <div>
-            <h1 className="page-title">Welcome back, {user?.name || 'User'}</h1>
-            <p className="page-subtitle">Showroom performance overview for today.</p>
+            <h1 className="page-title" style={{ margin: 0 }}>Welcome back, {user?.name || 'User'}</h1>
+            <p className="page-subtitle" style={{ margin: '0.25rem 0 0 0' }}>Showroom performance overview for today.</p>
           </div>
           {installAvailable && !pwaInstall.isInstalled() && (
             <button
               onClick={handleInstall}
               className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 1rem', height: 'fit-content', flexShrink: 0 }}
               title="Install Smart Times as a desktop app"
             >
               <Download size={16} />
