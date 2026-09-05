@@ -95,6 +95,7 @@ const ServiceRepair = () => {
   const safeJobs = Array.isArray(jobs) ? jobs : [];
   const deliveredCount = safeJobs.filter(j => j?.status === 'delivered').length;
   const todayStr = new Date().toLocaleDateString('en-CA');
+  const pendingRepairCount = safeJobs.filter(j => j?.status === 'received' || j?.status === 'in_repair').length;
   const readyTodayCount = safeJobs.filter(j => j?.status !== 'delivered' && j?.expected_delivery_date === todayStr).length;
   const overdueCount = safeJobs.filter(j => j?.status !== 'delivered' && j?.expected_delivery_date && j?.expected_delivery_date < todayStr).length;
   const totalReadyCount = safeJobs.filter(j => j?.status === 'ready').length;
@@ -317,7 +318,18 @@ const ServiceRepair = () => {
         <p className="page-subtitle">Generate Job Cards and track repair progress.</p>
 
         {/* Statistics Panels */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* Top Service Metrics Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
+            <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+              <ClipboardList size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Pending Repair Jobs</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-gold)' }}>{pendingRepairCount}</div>
+            </div>
+          </div>
+
           <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
             <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', color: 'var(--success)' }}>
               <Wrench size={22} />
@@ -327,6 +339,7 @@ const ServiceRepair = () => {
               <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{readyTodayCount}</div>
             </div>
           </div>
+
           <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
             <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', color: 'var(--error)' }}>
               <Calendar size={22} />
@@ -336,6 +349,7 @@ const ServiceRepair = () => {
               <div style={{ fontSize: '1.25rem', fontWeight: 700, color: overdueCount > 0 ? 'var(--error)' : 'var(--text-primary)' }}>{overdueCount}</div>
             </div>
           </div>
+
           <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
             <div style={{ padding: '0.6rem', borderRadius: '50%', background: 'rgba(212,175,55,0.15)', color: 'var(--primary-gold)' }}>
               <CheckCircle size={22} />
