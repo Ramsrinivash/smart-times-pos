@@ -21,10 +21,7 @@ const defaultDB = {
     logo_url: null
   },
   users: [
-    { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' },
-    { id: 2, name: 'Store Manager', email: 'manager@smarttimes.in', password: 'manager123', role: 'manager', base_salary: 28000, created_at: '2026-07-01' },
-    { id: 3, name: 'Sales Counter', email: 'sales@smarttimes.in', password: 'sales123', role: 'sales', base_salary: 22000, created_at: '2026-07-01' },
-    { id: 4, name: 'Suresh', email: 'suresh@smarttimes.in', password: 'suresh123', role: 'sales', base_salary: 25000, created_at: '2026-08-01' }
+    { id: 1, name: 'Ram Srinivash (Admin)', email: 'admin@smarttimes.in', password: 'admin123', role: 'admin', base_salary: 30000, created_at: '2026-07-01' }
   ],
   activity_logs: [],
   customers: [],
@@ -44,7 +41,7 @@ const defaultDB = {
 
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-  localStorage.setItem('watch_db_version', 'v3_zero_customers');
+  localStorage.setItem('watch_db_version', 'v4_clean_users');
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
@@ -52,7 +49,7 @@ export const loadDB = () => {
   try {
     const version = localStorage.getItem('watch_db_version');
     const data = localStorage.getItem(STORAGE_KEY);
-    if (!data || version !== 'v3_zero_customers') {
+    if (!data || version !== 'v4_clean_users') {
       return resetDatabase();
     }
     const db = JSON.parse(data);
@@ -72,14 +69,12 @@ export const loadDB = () => {
       db.settings.email = defaultDB.settings.email;
     }
 
-    // Ensure default staff accounts are present
+    // Ensure primary admin account is present
     if (db.users && Array.isArray(db.users)) {
-      defaultDB.users.forEach(defaultUser => {
-        const existing = db.users.find(u => u && u.email && u.email.toLowerCase() === defaultUser.email.toLowerCase());
-        if (!existing) {
-          db.users.push(defaultUser);
-        }
-      });
+      const hasAdmin = db.users.some(u => u && u.role === 'admin');
+      if (!hasAdmin) {
+        db.users.unshift(defaultDB.users[0]);
+      }
 
       db.users.forEach(u => {
         if (u) {
