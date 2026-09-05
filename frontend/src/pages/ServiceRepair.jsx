@@ -183,7 +183,7 @@ const ServiceRepair = () => {
       const freshJobs = await api.getServiceJobs();
       setJobs(freshJobs);
       const matched = freshJobs.find(j => j.id === createdJobs[0].id);
-      setSelectedJobForCard(matched || createdJobs[0]);
+      handleOpenJobCardModal(matched || createdJobs[0]);
 
       // Reset form
       setCustName('');
