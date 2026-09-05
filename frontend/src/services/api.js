@@ -1,4 +1,3 @@
-import { mockAPI } from './mockData';
 import { syncQueue } from '../utils/syncQueue';
 
 const getHeaders = () => {
@@ -11,19 +10,13 @@ const getHeaders = () => {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-const USE_MOCK_ONLY = import.meta.env.VITE_USE_MOCK === 'true';
 
 /**
- * Smart Times POS — Dual Online Database & Offline Fail-Safe Engine
- * Attempts real-time HTTP calls to the online database backend.
- * Falls back to local state if offline so POS billing never stops.
+ * Smart Times POS — Central Online Database Server Connection
+ * Sends all API requests directly to the online server database (Laravel Backend).
+ * Ensures zero data loss and persistent server storage across all devices.
  */
-const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
-  // If explicitly configured for local mock testing only, use mock fallback
-  if (USE_MOCK_ONLY && mockFallbackFn) {
-    return mockFallbackFn();
-  }
-
+const sendOnlineRequest = async (endpoint, options = {}) => {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = getHeaders();
@@ -51,230 +44,212 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
     if (err.message === 'SESSION_EXPIRED' || err.message === 'SESSION_TERMINATED') {
       throw err;
     }
-    // Only fall back to local mock if VITE_USE_MOCK is explicitly true
-    if (USE_MOCK_ONLY && mockFallbackFn) {
-      console.warn(`Network unavailable for ${endpoint}, using local state fallback:`, err.message);
-      return mockFallbackFn();
-    }
-    // Otherwise throw explicit Central Online Database Connection error
-    throw new Error(err.message || `Unable to reach Central Online Database at ${API_BASE_URL}`);
+    throw new Error(err.message || `Unable to connect to Central Online Database Server at ${API_BASE_URL}`);
   }
 };
 
 export const api = {
   // Settings
   getSettings: async () => {
-    return requestWithFallback('/settings');
+    return sendOnlineRequest('/settings');
   },
   saveSettings: async (data) => {
-    return requestWithFallback('/settings', { method: 'PUT', body: JSON.stringify(data) });
+    return sendOnlineRequest('/settings', { method: 'PUT', body: JSON.stringify(data) });
   },
   resetDatabase: async () => {
-    return requestWithFallback('/settings/reset-database', { method: 'POST' });
+    return sendOnlineRequest('/settings/reset-database', { method: 'POST' });
   },
   exportDatabase: async () => {
-    return requestWithFallback('/settings/export-database');
+    return sendOnlineRequest('/settings/export-database');
   },
   importDatabase: async (data) => {
-    return requestWithFallback('/settings/import-database', { method: 'POST', body: JSON.stringify(data) });
+    return sendOnlineRequest('/settings/import-database', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Auth
   login: async (email, password, force = false, clientInfo = null) => {
-    return requestWithFallback('/login', { method: 'POST', body: JSON.stringify({ email, password, force, clientInfo }) }, () => mockAPI.login(email, password, force, clientInfo));
+    return sendOnlineRequest('/login', { method: 'POST', body: JSON.stringify({ email, password, force, clientInfo }) });
   },
   checkSession: async (userId, token) => {
-    return requestWithFallback('/me', {}, () => mockAPI.verifyActiveSession(userId, token));
+    return sendOnlineRequest('/me');
   },
   getActiveSessionInfo: async (userId) => {
-    return requestWithFallback('/me/session', {}, () => mockAPI.getActiveSessionInfo(userId));
+    return sendOnlineRequest('/me/session');
   },
   logout: async (userId) => {
     try {
-      await requestWithFallback('/logout', { method: 'POST' }, () => mockAPI.clearActiveSession(userId));
+      await sendOnlineRequest('/logout', { method: 'POST' });
     } catch (e) { /* ignore logout errors */ }
   },
 
   // Users
   getUsers: async () => {
-    return requestWithFallback('/users', {}, () => mockAPI.getUsers());
+    return sendOnlineRequest('/users');
   },
   addUser: async (data) => {
-    return requestWithFallback('/users', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addUser(data));
+    return sendOnlineRequest('/users', { method: 'POST', body: JSON.stringify(data) });
   },
   updateUser: async (id, data) => {
-    return requestWithFallback(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateUser(id, data));
+    return sendOnlineRequest(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
   deleteUser: async (id) => {
-    return requestWithFallback(`/users/${id}`, { method: 'DELETE' }, () => mockAPI.deleteUser(id));
+    return sendOnlineRequest(`/users/${id}`, { method: 'DELETE' });
   },
   getActivityLogs: async () => {
-    return requestWithFallback('/activity-logs', {}, () => mockAPI.getActivityLogs());
+    return sendOnlineRequest('/activity-logs');
   },
 
   // Attendance & Payroll
   getAttendance: async (date = '') => {
-    return requestWithFallback(`/attendance?date=${encodeURIComponent(date)}`, {}, () => mockAPI.getAttendance(date));
+    return sendOnlineRequest(`/attendance?date=${encodeURIComponent(date)}`);
   },
   saveAttendance: async (date, records) => {
-    return requestWithFallback('/attendance', { method: 'POST', body: JSON.stringify({ date, records }) }, () => mockAPI.saveAttendance(date, records));
+    return sendOnlineRequest('/attendance', { method: 'POST', body: JSON.stringify({ date, records }) });
   },
   getMonthlyAttendanceMatrix: async (month, year) => {
-    return requestWithFallback(`/attendance/matrix?month=${month}&year=${year}`, {}, () => mockAPI.getMonthlyAttendanceMatrix(month, year));
+    return sendOnlineRequest(`/attendance/matrix?month=${month}&year=${year}`);
   },
   saveSingleAttendance: async (data) => {
-    return requestWithFallback('/attendance/single', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.saveSingleAttendance(data));
+    return sendOnlineRequest('/attendance/single', { method: 'POST', body: JSON.stringify(data) });
   },
   getPayroll: async (month, year) => {
-    return requestWithFallback(`/payroll?month=${month}&year=${year}`, {}, () => mockAPI.getPayroll(month, year));
+    return sendOnlineRequest(`/payroll?month=${month}&year=${year}`);
   },
   paySalary: async (data) => {
-    return requestWithFallback('/payroll/pay', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.paySalary(data));
+    return sendOnlineRequest('/payroll/pay', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Customers
   getCustomers: async (search = '') => {
-    return requestWithFallback(`/customers?search=${encodeURIComponent(search)}`, {}, () => mockAPI.getCustomers(search));
+    return sendOnlineRequest(`/customers?search=${encodeURIComponent(search)}`);
   },
   addCustomer: async (data) => {
-    return requestWithFallback('/customers', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addCustomer(data));
+    return sendOnlineRequest('/customers', { method: 'POST', body: JSON.stringify(data) });
   },
   updateCustomer: async (id, data) => {
-    return requestWithFallback(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateCustomer(id, data));
+    return sendOnlineRequest(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
   getCustomerHistory: async (id) => {
-    return requestWithFallback(`/customers/${id}/history`, {}, () => mockAPI.getCustomerHistory(id));
+    return sendOnlineRequest(`/customers/${id}/history`);
   },
 
   // Inventory
   getInventory: async (search = '', status = '') => {
-    return requestWithFallback(`/inventory?search=${encodeURIComponent(search)}&status=${status}`, {}, () => mockAPI.getInventory(search, status));
+    return sendOnlineRequest(`/inventory?search=${encodeURIComponent(search)}&status=${status}`);
   },
   updateWatch: async (watchId, data) => {
-    return requestWithFallback(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateWatch(watchId, data));
+    return sendOnlineRequest(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) });
   },
 
   // Purchases
   getPurchases: async () => {
-    return requestWithFallback('/purchase/ledger', {}, () => mockAPI.getPurchases());
+    return sendOnlineRequest('/purchase/ledger');
   },
   addPurchase: async (data) => {
-    if (!navigator.onLine) {
-      syncQueue.add('addPurchase', data);
-      return { queued: true, message: 'Offline: Purchase queued for sync when online.' };
-    }
-    return requestWithFallback('/purchase', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addPurchase(data));
+    return sendOnlineRequest('/purchase', { method: 'POST', body: JSON.stringify(data) });
   },
   updatePurchasePayment: async (id, paymentStatus) => {
-    return requestWithFallback(`/purchase/${id}/payment`, { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus }) }, () => mockAPI.updatePurchasePayment(id, paymentStatus));
+    return sendOnlineRequest(`/purchase/${id}/payment`, { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus }) });
   },
 
   // Sales
   getSales: async (search = '') => {
-    return requestWithFallback(`/sales?search=${encodeURIComponent(search)}`, {}, () => mockAPI.getSales(search));
+    return sendOnlineRequest(`/sales?search=${encodeURIComponent(search)}`);
   },
   getSale: async (id) => {
-    return requestWithFallback(`/sales/${id}`, {}, () => mockAPI.getSale(id));
+    return sendOnlineRequest(`/sales/${id}`);
   },
   addSale: async (data) => {
-    if (!navigator.onLine) {
-      syncQueue.add('addSale', data);
-      return { queued: true, message: 'Offline: Sale queued for sync when online.' };
-    }
-    return requestWithFallback('/sales', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addSale(data));
+    return sendOnlineRequest('/sales', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Exchanges
   getExchanges: async () => {
-    return requestWithFallback('/exchanges', {}, () => mockAPI.getExchanges());
+    return sendOnlineRequest('/exchanges');
   },
   addExchange: async (data) => {
-    return requestWithFallback('/exchanges', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addExchange(data));
+    return sendOnlineRequest('/exchanges', { method: 'POST', body: JSON.stringify(data) });
   },
   approveExchangeReview: async (id, status) => {
-    return requestWithFallback(`/exchanges/${id}/approve`, { method: 'POST', body: JSON.stringify({ status }) }, () => mockAPI.approveExchangeReview(id, status));
+    return sendOnlineRequest(`/exchanges/${id}/approve`, { method: 'POST', body: JSON.stringify({ status }) });
   },
 
   // Services
   getServiceJobs: async (search = '', status = '') => {
-    return requestWithFallback(`/services?search=${encodeURIComponent(search)}&status=${status}`, {}, () => mockAPI.getServiceJobs(search, status));
+    return sendOnlineRequest(`/services?search=${encodeURIComponent(search)}&status=${status}`);
   },
   addServiceJob: async (data) => {
-    if (!navigator.onLine) {
-      syncQueue.add('addServiceJob', data);
-      return { queued: true, message: 'Offline: Service job queued for sync when online.' };
-    }
-    return requestWithFallback('/services', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addServiceJob(data));
+    return sendOnlineRequest('/services', { method: 'POST', body: JSON.stringify(data) });
   },
   updateServiceJobStatus: async (id, status, actualCost = null) => {
-    return requestWithFallback(`/services/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, actual_cost: actualCost }) }, () => mockAPI.updateServiceJobStatus(id, status, actualCost));
+    return sendOnlineRequest(`/services/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, actual_cost: actualCost }) });
   },
 
   // Dashboard
   getDashboardStats: async (role = 'sales') => {
-    return requestWithFallback('/dashboard', {}, () => mockAPI.getDashboardStats(role));
+    return sendOnlineRequest('/dashboard');
   },
 
   // Reports
   getStockValuation: async () => {
-    return requestWithFallback('/reports/stock-valuation', {}, () => mockAPI.getStockValuation());
+    return sendOnlineRequest('/reports/stock-valuation');
   },
   getSalesReport: async (startDate, endDate) => {
-    return requestWithFallback(`/reports/sales?start_date=${startDate || ''}&end_date=${endDate || ''}`, {}, () => mockAPI.getSalesReport(startDate, endDate));
+    return sendOnlineRequest(`/reports/sales?start_date=${startDate || ''}&end_date=${endDate || ''}`);
   },
   getProfitReport: async (startDate, endDate) => {
-    return requestWithFallback(`/reports/profit?start_date=${startDate || ''}&end_date=${endDate || ''}`, {}, () => mockAPI.getProfitReport(startDate, endDate));
+    return sendOnlineRequest(`/reports/profit?start_date=${startDate || ''}&end_date=${endDate || ''}`);
   },
   getExchangeReport: async () => {
-    return requestWithFallback('/reports/exchanges', {}, () => mockAPI.getExchangeReport());
+    return sendOnlineRequest('/reports/exchanges');
   },
   getLoyaltyReport: async () => {
-    return requestWithFallback('/reports/loyalty', {}, () => mockAPI.getLoyaltyReport());
+    return sendOnlineRequest('/reports/loyalty');
   },
   getPendingServiceReport: async () => {
-    return requestWithFallback('/reports/services-pending', {}, () => mockAPI.getPendingServiceReport());
+    return sendOnlineRequest('/reports/services-pending');
   },
   getSupplierDuesReport: async () => {
-    return requestWithFallback('/reports/supplier-dues', {}, () => mockAPI.getSupplierDuesReport());
+    return sendOnlineRequest('/reports/supplier-dues');
   },
   getGstReport: async (month, year) => {
-    return requestWithFallback(`/reports/gst?month=${month}&year=${year}`, {}, () => mockAPI.getGstReport(month, year));
+    return sendOnlineRequest(`/reports/gst?month=${month}&year=${year}`);
   },
   getPurchaseLedger: async () => {
-    return requestWithFallback('/reports/purchase-ledger', {}, () => mockAPI.getPurchaseLedger());
+    return sendOnlineRequest('/reports/purchase-ledger');
   },
 
   // Sales Returns
   getSalesReturns: async () => {
-    return requestWithFallback('/returns', {}, () => mockAPI.getSalesReturns());
+    return sendOnlineRequest('/returns');
   },
   addSalesReturn: async (data) => {
-    return requestWithFallback('/returns', { method: 'POST', body: JSON.stringify(data) }, () => mockAPI.addSalesReturn(data));
+    return sendOnlineRequest('/returns', { method: 'POST', body: JSON.stringify(data) });
   },
 
   // Warranty Cards
   getWarrantyCards: async (search = '', statusFilter = 'all') => {
-    return requestWithFallback(`/warranty?search=${encodeURIComponent(search)}&status=${statusFilter}`, {}, () => mockAPI.getWarrantyCards(search, statusFilter));
+    return sendOnlineRequest(`/warranty?search=${encodeURIComponent(search)}&status=${statusFilter}`);
   },
 
   // Stock Adjustment Log
   getStockAdjustmentLogs: async () => {
-    return requestWithFallback('/inventory/adjustments', {}, () => mockAPI.getStockAdjustmentLogs());
+    return sendOnlineRequest('/inventory/adjustments');
   },
   adjustStock: async (watchId, status, reason, remarks) => {
-    return requestWithFallback('/inventory/adjust', { method: 'POST', body: JSON.stringify({ watch_id: watchId, status, reason, remarks }) }, () => mockAPI.adjustStockWithLog(watchId, status, reason, remarks));
+    return sendOnlineRequest('/inventory/adjust', { method: 'POST', body: JSON.stringify({ watch_id: watchId, status, reason, remarks }) });
   },
 
   // Service Billing
   addServiceBill: async (jobId, actualCost, paymentMode, invoiceType = 'non-gst') => {
-    return requestWithFallback('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode, invoice_type: invoiceType }) }, () => mockAPI.addServiceBill(jobId, actualCost, paymentMode));
+    return sendOnlineRequest('/services/bill', { method: 'POST', body: JSON.stringify({ job_id: jobId, actual_cost: actualCost, payment_mode: paymentMode, invoice_type: invoiceType }) });
   },
 
   // Watch Image Upload
   uploadWatchImages: async (watchId, base64Array) => {
-    return requestWithFallback('/inventory/images', { method: 'POST', body: JSON.stringify({ watch_id: watchId, images: base64Array }) }, () => mockAPI.uploadWatchImages(watchId, base64Array));
+    return sendOnlineRequest('/inventory/images', { method: 'POST', body: JSON.stringify({ watch_id: watchId, images: base64Array }) });
   },
   removeWatchImage: async (watchId, index) => {
-    return requestWithFallback(`/inventory/${encodeURIComponent(watchId)}/images/${index}`, { method: 'DELETE' }, () => mockAPI.removeWatchImage(watchId, index));
+    return sendOnlineRequest(`/inventory/${encodeURIComponent(watchId)}/images/${index}`, { method: 'DELETE' });
   }
 };
