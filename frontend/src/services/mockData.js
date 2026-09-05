@@ -67,10 +67,33 @@ const saveGlobalRegisteredUsers = (usersList) => {
   } catch (e) {}
 };
 
+const GLOBAL_SESSIONS_KEY = 'watch_global_active_sessions';
+
+const getGlobalActiveSessions = () => {
+  try {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + GLOBAL_SESSIONS_KEY + '=([^;]*)'));
+    if (match && match[1]) {
+      return JSON.parse(decodeURIComponent(match[1]));
+    }
+    const local = localStorage.getItem(GLOBAL_SESSIONS_KEY);
+    if (local) return JSON.parse(local);
+  } catch (e) {}
+  return {};
+};
+
+const saveGlobalActiveSessions = (sessionsObj) => {
+  try {
+    const serialized = JSON.stringify(sessionsObj || {});
+    localStorage.setItem(GLOBAL_SESSIONS_KEY, serialized);
+    document.cookie = `${GLOBAL_SESSIONS_KEY}=${encodeURIComponent(serialized)}; path=/; max-age=86400; SameSite=Lax`;
+  } catch (e) {}
+};
+
 export const resetDatabase = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
   localStorage.setItem('watch_showroom_db_backup', JSON.stringify(defaultDB));
   saveGlobalRegisteredUsers(defaultDB.users);
+  saveGlobalActiveSessions({});
   return JSON.parse(JSON.stringify(defaultDB));
 };
 
@@ -238,8 +261,9 @@ export const mockAPI = {
     if (!user) throw new Error('Invalid email or password.');
     
     if (!db.active_sessions) db.active_sessions = {};
+    const globalSessions = getGlobalActiveSessions();
 
-    const activeEntry = db.active_sessions[user.id];
+    const activeEntry = db.active_sessions[user.id] || globalSessions[user.id];
     const existingToken = activeEntry ? (typeof activeEntry === 'object' ? activeEntry.token : activeEntry) : null;
     const activeDetails = activeEntry && typeof activeEntry === 'object' ? activeEntry : {};
 
@@ -275,6 +299,7 @@ export const mockAPI = {
       location: clientInfo?.location || 'Dharmapuri, Tamil Nadu, India'
     };
     db.active_sessions[user.id] = sessionRecord;
+    saveGlobalActiveSessions(db.active_sessions);
 
     const locText = sessionRecord.location ? ` from ${sessionRecord.location} (${sessionRecord.device}, IP: ${sessionRecord.ip})` : '';
     logActivity(db, user.id, 'LOGIN', 'Auth', `User ${user.name} logged in${locText}${force ? ' (Single Session Switch)' : ''}`);
@@ -316,6 +341,11 @@ export const mockAPI = {
     if (db && db.active_sessions && db.active_sessions[userIdInput]) {
       delete db.active_sessions[userIdInput];
       saveDB(db);
+    }
+    const globalSessions = getGlobalActiveSessions();
+    if (globalSessions && globalSessions[userIdInput]) {
+      delete globalSessions[userIdInput];
+      saveGlobalActiveSessions(globalSessions);
     }
   },
 
