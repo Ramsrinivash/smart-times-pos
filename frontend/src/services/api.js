@@ -19,6 +19,7 @@ const USE_MOCK_ONLY = import.meta.env.VITE_USE_MOCK === 'true';
  * Falls back to local state if offline so POS billing never stops.
  */
 const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
+  // If explicitly configured for local mock testing only, use mock fallback
   if (USE_MOCK_ONLY && mockFallbackFn) {
     return mockFallbackFn();
   }
@@ -44,22 +45,19 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
       throw new Error(errData.message || 'SESSION_EXPIRED');
     }
 
-    if (mockFallbackFn) {
-      console.warn(`Online API error ${res.status} for ${endpoint}, utilizing local fallback.`);
-      return mockFallbackFn();
-    }
-
     const errData = await res.json().catch(() => ({ message: 'Server request failed.' }));
     throw new Error(errData.message || `API error ${res.status}`);
   } catch (err) {
     if (err.message === 'SESSION_EXPIRED' || err.message === 'SESSION_TERMINATED') {
       throw err;
     }
-    if (mockFallbackFn) {
+    // Only fall back to local mock if VITE_USE_MOCK is explicitly true
+    if (USE_MOCK_ONLY && mockFallbackFn) {
       console.warn(`Network unavailable for ${endpoint}, using local state fallback:`, err.message);
       return mockFallbackFn();
     }
-    throw err;
+    // Otherwise throw explicit Central Online Database Connection error
+    throw new Error(err.message || `Unable to reach Central Online Database at ${API_BASE_URL}`);
   }
 };
 
