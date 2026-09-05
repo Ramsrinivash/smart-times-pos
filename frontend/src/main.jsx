@@ -3,13 +3,20 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Register PWA Service Worker for offline support + Chrome install prompt
+// Auto-purge stale Service Worker caches to guarantee immediate deployment updates
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((reg) => console.log('[SW] Registered, scope:', reg.scope))
-      .catch((err) => console.warn('[SW] Registration failed:', err));
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let registration of registrations) {
+      registration.unregister();
+    }
+  });
+}
+
+if ('caches' in window) {
+  caches.keys().then(names => {
+    for (let name of names) {
+      caches.delete(name);
+    }
   });
 }
 
