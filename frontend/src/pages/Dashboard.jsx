@@ -178,8 +178,8 @@ const Dashboard = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <span className="card-title">Supplier Dues</span>
-                  <h2 className="card-value" style={{ color: (stats?.pending_supplier_payments_sum || 0) > 0 ? 'var(--warning)' : 'inherit' }}>
-                    ₹{(stats?.pending_supplier_payments_sum || 0).toLocaleString('en-IN')}
+                  <h2 className="card-value" style={{ color: (stats?.pending_supplier_payments_sum || stats?.pending_payments_sum || 0) > 0 ? 'var(--warning)' : 'inherit' }}>
+                    ₹{(stats?.pending_supplier_payments_sum ?? stats?.pending_payments_sum ?? 0).toLocaleString('en-IN')}
                   </h2>
                 </div>
                 <div style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
@@ -187,7 +187,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="card-footer">
-                <span>{stats?.pending_supplier_payments_count || 0} purchase(s) pending payment → click to settle</span>
+                <span>{stats?.pending_supplier_payments_count ?? stats?.pending_payments_count ?? 0} purchase(s) pending payment → click to settle</span>
               </div>
             </div>
           )}

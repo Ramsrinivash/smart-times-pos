@@ -1097,21 +1097,25 @@ export const mockAPI = {
       total_sales_count: totalSalesCount,
       total_sales_sum: totalSalesSum,
       active_jobs_count: jobsActive,
+      jobs_active: jobsActive,
       jobs_due_today: jobsDueToday,
       jobs_overdue: jobsOverdue,
       jobs_ready: jobsReady,
       pending_payments_count: pendingPaymentsCount,
       pending_payments_sum: pendingPaymentsSum,
+      pending_supplier_payments_count: pendingPaymentsCount,
+      pending_supplier_payments_sum: pendingPaymentsSum,
       outstanding_dues_total: outstandingDuesTotal,
       outstanding_dues_count: outstandingDuesCount,
       profit_today: profitSnapshot,
       profit_month: monthProfitSnapshot,
       profit_total: totalProfitSnapshot,
-      low_stock_alerts: lowStockAlerts,
-      birthdays_today: birthdaysToday,
       profit_snapshot: profitSnapshot,
       month_profit_snapshot: monthProfitSnapshot,
-      total_profit_snapshot: totalProfitSnapshot
+      total_profit_snapshot: totalProfitSnapshot,
+      low_stock_alerts: lowStockAlerts,
+      birthdays_today: birthdaysToday,
+      upcoming_birthdays: upcomingBirthdays
     };
   },
 
