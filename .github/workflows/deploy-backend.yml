@@ -33,41 +33,33 @@ jobs:
         composer install --no-dev --optimize-autoloader
       working-directory: ./backend
 
-    - name: Create Deployment Package
+    - name: Setup SSH Agent
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Add Server to Known Hosts
       run: |
-        cd backend
-        zip -rq ../deploy.zip . \
-          -x ".git/*" \
-          -x ".github/*" \
-          -x "node_modules/*" \
-          -x ".env" \
-          -x ".env.*"
-        echo "Package ready: $(du -sh ../deploy.zip)"
+        mkdir -p ~/.ssh
+        ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Upload Package to Server via SCP
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "deploy.zip"
-        target: "/home/smarttim/api.smarttimes.in/"
+    - name: Deploy Files via Rsync over SSH
+      run: |
+        rsync -avz --delete \
+          --exclude='.git' \
+          --exclude='.github' \
+          --exclude='node_modules' \
+          --exclude='.env' \
+          --exclude='.env.*' \
+          -e "ssh -p ${{ secrets.SSH_PORT }}" \
+          ./backend/ \
+          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/smarttim/api.smarttimes.in/
 
-    - name: Extract & Setup on Server via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
+    - name: Post-Deploy Setup via SSH
+      run: |
+        ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
           set -e
           cd /home/smarttim/api.smarttimes.in/
-
-          echo "Extracting deployment package..."
-          unzip -o deploy.zip -d .
-          rm -f deploy.zip
 
           echo "Ensuring Laravel directories exist..."
           mkdir -p storage/app/public
@@ -78,7 +70,6 @@ jobs:
           mkdir -p storage/logs
           mkdir -p bootstrap/cache
 
-          echo "Setting permissions..."
           chmod -R 775 storage bootstrap/cache
-
           echo "Deployment completed at $(date)"
+        ENDSSH
