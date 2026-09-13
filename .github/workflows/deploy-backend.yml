@@ -39,13 +39,31 @@ jobs:
         zip -rq ../ftp-deploy/deploy.zip . -x ".git/*" ".github/*" "node_modules/*" ".env*"
         cat << 'EOF' > ../ftp-deploy/public/unzip.php
         <?php
+        $basePath = __DIR__ . '/../';
         $zip = new ZipArchive;
-        // The zip is one level up from public/
-        if ($zip->open(__DIR__ . '/../deploy.zip') === TRUE) {
-            $zip->extractTo(__DIR__ . '/../');
+        if ($zip->open($basePath . 'deploy.zip') === TRUE) {
+            $zip->extractTo($basePath);
             $zip->close();
+            
+            // Manually ensure required Laravel directories exist
+            $directories = [
+                'storage/app/public',
+                'storage/framework/cache/data',
+                'storage/framework/sessions',
+                'storage/framework/testing',
+                'storage/framework/views',
+                'storage/logs',
+                'bootstrap/cache'
+            ];
+            foreach ($directories as $dir) {
+                $dirPath = $basePath . $dir;
+                if (!is_dir($dirPath)) {
+                    mkdir($dirPath, 0775, true);
+                }
+            }
+            
             echo "Extracted successfully.";
-            unlink(__DIR__ . '/../deploy.zip');
+            unlink($basePath . 'deploy.zip');
             unlink(__FILE__);
         } else {
             echo "Failed to extract.";
