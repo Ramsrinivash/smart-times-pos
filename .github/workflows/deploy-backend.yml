@@ -36,7 +36,7 @@ jobs:
     - name: Prepare Deployment Files
       run: |
         mkdir -p ../ftp-deploy/public
-        zip -rq ../ftp-deploy/deploy.zip . -x "*.git*" "*.github*" "node_modules/*" ".env*"
+        zip -rq ../ftp-deploy/deploy.zip . -x ".git/*" ".github/*" "node_modules/*" ".env*"
         cat << 'EOF' > ../ftp-deploy/public/unzip.php
         <?php
         $zip = new ZipArchive;
