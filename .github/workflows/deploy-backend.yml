@@ -33,43 +33,29 @@ jobs:
         composer install --no-dev --optimize-autoloader
       working-directory: ./backend
 
-    - name: Setup SSH Agent
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-    - name: Add Server to Known Hosts
+    - name: Write SSH Key to File
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-    - name: Deploy Files via Rsync over SSH
+    - name: Deploy via Rsync
       run: |
-        rsync -avz --delete \
+        rsync -az --delete \
           --exclude='.git' \
           --exclude='.github' \
           --exclude='node_modules' \
           --exclude='.env' \
           --exclude='.env.*' \
-          -e "ssh -p ${{ secrets.SSH_PORT }}" \
+          -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no" \
           ./backend/ \
           ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/smarttim/api.smarttimes.in/
 
-    - name: Post-Deploy Setup via SSH
+    - name: Post Deploy Commands
       run: |
-        ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
-          set -e
-          cd /home/smarttim/api.smarttimes.in/
-
-          echo "Ensuring Laravel directories exist..."
-          mkdir -p storage/app/public
-          mkdir -p storage/framework/cache/data
-          mkdir -p storage/framework/sessions
-          mkdir -p storage/framework/testing
-          mkdir -p storage/framework/views
-          mkdir -p storage/logs
-          mkdir -p bootstrap/cache
-
-          chmod -R 775 storage bootstrap/cache
-          echo "Deployment completed at $(date)"
-        ENDSSH
+        ssh -i ~/.ssh/deploy_key \
+          -p ${{ secrets.SSH_PORT }} \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
+          "cd /home/smarttim/api.smarttimes.in && mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && echo Done"
