@@ -27,7 +27,7 @@ jobs:
       working-directory: ./frontend
 
     - name: Build Project
-      run: npm run build --mode production
+      run: npm run build
       working-directory: ./frontend
 
     - name: Sync files to cPanel
