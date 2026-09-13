@@ -35,19 +35,21 @@ jobs:
 
     - name: Prepare Deployment Files
       run: |
-        mkdir -p ../ftp-deploy
+        mkdir -p ../ftp-deploy/public
         zip -rq ../ftp-deploy/deploy.zip . -x "*.git*" "*.github*" "node_modules/*" ".env*"
-        cat << 'EOF' > ../ftp-deploy/unzip.php
+        cat << 'EOF' > ../ftp-deploy/public/unzip.php
         <?php
         $zip = new ZipArchive;
-        if ($zip->open('deploy.zip') === TRUE) {
-            $zip->extractTo(__DIR__);
+        // The zip is one level up from public/
+        if ($zip->open(__DIR__ . '/../deploy.zip') === TRUE) {
+            $zip->extractTo(__DIR__ . '/../');
             $zip->close();
             echo "Extracted successfully.";
-            unlink('deploy.zip');
+            unlink(__DIR__ . '/../deploy.zip');
             unlink(__FILE__);
         } else {
             echo "Failed to extract.";
+            http_response_code(500);
         }
         ?>
         EOF
