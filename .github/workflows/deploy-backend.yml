@@ -1,4 +1,4 @@
-name: Deploy Backend
+name: Deploy Backend (SSH)
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  web-deploy:
-    name: Deploy
+  deploy:
+    name: Deploy via SSH
     runs-on: ubuntu-latest
 
     steps:
@@ -28,52 +28,52 @@ jobs:
         composer install --no-dev --optimize-autoloader
       working-directory: ./backend
 
-    - name: Build Deployment Package
+    - name: Create Deployment Package
       run: |
-        mkdir -p ftp-deploy/public
-
-        # Create the zip (exclude .env, .git, node_modules)
         cd backend
-        zip -rq ../ftp-deploy/deploy.zip . \
+        zip -rq ../deploy.zip . \
           -x ".git/*" \
           -x ".github/*" \
           -x "node_modules/*" \
           -x ".env" \
           -x ".env.*"
-        cd ..
+        echo "Package ready: $(du -sh ../deploy.zip)"
 
-        # Copy the persistent unzip script (stored in .github/deploy, NOT in the zip)
-        cp .github/deploy/unzip.php ftp-deploy/public/unzip.php
-
-        echo "Package contents:"
-        ls -la ftp-deploy/
-        ls -la ftp-deploy/public/
-
-    - name: Upload to cPanel via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+    - name: Upload Package to Server via SCP
+      uses: appleboy/scp-action@v0.1.7
       with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./ftp-deploy/
-        server-dir: /api.smarttimes.in/
-        dangerous-clean-slate: false
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "deploy.zip"
+        target: "/home/smarttim/api.smarttimes.in/"
 
-    - name: Trigger Extraction on Server
-      run: |
-        echo "Waiting 15s for FTP upload to fully complete..."
-        sleep 15
+    - name: Extract & Setup on Server via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          set -e
+          cd /home/smarttim/api.smarttimes.in/
 
-        RESPONSE=$(curl -s -w "\n%{http_code}" https://api.smarttimes.in/unzip.php)
-        HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-        BODY=$(echo "$RESPONSE" | head -n-1)
+          echo "Extracting deployment package..."
+          unzip -o deploy.zip -d .
+          rm -f deploy.zip
 
-        echo "Server Response: $BODY"
-        echo "HTTP Status Code: $HTTP_CODE"
+          echo "Ensuring Laravel directories exist..."
+          mkdir -p storage/app/public
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/testing
+          mkdir -p storage/framework/views
+          mkdir -p storage/logs
+          mkdir -p bootstrap/cache
 
-        if [ "$HTTP_CODE" -ne 200 ]; then
-          echo "DEPLOYMENT FAILED: Server returned HTTP $HTTP_CODE"
-          exit 1
-        fi
+          echo "Setting permissions..."
+          chmod -R 775 storage bootstrap/cache
 
-        echo "Deployment completed successfully!"
+          echo "Deployment completed at $(date)"
