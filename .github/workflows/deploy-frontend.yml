@@ -1,4 +1,4 @@
-name: Deploy Frontend
+name: Deploy Frontend (SSH)
 
 on:
   push:
@@ -9,13 +9,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  web-deploy:
-    name: Deploy
+  deploy:
+    name: Deploy via SSH
     runs-on: ubuntu-latest
+
     steps:
-    - name: Get latest code
+    - name: Checkout Code
       uses: actions/checkout@v4
-      
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -31,11 +32,24 @@ jobs:
       run: npm run build
       working-directory: ./frontend
 
-    - name: Sync files to cPanel
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+    - name: Upload Built Files to Server via SCP
+      uses: appleboy/scp-action@v0.1.7
       with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./frontend/dist/
-        server-dir: /public_html/
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "frontend/dist/*"
+        target: "/home/smarttim/public_html/"
+        strip_components: 2
+
+    - name: Confirm Deployment via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        port: ${{ secrets.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "Frontend deployed successfully at $(date)"
+          ls /home/smarttim/public_html/ | head -20
