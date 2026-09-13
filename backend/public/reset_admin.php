@@ -9,7 +9,7 @@ $env = [];
 foreach ($lines as $line) {
     if (strpos(trim($line), '#') === 0) continue;
     list($name, $value) = explode('=', $line, 2);
-    $env[trim($name)] = trim($value);
+    $env[trim($name)] = trim($value, " \t\n\r\0\x0B\"'");
 }
 
 try {
