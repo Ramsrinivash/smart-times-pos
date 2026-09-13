@@ -33,16 +33,41 @@ jobs:
         composer install --no-dev --optimize-autoloader
       working-directory: ./backend
 
-    - name: Sync files to cPanel
+    - name: Prepare Deployment Files
+      run: |
+        mkdir -p ../ftp-deploy
+        zip -rq ../ftp-deploy/deploy.zip . -x "*.git*" "*.github*" "node_modules/*" ".env*"
+        cat << 'EOF' > ../ftp-deploy/unzip.php
+        <?php
+        $zip = new ZipArchive;
+        if ($zip->open('deploy.zip') === TRUE) {
+            $zip->extractTo(__DIR__);
+            $zip->close();
+            echo "Extracted successfully.";
+            unlink('deploy.zip');
+            unlink(__FILE__);
+        } else {
+            echo "Failed to extract.";
+        }
+        ?>
+        EOF
+      working-directory: ./backend
+
+    - name: Upload Zip to cPanel
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./backend/
+        local-dir: ./ftp-deploy/
         server-dir: /api.smarttimes.in/
-        exclude: |
-          **/.env*
-          **/.git/**
-          **/.github/**
-          **/node_modules/**
+        dangerous-clean-slate: false
+
+    - name: Extract Files on Server
+      run: |
+        HTTP_CODE=$(curl -s -o extract.log -w "%{http_code}" https://api.smarttimes.in/unzip.php)
+        cat extract.log
+        if [ "$HTTP_CODE" -ne 200 ]; then
+          echo "Extraction failed with HTTP code $HTTP_CODE"
+          exit 1
+        fi
