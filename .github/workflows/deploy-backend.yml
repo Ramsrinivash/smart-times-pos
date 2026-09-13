@@ -37,43 +37,55 @@ jobs:
       run: |
         mkdir -p ../ftp-deploy/public
         zip -rq ../ftp-deploy/deploy.zip . -x ".git/*" ".github/*" "node_modules/*" ".env*"
-        cat << 'EOF' > ../ftp-deploy/public/unzip.php
-        <?php
-        $basePath = __DIR__ . '/../';
-        $zip = new ZipArchive;
-        if ($zip->open($basePath . 'deploy.zip') === TRUE) {
-            $zip->extractTo($basePath);
-            $zip->close();
-            
-            // Manually ensure required Laravel directories exist
-            $directories = [
-                'storage/app/public',
-                'storage/framework/cache/data',
-                'storage/framework/sessions',
-                'storage/framework/testing',
-                'storage/framework/views',
-                'storage/logs',
-                'bootstrap/cache'
-            ];
-            foreach ($directories as $dir) {
-                $dirPath = $basePath . $dir;
-                if (!is_dir($dirPath)) {
-                    mkdir($dirPath, 0775, true);
-                }
-            }
-            
-            echo "Extracted successfully.";
-            unlink($basePath . 'deploy.zip');
-            unlink(__FILE__);
-        } else {
-            echo "Failed to extract.";
-            http_response_code(500);
+        cat << 'PHPEOF' > ../ftp-deploy/public/unzip.php
+<?php
+$basePath = dirname(__DIR__) . '/';
+$zipFile  = $basePath . 'deploy.zip';
+
+if (!file_exists($zipFile)) {
+    http_response_code(404);
+    echo json_encode(['status' => 'error', 'message' => 'deploy.zip not found at ' . $zipFile]);
+    exit;
+}
+
+$zip = new ZipArchive;
+$opened = $zip->open($zipFile);
+
+if ($opened === TRUE) {
+    $zip->extractTo($basePath);
+    $zip->close();
+
+    // Ensure required Laravel directories exist with correct permissions
+    $directories = [
+        'storage/app/public',
+        'storage/framework/cache/data',
+        'storage/framework/sessions',
+        'storage/framework/testing',
+        'storage/framework/views',
+        'storage/logs',
+        'bootstrap/cache'
+    ];
+    foreach ($directories as $dir) {
+        $dirPath = $basePath . $dir;
+        if (!is_dir($dirPath)) {
+            mkdir($dirPath, 0775, true);
         }
-        ?>
-        EOF
+    }
+
+    // Clean up zip only — keep this file for next deployment
+    unlink($zipFile);
+
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'message' => 'Extracted successfully at ' . date('Y-m-d H:i:s')]);
+} else {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Failed to open zip. Code: ' . $opened]);
+}
+?>
+PHPEOF
       working-directory: ./backend
 
-    - name: Upload Zip to cPanel
+    - name: Upload to cPanel via FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
@@ -83,11 +95,17 @@ jobs:
         server-dir: /api.smarttimes.in/
         dangerous-clean-slate: false
 
-    - name: Extract Files on Server
+    - name: Trigger Extraction on Server
       run: |
-        HTTP_CODE=$(curl -s -o extract.log -w "%{http_code}" https://api.smarttimes.in/unzip.php)
-        cat extract.log
+        echo "Waiting for FTP sync to complete..."
+        sleep 10
+        RESPONSE=$(curl -s -w "\n%{http_code}" https://api.smarttimes.in/unzip.php)
+        HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+        BODY=$(echo "$RESPONSE" | head -n-1)
+        echo "Response: $BODY"
+        echo "HTTP Code: $HTTP_CODE"
         if [ "$HTTP_CODE" -ne 200 ]; then
-          echo "Extraction failed with HTTP code $HTTP_CODE"
+          echo "ERROR: Extraction failed with HTTP $HTTP_CODE"
           exit 1
         fi
+        echo "Deployment successful!"
