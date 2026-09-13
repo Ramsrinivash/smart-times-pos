@@ -21,6 +21,12 @@ jobs:
       with:
         php-version: '8.2'
         
+    - name: Prepare Bootstrap Cache
+      run: |
+        mkdir -p bootstrap/cache
+        chmod -R 775 bootstrap/cache
+      working-directory: ./backend
+
     - name: Install Composer Dependencies
       run: |
         composer config policy.advisories.block false
