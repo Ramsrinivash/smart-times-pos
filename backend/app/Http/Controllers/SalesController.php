@@ -34,20 +34,21 @@ class SalesController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'invoice_type' => 'required|in:gst,non-gst',
-            'payment_mode' => 'required|string',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.watch_id' => 'required|exists:watches,id',
-            'items.*.discount_amount' => 'nullable|numeric|min:0',
-            'redeem_points' => 'nullable|integer|min:0',
-            'bill_discount_amount' => 'nullable|numeric|min:0',
-            'bill_discount_percent' => 'nullable|numeric|min:0',
-            'round_off_amount' => 'nullable|numeric',
-            'is_credit_sale' => 'nullable|boolean',
-        ]);
+        try {
+            $request->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'invoice_type' => 'required|in:gst,non-gst',
+                'payment_mode' => 'required|string',
+                'notes' => 'nullable|string',
+                'items' => 'required|array|min:1',
+                'items.*.watch_id' => 'required|exists:watches,id',
+                'items.*.discount_amount' => 'nullable|numeric|min:0',
+                'redeem_points' => 'nullable|integer|min:0',
+                'bill_discount_amount' => 'nullable|numeric|min:0',
+                'bill_discount_percent' => 'nullable|numeric|min:0',
+                'round_off_amount' => 'nullable|numeric',
+                'is_credit_sale' => 'nullable|boolean',
+            ]);
 
         return DB::transaction(function () use ($request) {
             $customer = Customer::findOrFail($request->customer_id);
@@ -243,6 +244,12 @@ class SalesController extends Controller
                 'sale' => $sale->load(['items.watch', 'customer'])
             ], 201);
         });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Exception: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     }
 
     public function show($id)
