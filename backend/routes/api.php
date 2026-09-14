@@ -109,7 +109,8 @@ Route::get('/migrate-db', function() {
         if (!\Illuminate\Support\Facades\Schema::hasTable('attendances')) {
             \Illuminate\Support\Facades\Schema::create('attendances', function ($table) {
                 $table->id();
-                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->integer('user_id');
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
                 $table->date('date');
                 $table->string('status')->default('present');
                 $table->string('notes')->nullable();
@@ -122,7 +123,8 @@ Route::get('/migrate-db', function() {
         if (!\Illuminate\Support\Facades\Schema::hasTable('payrolls')) {
             \Illuminate\Support\Facades\Schema::create('payrolls', function ($table) {
                 $table->id();
-                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->integer('user_id');
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
                 $table->integer('month');
                 $table->integer('year');
                 $table->decimal('base_salary', 10, 2);
