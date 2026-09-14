@@ -287,3 +287,11 @@ Route::get('/get-error-log', function () {
     $lines = file($logPath);
     return response()->json(['log' => implode('', array_slice($lines, -150))]);
 });
+
+Route::get('/get-error-logs-dir', function () {
+    $files = glob(storage_path('logs/*.log'));
+    if (empty($files)) return response()->json(['error' => 'No logs']);
+    $latest = end($files);
+    $lines = file($latest);
+    return response()->json(['file' => $latest, 'log' => implode('', array_slice($lines, -150))]);
+});
