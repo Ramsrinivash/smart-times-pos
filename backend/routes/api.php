@@ -88,6 +88,24 @@ Route::get('/test-login-action', function() {
     }
 });
 
+// Route to run migrations (Added to fix missing columns on live server like base_salary and hsn_code)
+Route::get('/migrate-db', function() {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Database migrations ran successfully!',
+            'output' => \Illuminate\Support\Facades\Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
+
 // Public Authentication route (Wrapped in try/catch for live debugging)
 Route::post('/login', function(\Illuminate\Http\Request $request) {
     try {
