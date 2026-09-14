@@ -32,24 +32,24 @@ jobs:
       run: npm run build
       working-directory: ./frontend
 
-    - name: Upload Built Files to Server via SCP
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "frontend/dist/*"
-        target: "/home/smarttim/public_html/"
-        strip_components: 2
+    - name: Write SSH Key to File
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+    - name: Deploy via Rsync
+      run: |
+        rsync -az --delete \
+          -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no" \
+          ./frontend/dist/ \
+          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/smarttim/public_html/
 
     - name: Confirm Deployment via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        port: ${{ secrets.SSH_PORT }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          echo "Frontend deployed successfully at $(date)"
-          ls /home/smarttim/public_html/ | head -20
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -p ${{ secrets.SSH_PORT }} \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
+          "echo 'Frontend deployed successfully at \$(date)' && ls -la /home/smarttim/public_html/ | head -10"
