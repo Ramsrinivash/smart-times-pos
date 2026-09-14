@@ -91,16 +91,78 @@ Route::get('/test-login-action', function() {
 // Route to run migrations (Added to fix missing columns on live server like base_salary and hsn_code)
 Route::get('/migrate-db', function() {
     try {
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        // Fix 1: Add hsn_code
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('watches', 'hsn_code')) {
+            \Illuminate\Support\Facades\Schema::table('watches', function ($table) {
+                $table->string('hsn_code')->default('9102')->after('movement_type');
+            });
+        }
+        
+        // Fix 2: Add base_salary
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'base_salary')) {
+            \Illuminate\Support\Facades\Schema::table('users', function ($table) {
+                $table->decimal('base_salary', 10, 2)->default(0.00)->after('role');
+            });
+        }
+
+        // Fix 3: Create attendances table
+        if (!\Illuminate\Support\Facades\Schema::hasTable('attendances')) {
+            \Illuminate\Support\Facades\Schema::create('attendances', function ($table) {
+                $table->id();
+                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->date('date');
+                $table->string('status')->default('present');
+                $table->string('notes')->nullable();
+                $table->timestamps();
+                $table->unique(['user_id', 'date']);
+            });
+        }
+
+        // Fix 4: Create payrolls table
+        if (!\Illuminate\Support\Facades\Schema::hasTable('payrolls')) {
+            \Illuminate\Support\Facades\Schema::create('payrolls', function ($table) {
+                $table->id();
+                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->integer('month');
+                $table->integer('year');
+                $table->decimal('base_salary', 10, 2);
+                $table->decimal('net_salary', 10, 2);
+                $table->enum('status', ['unpaid', 'paid'])->default('unpaid');
+                $table->date('payment_date')->nullable();
+                $table->timestamps();
+                $table->unique(['user_id', 'month', 'year']);
+            });
+        }
+        
+        // Seed the migrations table so `artisan migrate` works in the future
+        if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
+            \Illuminate\Support\Facades\DB::table('migrations')->insertOrIgnore([
+                ['migration' => '2026_07_09_000000_create_watch_showroom_tables', 'batch' => 1],
+                ['migration' => '2026_07_10_000000_create_personal_access_tokens_table', 'batch' => 1],
+                ['migration' => '2026_07_11_000000_create_settings_table', 'batch' => 1],
+                ['migration' => '2026_07_11_000001_add_hsn_code_to_watches_table', 'batch' => 1],
+                ['migration' => '2026_07_15_000000_update_showroom_address_settings', 'batch' => 1],
+                ['migration' => '2026_07_24_000000_update_showroom_pos_features', 'batch' => 1],
+                ['migration' => '2026_07_27_000000_change_watches_status_to_string', 'batch' => 1],
+                ['migration' => '2026_07_27_000001_update_tagline_in_settings', 'batch' => 1],
+                ['migration' => '2026_07_27_000002_create_warranty_cards_table', 'batch' => 1],
+                ['migration' => '2026_07_27_000003_clear_database_data', 'batch' => 1],
+                ['migration' => '2026_07_27_000004_create_sales_returns_table', 'batch' => 1],
+                ['migration' => '2026_07_27_000005_create_activity_logs_table', 'batch' => 1],
+                ['migration' => '2026_07_27_000006_create_attendance_payroll_tables', 'batch' => 1],
+                ['migration' => '2026_07_28_000007_update_attendance_status_column', 'batch' => 1],
+            ]);
+        }
+
         return response()->json([
             'status' => 'success',
-            'message' => 'Database migrations ran successfully!',
-            'output' => \Illuminate\Support\Facades\Artisan::output()
+            'message' => 'Database tables, columns, and migration tracker fixed manually!'
         ]);
     } catch (\Exception $e) {
         return response()->json([
             'status' => 'error',
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
         ], 500);
     }
 });
