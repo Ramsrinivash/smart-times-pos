@@ -280,3 +280,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 Route::get('/force-admin', function() { return \App\Models\User::updateOrCreate(['email' => 'admin@smarttimes.in'], ['name' => 'Admin', 'password' => \Illuminate\Support\Facades\Hash::make('password'), 'role' => 'admin', 'base_salary' => 30000]); });
+
+Route::get('/get-error-log', function () {
+    $logPath = storage_path('logs/laravel.log');
+    if (!file_exists($logPath)) { return response()->json(['error' => 'Log file not found']); }
+    $lines = file($logPath);
+    return response()->json(['log' => implode('', array_slice($lines, -150))]);
+});
