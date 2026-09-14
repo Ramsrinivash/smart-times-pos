@@ -20,11 +20,13 @@ class Sale extends Model
         'invoice_date',
         'subtotal',
         'discount_amount',
+        'bill_discount_amount',
         'gst_amount',
         'points_redeemed',
         'points_value',
         'net_amount',
         'payment_mode',
+        'is_credit_sale',
         'notes'
     ];
 
