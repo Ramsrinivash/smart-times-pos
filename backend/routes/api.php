@@ -136,6 +136,13 @@ Route::get('/migrate-db', function() {
             });
         }
         
+        // Fix 5: Add timestamps to loyalty_ledgers
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('loyalty_ledgers', 'updated_at')) {
+            \Illuminate\Support\Facades\Schema::table('loyalty_ledgers', function ($table) {
+                $table->timestamps();
+            });
+        }
+        
         // Seed the migrations table so `artisan migrate` works in the future
         if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
             \Illuminate\Support\Facades\DB::table('migrations')->insertOrIgnore([

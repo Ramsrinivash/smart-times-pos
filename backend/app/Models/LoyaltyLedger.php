@@ -11,6 +11,8 @@ class LoyaltyLedger extends Model
 
     protected $table = 'loyalty_ledgers';
 
+    const UPDATED_AT = null;
+
     protected $fillable = [
         'customer_id',
         'points_earned',
