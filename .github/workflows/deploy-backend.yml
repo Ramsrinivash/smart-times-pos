@@ -58,4 +58,4 @@ jobs:
           -p ${{ secrets.SSH_PORT }} \
           -o StrictHostKeyChecking=no \
           ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
-          "cd /home/smarttim/api.smarttimes.in && mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && echo Done"
+          "cd /home/smarttim/api.smarttimes.in && mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && php artisan migrate --force && php artisan optimize:clear && echo Done"
