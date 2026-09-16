@@ -1,6 +1,8 @@
 -- Smart Times Watch Showroom — Full Database Setup
 -- Run this in MySQL Workbench or via CLI
 
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE DATABASE IF NOT EXISTS watch_showroom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE watch_showroom;
 
@@ -117,7 +119,7 @@ CREATE TABLE IF NOT EXISTS watches (
   selling_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   gst_rate DECIMAL(5,2) NOT NULL DEFAULT 18.00,
   status ENUM('in_stock','sold','exchanged_returned','refurbishing','damaged','display','reserved') NOT NULL DEFAULT 'in_stock',
-  image_urls JSON COMMENT 'Array of base64 or file paths',
+  image_urls TEXT COMMENT 'Array of base64 or file paths',
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -257,7 +259,7 @@ CREATE TABLE IF NOT EXISTS service_jobs (
   id VARCHAR(30) PRIMARY KEY COMMENT 'Job Card number e.g. JC-202607-0001',
   customer_id INT NOT NULL,
   watch_id VARCHAR(100),
-  watch_details JSON COMMENT 'For external watches: {brand, model, serial}',
+  watch_details TEXT COMMENT 'For external watches: {brand, model, serial}',
   issue_reported TEXT NOT NULL,
   drop_off_condition TEXT,
   estimated_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -333,3 +335,5 @@ SELECT COUNT(*) AS users FROM users;
 SELECT COUNT(*) AS customers FROM customers;
 SELECT COUNT(*) AS watches FROM watches;
 SELECT COUNT(*) AS sales FROM sales;
+
+SET FOREIGN_KEY_CHECKS = 1;

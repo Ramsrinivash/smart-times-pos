@@ -67,7 +67,7 @@ return new class extends Migration
             $table->decimal('selling_price', 10, 2); // Target selling price
             $table->decimal('gst_rate', 5, 2)->default(18.00); // Dynamic GST rate for this item
             $table->enum('status', ['in_stock', 'sold', 'exchanged_returned', 'refurbishing'])->default('in_stock');
-            $table->json('image_urls')->nullable(); // front, back, box, etc.
+            $table->text('image_urls')->nullable(); // front, back, box, etc.
             $table->timestamps();
         });
 
@@ -128,7 +128,7 @@ return new class extends Migration
             $table->string('id')->primary(); // Job Card Number: e.g. JC-YYYYMM-XXXX
             $table->foreignId('customer_id')->constrained('customers');
             $table->string('watch_id')->nullable(); // Null if external watch (not purchased here)
-            $table->json('watch_details')->nullable(); // e.g. {brand: 'Omega', model: 'Speedmaster', serial: '1234'} for external
+            $table->text('watch_details')->nullable(); // e.g. {brand: 'Omega', model: 'Speedmaster', serial: '1234'} for external
             $table->text('issue_reported');
             $table->text('drop_off_condition')->nullable(); // Scratches, missing link, etc.
             $table->decimal('estimated_cost', 10, 2)->nullable();
