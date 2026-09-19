@@ -9,6 +9,7 @@ use App\Models\ServiceJob;
 use App\Models\Purchase;
 use App\Models\Exchange;
 use App\Models\LoyaltyLedger;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +122,14 @@ class ReportController extends Controller
             return $a->daysAway <=> $b->daysAway;
         });
 
+        // Hierarchy Notifications: Fetch recent activities by OTHER users
+        $recentActivities = ActivityLog::with('user:id,name,role')
+            ->where('user_id', '!=', $user->id)
+            ->where('created_at', '>=', Carbon::now()->subDays(3))
+            ->orderBy('created_at', 'desc')
+            ->take(15)
+            ->get();
+
         return response()->json([
             'today_sales_count' => $todaySalesCount,
             'today_sales_sum' => $todaySalesSum,
@@ -141,7 +150,8 @@ class ReportController extends Controller
             'birthdays_today' => [], // Fallback for older frontend
             'profit_snapshot' => $profitSnap,
             'month_profit_snapshot' => $monthProfitSnap,
-            'total_profit_snapshot' => $totalProfitSnap
+            'total_profit_snapshot' => $totalProfitSnap,
+            'recent_activities' => $recentActivities
         ]);
     }
 

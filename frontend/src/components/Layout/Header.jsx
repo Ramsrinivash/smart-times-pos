@@ -154,6 +154,23 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
         }
       }
 
+      // Hierarchy Recent Activities
+      if (stats?.recent_activities && stats.recent_activities.length > 0) {
+        stats.recent_activities.forEach(activity => {
+          const notifId = `activity-${activity.id}`;
+          if (!isDismissed(notifId)) {
+            const timeAgo = new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            list.push({
+              id: notifId,
+              type: activity.action === 'DELETE' ? 'error' : (activity.action === 'CREATE' ? 'success' : 'info'),
+              title: `${activity.user?.name} (${activity.user?.role})`,
+              message: `${activity.action} in ${activity.module} at ${timeAgo}: ${activity.details}`,
+              path: null
+            });
+          }
+        });
+      }
+
       setNotifications(list);
     } catch (err) {
       console.error('Error compiling notifications:', err);
