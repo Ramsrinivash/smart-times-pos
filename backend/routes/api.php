@@ -468,14 +468,15 @@ Route::get('/reset-and-sync', function () {
         $log[] = "Migration ran successfully.";
         $log[] = \Illuminate\Support\Facades\Artisan::output();
 
-        // Step 5: Re-insert admin users
+        // Step 5: Re-insert admin users (only known columns to avoid stale schema mismatch)
+        $allowedUserColumns = ['name', 'email', 'password', 'role', 'base_salary', 'remember_token', 'created_at', 'updated_at'];
         foreach ($admins as $admin) {
             $userData = (array) $admin;
-            unset($userData['id']); // Let DB auto-assign new ID
-            \Illuminate\Support\Facades\DB::table('users')->insert(array_merge($userData, [
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]));
+            // Strip any columns that don't exist in the new schema
+            $cleanData = array_intersect_key($userData, array_flip($allowedUserColumns));
+            $cleanData['created_at'] = now();
+            $cleanData['updated_at'] = now();
+            \Illuminate\Support\Facades\DB::table('users')->insert($cleanData);
         }
         $log[] = "Re-inserted " . count($admins) . " admin user(s).";
 
