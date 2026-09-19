@@ -393,11 +393,10 @@ Route::get('/get-error-log', function () {
 });
 
 Route::get('/get-error-logs-dir', function () {
-    $files = glob(storage_path('logs/*.log'));
-    if (empty($files)) {
-        return response('No logs found.', 404)->header('Content-Type', 'text/plain');
+    try {
+        $output = shell_exec('ls -la ' . storage_path('logs'));
+        return response($output, 200)->header('Content-Type', 'text/plain');
+    } catch (\Exception $e) {
+        return response($e->getMessage(), 500);
     }
-    $latest = end($files);
-    $lines = file($latest);
-    return response(implode('', array_slice($lines, -500)), 200)->header('Content-Type', 'text/plain');
 });
