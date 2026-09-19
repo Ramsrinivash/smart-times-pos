@@ -917,10 +917,22 @@ const AttendancePayroll = () => {
       {/* PAYSLIP PRINT TEMPLATE (Hidden in UI, Visible when printing)         */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {activeSlip && (
-        <div className="print-only" style={{ display: 'none', background: '#fff', color: '#000', padding: '2rem', fontFamily: 'sans-serif' }}>
+        <div className="print-only" style={{ 
+          display: 'none', 
+          background: '#fff', 
+          color: '#000', 
+          padding: '2rem', 
+          fontFamily: 'sans-serif',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          WebkitPrintColorAdjust: 'exact',
+          printColorAdjust: 'exact'
+        }}>
           <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ margin: 0, color: '#000', fontSize: '1.8rem', fontWeight: 800 }}>SMART TIMES</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '1.8rem', fontWeight: 800 }}>SMART TIMES</h2>
               <p style={{ margin: '0.2rem 0', fontSize: '0.9rem', color: '#444' }}>Watch Showroom & Service Center</p>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>108, Pennagaram Main Road, Dharmapuri - 636 701</p>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>Phone: 97512 85945 | GSTIN: 33EJBPA4537C1ZW</p>
@@ -992,13 +1004,13 @@ const AttendancePayroll = () => {
               <span><strong>ML:</strong> {activeSlip.ml_days || 0}</span>
               <span><strong>HD:</strong> {activeSlip.half_days || 0}</span>
               <span><strong>A:</strong> {activeSlip.absent_days || 0}</span>
-              <span style={{ marginLeft: 'auto', fontWeight: 700 }}>Total Hours: {activeSlip.total_hours || 0} hrs</span>
+              <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#d4af37' }}>Total Hours: {activeSlip.total_hours || 0} hrs</span>
             </div>
           </div>
 
           <div style={{ borderTop: '2px solid #333', borderBottom: '2px solid #333', padding: '1rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4rem' }}>
             <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Net Salary Payable</span>
-            <span style={{ fontWeight: 800, fontSize: '1.5rem' }}>₹{Number(activeSlip.net_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+            <span style={{ fontWeight: 800, fontSize: '1.5rem', color: '#d4af37' }}>₹{Number(activeSlip.net_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem', fontSize: '0.85rem' }}>
