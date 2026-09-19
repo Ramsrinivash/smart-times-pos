@@ -17,6 +17,7 @@ const ServiceRepair = () => {
   const [receivedDate, setReceivedDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [jobs, setJobs] = useState([]);
   const [selectedJobsForCard, setSelectedJobsForCard] = useState(null); // Array of jobs to print on 1 job card
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // Modal for previewing intake cart
 
   const handleOpenJobCardModal = (job, allJobsList = jobs) => {
     const safeJobs = Array.isArray(allJobsList) ? allJobsList : [];
@@ -191,6 +192,11 @@ const ServiceRepair = () => {
       }
     }
 
+    // If validation passes, show the preview modal instead of submitting immediately
+    setShowPreviewModal(true);
+  };
+
+  const confirmSubmitIntake = async () => {
     try {
       let finalCustomerId = selectedCustomerId;
       if (!finalCustomerId) {
@@ -217,6 +223,8 @@ const ServiceRepair = () => {
       }
 
       alertService.success('Job Registered!', `Successfully registered ${createdJobs.length} watch repair service job card(s).`);
+      
+      setShowPreviewModal(false);
 
       // Auto open printable job card modal for the first created job
       const freshJobs = await api.getServiceJobs();
@@ -580,7 +588,7 @@ const ServiceRepair = () => {
               </button>
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Create Job Card(s)
+                Preview Service Job(s)
               </button>
             </form>
           </div>
@@ -687,7 +695,7 @@ const ServiceRepair = () => {
 
         </div>
 
-        {/* Printable Job Card Modal (Single Page Print for 1 or Multiple Watches) */}
+            {/* Printable Job Card Modal (Single Page Print for 1 or Multiple Watches) */}
         {selectedJobsForCard && selectedJobsForCard.length > 0 && (
           <div className="modal-overlay">
             <div className="modal-content printable-area job-card-print-container" style={{ maxWidth: '800px', background: '#ffffff', color: '#000000', padding: '1.5rem', boxSizing: 'border-box' }}>
@@ -782,37 +790,111 @@ const ServiceRepair = () => {
                 </tbody>
               </table>
 
-              <div style={{ borderTop: '1px solid #ccc', paddingTop: '0.5rem', fontSize: '0.72rem', color: '#555' }}>
-                <h5 style={{ margin: '0 0 0.2rem 0', textTransform: 'uppercase', fontSize: '0.75rem' }}>Terms & Service Agreement:</h5>
-                <p style={{ margin: '0.1rem 0' }}>1. Service repairs carry a 6 Months (180 Days) warranty period on replaced parts/labor.</p>
-                <p style={{ margin: '0.1rem 0' }}>2. If water damage or tampering occurs, this service warranty is void.</p>
-                <p style={{ margin: '0.1rem 0' }}>3. Please produce this card at delivery. Unclaimed items after 90 days are subject to disposal.</p>
+              <div style={{ fontSize: '0.7rem', color: '#444', lineHeight: 1.4, marginBottom: '2.5rem' }}>
+                <p style={{ fontWeight: 700, margin: '0 0 0.2rem 0', fontSize: '0.75rem' }}>TERMS & SERVICE AGREEMENT:</p>
+                1. Service repairs carry a 6 Months (180 Days) warranty period on replaced parts/labor.<br/>
+                2. If water damage or tampering occurs, this service warranty is void.<br/>
+                3. Please produce this card at delivery. Unclaimed items after 90 days are subject to disposal.
               </div>
 
-              {/* Signatures Section */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', fontSize: '0.75rem' }}>
-                <div style={{ borderTop: '1px dashed #333', width: '140px', textAlign: 'center', paddingTop: '0.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', fontSize: '0.8rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ borderBottom: '1px dashed #000', width: '150px', marginBottom: '0.2rem' }}></div>
                   Customer Signature
                 </div>
-                <div style={{ borderTop: '1px dashed #333', width: '140px', textAlign: 'center', paddingTop: '0.2rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ borderBottom: '1px dashed #000', width: '150px', marginBottom: '0.2rem' }}></div>
                   Technician / Store Sign
                 </div>
               </div>
-
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.25rem', borderTop: '1px solid #eee', paddingTop: '0.75rem' }}>
-                <button onClick={handlePrint} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Printer size={16} /> Print Job Card ({selectedJobsForCard.length} Watch{selectedJobsForCard.length > 1 ? 'es' : ''})
+              
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                <button onClick={handlePrint} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
+                  <Printer size={16} style={{ marginRight: '0.4rem' }}/> Print Job Card ({selectedJobsForCard.length} Watch)
                 </button>
                 <button onClick={() => setSelectedJobsForCard(null)} className="btn btn-secondary">
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Preview Cart Modal */}
+        {showPreviewModal && (
+          <div className="modal-overlay" style={{ zIndex: 1000 }}>
+            <div className="modal-content" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.4rem', color: 'var(--primary-gold)', margin: 0 }}>Review Intake Cart</h2>
+                <button 
+                  onClick={() => setShowPreviewModal(false)} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem' }}
+                >
+                  &times;
+                </button>
+              </div>
 
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: 'var(--radius-md)' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Customer Information</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Name:</span> {custName}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Phone:</span> {custPhone}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Status:</span> {selectedCustomerId ? <span style={{ color: 'var(--success)' }}>Existing CRM Profile</span> : <span style={{ color: 'var(--primary-gold)' }}>New Profile Will Be Created</span>}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Received:</span> {receivedDate}</div>
+                </div>
+              </div>
+
+              <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Watches in Service Cart ({watchesToService.length})</h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                {watchesToService.map((watch, idx) => {
+                  let watchName = '';
+                  if (watch.isExternal) {
+                    watchName = `${watch.externalBrand} ${watch.externalModel}`.trim() + ` (External, ${watch.externalGender})`;
+                  } else {
+                    const matchedWatch = registeredWatches.find(w => w.id === watch.selectedWatchId);
+                    watchName = matchedWatch ? `${matchedWatch.brand} ${matchedWatch.model} (Serial: ${watch.selectedWatchId})` : 'Showroom Watch';
+                  }
+
+                  return (
+                    <div key={idx} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+                        <strong style={{ color: 'var(--primary-gold)', fontSize: '0.9rem' }}>Watch #{idx + 1}</strong>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Due: {watch.dueDate || 'N/A'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gap: '0.4rem', fontSize: '0.85rem' }}>
+                        <div><strong style={{ color: 'var(--text-secondary)' }}>Model:</strong> {watchName}</div>
+                        <div><strong style={{ color: 'var(--text-secondary)' }}>Issue:</strong> {watch.issue}</div>
+                        {watch.condition && <div><strong style={{ color: 'var(--text-secondary)' }}>Condition:</strong> {watch.condition}</div>}
+                        <div><strong style={{ color: 'var(--text-secondary)' }}>Estimate:</strong> {watch.estimate ? `₹${watch.estimate}` : 'To be determined'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <button 
+                  onClick={() => setShowPreviewModal(false)} 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1, padding: '0.8rem' }}
+                >
+                  Edit Inputs
+                </button>
+                <button 
+                  onClick={confirmSubmitIntake} 
+                  className="btn btn-primary" 
+                  style={{ flex: 1, padding: '0.8rem', fontWeight: 'bold' }}
+                >
+                  Confirm & Create Job Card
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* SweetAlert Custom Modal Overlay replaced with sweetalert2 */}
       </div>
     </div>
   );
