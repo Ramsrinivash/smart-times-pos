@@ -30,6 +30,8 @@ class AttendancePayrollController extends Controller
                 'user_role' => $emp->role,
                 'status' => $att ? $att->status : 'present',
                 'notes' => $att ? $att->notes : '',
+                'in_time' => $att && $att->in_time ? Carbon::parse($att->in_time)->format('H:i') : null,
+                'out_time' => $att && $att->out_time ? Carbon::parse($att->out_time)->format('H:i') : null,
             ];
         });
 
@@ -56,7 +58,12 @@ class AttendancePayrollController extends Controller
 
                 Attendance::updateOrCreate(
                     ['user_id' => $rec['user_id'], 'date' => $date],
-                    ['status' => $rec['status'], 'notes' => $rec['notes'] ?? '']
+                    [
+                        'status' => $rec['status'], 
+                        'notes' => $rec['notes'] ?? '',
+                        'in_time' => $rec['in_time'] ?? null,
+                        'out_time' => $rec['out_time'] ?? null
+                    ]
                 );
             }
 
@@ -83,7 +90,12 @@ class AttendancePayrollController extends Controller
 
         $att = Attendance::updateOrCreate(
             ['user_id' => $request->user_id, 'date' => $request->date],
-            ['status' => $request->status, 'notes' => $request->notes ?? '']
+            [
+                'status' => $request->status, 
+                'notes' => $request->notes ?? '',
+                'in_time' => $request->in_time ?? null,
+                'out_time' => $request->out_time ?? null
+            ]
         );
 
         ActivityLog::log($actor->id, 'UPDATE', 'Attendance', "Updated attendance for {$emp->name} on {$request->date} to status: {$request->status}");
@@ -96,6 +108,10 @@ class AttendancePayrollController extends Controller
 
     public function getMonthlyMatrix(Request $request)
     {
+        try {
+            DB::statement("ALTER TABLE attendances ADD COLUMN in_time TIME NULL, ADD COLUMN out_time TIME NULL;");
+        } catch (\Exception $e) {}
+
         $request->validate([
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2050',
@@ -119,10 +135,23 @@ class AttendancePayrollController extends Controller
         foreach ($attendances as $att) {
             if (isset($matrix[$att->user_id])) {
                 $day = (int) Carbon::parse($att->date)->format('j');
+                $hours = 0;
+                if ($att->in_time && $att->out_time) {
+                    $in = Carbon::parse($att->in_time);
+                    $out = Carbon::parse($att->out_time);
+                    if ($out->lessThan($in)) {
+                        $out->addDay();
+                    }
+                    $hours = round($out->diffInMinutes($in) / 60, 1);
+                }
+                
                 $matrix[$att->user_id][$day] = [
                     'status' => $att->status,
                     'notes' => $att->notes ?? '',
-                    'date' => $att->date
+                    'date' => $att->date,
+                    'in_time' => $att->in_time ? Carbon::parse($att->in_time)->format('H:i') : null,
+                    'out_time' => $att->out_time ? Carbon::parse($att->out_time)->format('H:i') : null,
+                    'hours' => $hours
                 ];
             }
         }
@@ -135,6 +164,7 @@ class AttendancePayrollController extends Controller
             $halfDay = 0;
             $absent = 0;
             $leave = 0;
+            $totalHours = 0;
             $recordedCount = count($empMatrix);
 
             foreach ($empMatrix as $dayData) {
@@ -145,6 +175,8 @@ class AttendancePayrollController extends Controller
                 elseif ($st === 'half_day') $halfDay++;
                 elseif ($st === 'absent') $absent++;
                 elseif ($st === 'leave') $leave++;
+                
+                $totalHours += $dayData['hours'] ?? 0;
             }
 
             $unrecorded = max(0, $daysInMonth - $recordedCount);
@@ -163,7 +195,8 @@ class AttendancePayrollController extends Controller
                     'absent' => $absent,
                     'leave' => $leave,
                     'unrecorded' => $unrecorded,
-                    'payable_days' => $payableDays
+                    'payable_days' => $payableDays,
+                    'total_hours' => round($totalHours, 1)
                 ]
             ];
         });
