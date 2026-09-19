@@ -109,6 +109,10 @@ const Reports = () => {
 
   const switchTab = (tabId) => {
     setActiveTab(tabId);
+    if (tabId === 'gst') {
+      // Auto-load GST report on tab switch
+      setTimeout(() => loadReport('gst'), 50);
+    }
   };
 
   const tabStyle = (t) => ({
@@ -692,7 +696,18 @@ const Reports = () => {
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3>GST Output Report (Sales) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => {
+                    const monthName = new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' });
+                    const totalGstSales = (gstData.sales || []).flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(si?.gst_amount || 0), 0);
+                    const totalGstPurchases = (gstData.purchases || []).flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate || 18)/100)))), 0);
+                    const subject = encodeURIComponent(`GST Report - ${monthName} ${gstYear} - Smart Times`);
+                    const body = encodeURIComponent(
+`GST Report Summary - ${monthName} ${gstYear}\n\nDear Auditor,\n\nPlease find the GST summary for ${monthName} ${gstYear}:\n\nOUTPUT TAX (Sales):\n  Total GST Invoices: ${(gstData.sales || []).length}\n  Total GST Collected: ₹${totalGstSales.toFixed(2)}\n  CGST: ₹${(totalGstSales/2).toFixed(2)}\n  SGST: ₹${(totalGstSales/2).toFixed(2)}\n\nINPUT TAX (Purchases):\n  Total Purchase Bills: ${(gstData.purchases || []).length}\n  Total GST Paid: ₹${totalGstPurchases.toFixed(2)}\n\nNET GST PAYABLE: ₹${(totalGstSales - totalGstPurchases).toFixed(2)}\n\nRegards,\nSmart Times`);
+                    window.open(`mailto:?subject=${subject}&body=${body}`);
+                  }} style={{ background: '#6366f1', color: '#fff', borderColor: '#6366f1' }}>
+                    📧 Email Auditor
+                  </button>
                   <button className="btn btn-secondary btn-sm" onClick={() => {
                     const oldTitle = document.title;
                     document.title = `GST_Output_Report_${gstMonth}_${gstYear}`;
@@ -716,6 +731,7 @@ const Reports = () => {
                     'gst_output_report', 'GST Output Report'
                   )}><Download size={13} /> Export Excel</button>
                 </div>
+
               </div>
               <table className="data-table">
                 <thead><tr>
