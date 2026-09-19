@@ -917,61 +917,89 @@ const AttendancePayroll = () => {
       {/* PAYSLIP PRINT TEMPLATE (Hidden in UI, Visible when printing)         */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {activeSlip && (
-        <div className="printable-area" style={{ display: 'none', background: '#fff', color: '#000', padding: '2rem', fontFamily: 'sans-serif' }}>
+        <div className="print-only" style={{ display: 'none', background: '#fff', color: '#000', padding: '2rem', fontFamily: 'sans-serif' }}>
           <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ margin: 0, color: '#d4af37' }}>SMART TIMES</h2>
-              <p style={{ margin: '0.2rem 0', fontSize: '0.85rem' }}>Watch Showroom & Service Center</p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#555' }}>Dharmapuri, Tamil Nadu</p>
+              <h2 style={{ margin: 0, color: '#000', fontSize: '1.8rem', fontWeight: 800 }}>SMART TIMES</h2>
+              <p style={{ margin: '0.2rem 0', fontSize: '0.9rem', color: '#444' }}>Watch Showroom & Service Center</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>108, Pennagaram Main Road, Dharmapuri - 636 701</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>Phone: 97512 85945 | GSTIN: 33EJBPA4537C1ZW</p>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <h3 style={{ margin: 0, textTransform: 'uppercase' }}>Salary Payslip</h3>
-              <p style={{ margin: '0.2rem 0', fontWeight: 600 }}>Period: {currentMonthName} {selectedYear}</p>
-              <p style={{ margin: 0, fontSize: '0.85rem' }}>Payment Date: {activeSlip.payment_date || new Date().toISOString().split('T')[0]}</p>
+              <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: '1.4rem', border: '2px solid #000', padding: '0.25rem 0.75rem', display: 'inline-block', borderRadius: '4px' }}>Payslip</h3>
+              <p style={{ margin: '0.5rem 0 0 0', fontWeight: 600 }}>Period: {currentMonthName} {selectedYear}</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem' }}>Payment Date: {activeSlip.payment_date || new Date().toISOString().split('T')[0]}</p>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            <div style={{ borderRight: '1px solid #ddd', paddingRight: '1rem' }}>
-              <p style={{ margin: '0.2rem 0' }}>Employee Name: <strong>{activeSlip.user_name}</strong></p>
-              <p style={{ margin: '0.2rem 0' }}>Designation / Role: <strong style={{ textTransform: 'capitalize' }}>{activeSlip.user_role}</strong></p>
+          <div style={{ display: 'flex', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            <div style={{ flex: 1, borderRight: '1px solid #ccc', padding: '1rem' }}>
+              <p style={{ margin: '0 0 0.5rem 0' }}><span style={{ color: '#555' }}>Employee Name:</span> <strong style={{ fontSize: '1.05rem' }}>{activeSlip.user_name}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0' }}><span style={{ color: '#555' }}>Designation:</span> <strong style={{ textTransform: 'capitalize' }}>{activeSlip.user_role}</strong></p>
+              <p style={{ margin: 0 }}><span style={{ color: '#555' }}>Employee ID:</span> <strong>EMP-{String(activeSlip.user_id).padStart(4, '0')}</strong></p>
             </div>
-            <div>
-              <p style={{ margin: '0.2rem 0' }}>Total Days in Month: <strong>{activeSlip.total_days}</strong></p>
-              <p style={{ margin: '0.2rem 0' }}>Payable Days: <strong>{(activeSlip.present_days || 0) + (activeSlip.cl_days || 0) + (activeSlip.ml_days || 0) + ((activeSlip.half_days || 0) * 0.5)}</strong></p>
+            <div style={{ flex: 1, padding: '1rem' }}>
+              <p style={{ margin: '0 0 0.5rem 0' }}><span style={{ color: '#555' }}>Total Month Days:</span> <strong>{activeSlip.total_days}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0' }}><span style={{ color: '#555' }}>Payable Days:</span> <strong>{(activeSlip.present_days || 0) + (activeSlip.cl_days || 0) + (activeSlip.ml_days || 0) + ((activeSlip.half_days || 0) * 0.5)}</strong></p>
+              <p style={{ margin: 0 }}><span style={{ color: '#555' }}>Loss of Pay Days:</span> <strong>{activeSlip.absent_days || 0}</strong></p>
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.95rem' }}>
             <thead>
-              <tr style={{ background: '#f5f5f5', borderBottom: '1.5px solid #333' }}>
-                <th style={{ padding: '0.5rem', textAlign: 'left' }}>Description</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Details / Amount</th>
+              <tr style={{ background: '#f5f5f5', borderTop: '2px solid #333', borderBottom: '2px solid #333' }}>
+                <th style={{ padding: '0.75rem', textAlign: 'left', width: '50%' }}>Earnings</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right', width: '50%' }}>Deductions</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '0.5rem' }}>Monthly Base Salary</td>
-                <td style={{ padding: '0.5rem', textAlign: 'right' }}>₹{Number(activeSlip.base_salary).toLocaleString('en-IN')}</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '0.5rem' }}>Attendance Breakdown</td>
-                <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                  P: {activeSlip.present_days || 0} | CL: {activeSlip.cl_days || 0} | ML: {activeSlip.ml_days || 0} | HD: {activeSlip.half_days || 0} | Absent: {activeSlip.absent_days || 0}
+              <tr>
+                <td style={{ padding: '0.75rem', verticalAlign: 'top', borderRight: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span>Basic Salary</span>
+                    <span>₹{Number(activeSlip.base_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span>Loss of Pay (Absents)</span>
+                    <span>₹{Number(Math.max(0, activeSlip.base_salary - activeSlip.net_salary)).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                  </div>
                 </td>
               </tr>
-              <tr style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '0.5rem' }}>Total Hours Worked</td>
-                <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700, color: '#d4af37' }}>
-                  ⏰ {activeSlip.total_hours || 0} hrs
+              <tr style={{ borderTop: '1px solid #ddd' }}>
+                <td style={{ padding: '0.75rem', fontWeight: 600, borderRight: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Gross Earnings</span>
+                    <span>₹{Number(activeSlip.base_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                  </div>
                 </td>
-              </tr>
-              <tr style={{ borderBottom: '2px solid #333', fontWeight: 700, fontSize: '1.1rem' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>Net Salary Paid</td>
-                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', color: '#d4af37' }}>₹{Number(activeSlip.net_salary).toLocaleString('en-IN')}</td>
+                <td style={{ padding: '0.75rem', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Total Deductions</span>
+                    <span>₹{Number(Math.max(0, activeSlip.base_salary - activeSlip.net_salary)).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
+
+          <div style={{ background: '#f9f9f9', border: '1px solid #ddd', padding: '1rem', borderRadius: '4px', marginBottom: '2rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}>Attendance Summary</h4>
+            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem' }}>
+              <span><strong>P:</strong> {activeSlip.present_days || 0}</span>
+              <span><strong>CL:</strong> {activeSlip.cl_days || 0}</span>
+              <span><strong>ML:</strong> {activeSlip.ml_days || 0}</span>
+              <span><strong>HD:</strong> {activeSlip.half_days || 0}</span>
+              <span><strong>A:</strong> {activeSlip.absent_days || 0}</span>
+              <span style={{ marginLeft: 'auto', fontWeight: 700 }}>Total Hours: {activeSlip.total_hours || 0} hrs</span>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '2px solid #333', borderBottom: '2px solid #333', padding: '1rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4rem' }}>
+            <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Net Salary Payable</span>
+            <span style={{ fontWeight: 800, fontSize: '1.5rem' }}>₹{Number(activeSlip.net_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem', fontSize: '0.85rem' }}>
             <div style={{ borderTop: '1px dashed #333', width: '180px', textAlign: 'center', paddingTop: '0.25rem' }}>
