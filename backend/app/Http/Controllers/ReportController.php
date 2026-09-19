@@ -21,15 +21,15 @@ class ReportController extends Controller
         $today = Carbon::now()->toDateString();
         $month = Carbon::now()->format('Y-m');
 
-        $todaySalesQuery = Sale::whereDate('invoice_date', $today)->where('is_returned', 0);
+        $todaySalesQuery = Sale::whereDate('invoice_date', $today)->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
         $todaySalesCount = (int) $todaySalesQuery->count();
         $todaySalesSum = (double) $todaySalesQuery->sum('net_amount');
 
-        $monthSalesQuery = Sale::where('invoice_date', 'like', "{$month}%")->where('is_returned', 0);
+        $monthSalesQuery = Sale::where('invoice_date', 'like', "{$month}%")->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
         $monthSalesCount = (int) $monthSalesQuery->count();
         $monthSalesSum = (double) $monthSalesQuery->sum('net_amount');
 
-        $totalSalesQuery = Sale::where('is_returned', 0);
+        $totalSalesQuery = Sale::whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
         $totalSalesCount = (int) $totalSalesQuery->count();
         $totalSalesSum = (double) $totalSalesQuery->sum('net_amount');
 
@@ -57,26 +57,26 @@ class ReportController extends Controller
         $monthProfitSnap = null;
         $totalProfitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
-            $todayGstTax = (double) Sale::whereDate('invoice_date', $today)->where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
+            $todayGstTax = (double) Sale::whereDate('invoice_date', $today)->where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostToday = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->whereDate('sales.invoice_date', $today)
-                ->where('sales.is_returned', 0)
+                ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
             $profitSnap = round(($todaySalesSum - $todayGstTax) - $totalCostToday, 2);
 
-            $monthGstTax = (double) Sale::where('invoice_date', 'like', "{$month}%")->where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
+            $monthGstTax = (double) Sale::where('invoice_date', 'like', "{$month}%")->where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostMonth = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.invoice_date', 'like', "{$month}%")
-                ->where('sales.is_returned', 0)
+                ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
             $monthProfitSnap = round(($monthSalesSum - $monthGstTax) - $totalCostMonth, 2);
 
-            $totalGstTax = (double) Sale::where('invoice_type', 'gst')->where('is_returned', 0)->sum('gst_amount');
+            $totalGstTax = (double) Sale::where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostAll = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sales.is_returned', 0)
+                ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
             $totalProfitSnap = round(($totalSalesSum - $totalGstTax) - $totalCostAll, 2);
         }
