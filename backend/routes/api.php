@@ -130,6 +130,24 @@ Route::get('/test-login-action', function() {
 // Route to run migrations (Added to fix missing columns on live server like base_salary and hsn_code)
 Route::get('/migrate-db', function() {
     try {
+        // Fix 0: Create cache tables to prevent schema cache crash
+        \Illuminate\Support\Facades\DB::statement("
+            CREATE TABLE IF NOT EXISTS `cache` (
+              `key` varchar(255) NOT NULL,
+              `value` mediumtext NOT NULL,
+              `expiration` int(11) NOT NULL,
+              PRIMARY KEY (`key`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ");
+        \Illuminate\Support\Facades\DB::statement("
+            CREATE TABLE IF NOT EXISTS `cache_locks` (
+              `key` varchar(255) NOT NULL,
+              `owner` varchar(255) NOT NULL,
+              `expiration` int(11) NOT NULL,
+              PRIMARY KEY (`key`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ");
+
         // Fix 1: Add hsn_code
         if (!\Illuminate\Support\Facades\Schema::hasColumn('watches', 'hsn_code')) {
             \Illuminate\Support\Facades\Schema::table('watches', function ($table) {
@@ -211,9 +229,10 @@ Route::get('/migrate-db', function() {
             });
         } else {
             if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'user_id')) {
-                \Illuminate\Support\Facades\Schema::table('stock_adjustments', function ($table) {
-                    $table->foreignId('user_id')->nullable()->after('watch_id')->constrained('users');
-                });
+                try {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER watch_id;");
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id);");
+                } catch (\Exception $ex) {}
             }
         }
         
