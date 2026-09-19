@@ -413,3 +413,90 @@ Route::get('/get-error-logs-dir', function () {
     $lines = file($latest);
     return response(implode('', array_slice($lines, -500)), 200)->header('Content-Type', 'text/plain');
 });
+
+/**
+ * NUCLEAR RESET ROUTE
+ * ---------------------------------------------------
+ * This route will:
+ *   1. Save all admin users (role = 'admin')
+ *   2. Disable FK checks and DROP every table except
+ *      personal_access_tokens / migrations
+ *   3. Reset the Laravel migrations tracker
+ *   4. Run `php artisan migrate --force` (which will
+ *      execute our new consolidated migration)
+ *   5. Re-insert the saved admin users
+ *
+ * CALL: GET /api/reset-and-sync
+ * CAUTION: This will delete ALL non-admin data from live DB.
+ */
+Route::get('/reset-and-sync', function () {
+    set_time_limit(300);
+    $log = [];
+
+    try {
+        // Step 1: Save admin credentials
+        $admins = \Illuminate\Support\Facades\DB::table('users')
+            ->where('role', 'admin')
+            ->get();
+        $log[] = "Saved " . count($admins) . " admin user(s).";
+
+        // Step 2: Disable FK checks and drop all tables except migrations
+        \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        $tables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
+        $dbName = env('DB_DATABASE');
+        $dropTables = [];
+        foreach ($tables as $table) {
+            $tableName = array_values((array) $table)[0];
+            if (!in_array($tableName, ['migrations'])) {
+                $dropTables[] = $tableName;
+            }
+        }
+
+        foreach ($dropTables as $t) {
+            \Illuminate\Support\Facades\DB::statement("DROP TABLE IF EXISTS `{$t}`");
+        }
+        $log[] = "Dropped tables: " . implode(', ', $dropTables);
+
+        // Step 3: Re-enable FK checks and reset migrations tracker
+        \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        \Illuminate\Support\Facades\DB::table('migrations')->truncate();
+        $log[] = "Reset migrations tracker.";
+
+        // Step 4: Run fresh migration
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $log[] = "Migration ran successfully.";
+        $log[] = \Illuminate\Support\Facades\Artisan::output();
+
+        // Step 5: Re-insert admin users
+        foreach ($admins as $admin) {
+            $userData = (array) $admin;
+            unset($userData['id']); // Let DB auto-assign new ID
+            \Illuminate\Support\Facades\DB::table('users')->insert(array_merge($userData, [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+        $log[] = "Re-inserted " . count($admins) . " admin user(s).";
+
+        // Step 6: Clear all cached config
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $log[] = "Cache cleared.";
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Live DB reset and synced successfully! All modules are now ready.',
+            'log' => $log
+        ]);
+
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'log' => $log,
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
