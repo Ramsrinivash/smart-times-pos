@@ -105,6 +105,7 @@ const PrintableInvoice = ({
             size: ${t.paperSize === 'A5' ? 'A5' : t.paperSize.startsWith('thermal') ? '${paper.width} auto' : 'A4'};
             margin: 0;
           }
+          html, body { height: auto !important; overflow: visible !important; margin: 0; padding: 0; }
           body * { visibility: hidden !important; }
           .smarttimes-printable-invoice,
           .smarttimes-printable-invoice * { visibility: visible !important; }

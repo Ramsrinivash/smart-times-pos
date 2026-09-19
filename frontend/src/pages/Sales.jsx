@@ -373,7 +373,10 @@ const Sales = () => {
     if (!invoiceEl) { window.print(); return; }
     const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('');
     const pw = window.open('', '_blank', 'width=900,height=700');
-    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title>${styleSheets}<style>body{margin:0;padding:14mm;background:#fff;color:#000;font-family:Arial,sans-serif;font-size:12px;}</style></head><body>${invoiceEl.innerHTML}</body></html>`);
+    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title>${styleSheets}<style>
+      html, body { height: auto !important; min-height: auto !important; overflow: visible !important; margin: 0; padding: 0; background: #fff; }
+      @media print { html, body { height: auto !important; overflow: visible !important; } }
+    </style></head><body>${invoiceEl.outerHTML}</body></html>`);
     pw.document.close();
     pw.focus();
     setTimeout(() => { pw.print(); pw.close(); }, 350);
