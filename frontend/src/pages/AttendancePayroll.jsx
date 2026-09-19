@@ -949,7 +949,7 @@ const AttendancePayroll = () => {
             <thead>
               <tr style={{ background: '#f5f5f5', borderTop: '2px solid #333', borderBottom: '2px solid #333' }}>
                 <th style={{ padding: '0.75rem', textAlign: 'left', width: '50%' }}>Earnings</th>
-                <th style={{ padding: '0.75rem', textAlign: 'right', width: '50%' }}>Deductions</th>
+                <th style={{ padding: '0.75rem', textAlign: 'left', width: '50%' }}>Deductions</th>
               </tr>
             </thead>
             <tbody>

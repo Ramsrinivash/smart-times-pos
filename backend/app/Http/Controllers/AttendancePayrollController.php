@@ -137,12 +137,19 @@ class AttendancePayrollController extends Controller
                 $day = (int) Carbon::parse($att->date)->format('j');
                 $hours = 0;
                 if ($att->in_time && $att->out_time) {
-                    $in = Carbon::parse($att->in_time);
-                    $out = Carbon::parse($att->out_time);
-                    if ($out->lessThan($in)) {
-                        $out->addDay();
+                    $inParts = explode(':', $att->in_time);
+                    $outParts = explode(':', $att->out_time);
+                    
+                    if (count($inParts) >= 2 && count($outParts) >= 2) {
+                        $inMins = ((int)$inParts[0]) * 60 + ((int)$inParts[1]);
+                        $outMins = ((int)$outParts[0]) * 60 + ((int)$outParts[1]);
+                        
+                        if ($outMins < $inMins) {
+                            $outMins += 24 * 60;
+                        }
+                        
+                        $hours = round(($outMins - $inMins) / 60, 1);
                     }
-                    $hours = round($out->diffInMinutes($in) / 60, 1);
                 }
                 
                 $matrix[$att->user_id][$day] = [
