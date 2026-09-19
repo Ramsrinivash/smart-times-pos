@@ -131,110 +131,114 @@ Route::get('/test-login-action', function() {
 Route::get('/migrate-db', function() {
     try {
         // Fix 0: Create cache tables to prevent schema cache crash
-        \Illuminate\Support\Facades\DB::statement("
-            CREATE TABLE IF NOT EXISTS `cache` (
-              `key` varchar(255) NOT NULL,
-              `value` mediumtext NOT NULL,
-              `expiration` int(11) NOT NULL,
-              PRIMARY KEY (`key`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
-        \Illuminate\Support\Facades\DB::statement("
-            CREATE TABLE IF NOT EXISTS `cache_locks` (
-              `key` varchar(255) NOT NULL,
-              `owner` varchar(255) NOT NULL,
-              `expiration` int(11) NOT NULL,
-              PRIMARY KEY (`key`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:table');
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        } catch (\Exception $e) {}
 
         // Fix 1: Add hsn_code
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('watches', 'hsn_code')) {
-            \Illuminate\Support\Facades\Schema::table('watches', function ($table) {
-                $table->string('hsn_code')->default('9102')->after('movement_type');
-            });
-        }
-        
-        // Fix 2: Add base_salary
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'base_salary')) {
-            \Illuminate\Support\Facades\Schema::table('users', function ($table) {
-                $table->decimal('base_salary', 10, 2)->default(0.00)->after('role');
-            });
-        }
-
-        // Fix 3: Create attendances table
-        if (!\Illuminate\Support\Facades\Schema::hasTable('attendances')) {
-            \Illuminate\Support\Facades\Schema::create('attendances', function ($table) {
-                $table->id();
-                $table->integer('user_id');
-                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-                $table->date('date');
-                $table->string('status')->default('present');
-                $table->string('notes')->nullable();
-                $table->timestamps();
-                $table->unique(['user_id', 'date']);
-            });
-        }
-
-        // Fix 4: Create payrolls table
-        if (!\Illuminate\Support\Facades\Schema::hasTable('payrolls')) {
-            \Illuminate\Support\Facades\Schema::create('payrolls', function ($table) {
-                $table->id();
-                $table->integer('user_id');
-                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-                $table->integer('month');
-                $table->integer('year');
-                $table->decimal('base_salary', 10, 2);
-                $table->decimal('net_salary', 10, 2);
-                $table->enum('status', ['unpaid', 'paid'])->default('unpaid');
-                $table->date('payment_date')->nullable();
-                $table->timestamps();
-                $table->unique(['user_id', 'month', 'year']);
-            });
-        }
-        
-        // Fix 5: Add timestamps to loyalty_ledgers
-        if (\Illuminate\Support\Facades\Schema::hasTable('loyalty_ledgers')) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('loyalty_ledgers', 'updated_at')) {
-                \Illuminate\Support\Facades\Schema::table('loyalty_ledgers', function ($table) {
-                    $table->timestamps();
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('watches', 'hsn_code')) {
+                \Illuminate\Support\Facades\Schema::table('watches', function ($table) {
+                    $table->string('hsn_code')->default('9102')->after('movement_type');
                 });
             }
-        }
+        } catch (\Exception $e) {}
+        
+        // Fix 2: Add base_salary
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'base_salary')) {
+                \Illuminate\Support\Facades\Schema::table('users', function ($table) {
+                    $table->decimal('base_salary', 10, 2)->default(0.00)->after('role');
+                });
+            }
+        } catch (\Exception $e) {}
+
+        // Fix 3: Create attendances table
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('attendances')) {
+                \Illuminate\Support\Facades\Schema::create('attendances', function ($table) {
+                    $table->id();
+                    $table->integer('user_id');
+                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+                    $table->date('date');
+                    $table->string('status')->default('present');
+                    $table->string('notes')->nullable();
+                    $table->timestamps();
+                    $table->unique(['user_id', 'date']);
+                });
+            }
+        } catch (\Exception $e) {}
+
+        // Fix 4: Create payrolls table
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('payrolls')) {
+                \Illuminate\Support\Facades\Schema::create('payrolls', function ($table) {
+                    $table->id();
+                    $table->integer('user_id');
+                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+                    $table->integer('month');
+                    $table->integer('year');
+                    $table->decimal('base_salary', 10, 2);
+                    $table->decimal('net_salary', 10, 2);
+                    $table->enum('status', ['unpaid', 'paid'])->default('unpaid');
+                    $table->date('payment_date')->nullable();
+                    $table->timestamps();
+                    $table->unique(['user_id', 'month', 'year']);
+                });
+            }
+        } catch (\Exception $e) {}
+        
+        // Fix 5: Add timestamps to loyalty_ledgers
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('loyalty_ledgers')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('loyalty_ledgers', 'updated_at')) {
+                    \Illuminate\Support\Facades\Schema::table('loyalty_ledgers', function ($table) {
+                        $table->timestamps();
+                    });
+                }
+            }
+        } catch (\Exception $e) {}
 
         // Fix 6: Add POS Features (outstanding_dues to customers, is_credit_sale to sales)
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'outstanding_dues')) {
-            \Illuminate\Support\Facades\Schema::table('customers', function ($table) {
-                $table->decimal('outstanding_dues', 12, 2)->default(0.00)->after('points_balance');
-            });
-        }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('sales', 'is_credit_sale')) {
-            \Illuminate\Support\Facades\Schema::table('sales', function ($table) {
-                $table->boolean('is_credit_sale')->default(false)->after('payment_mode');
-            });
-        }
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'outstanding_dues')) {
+                \Illuminate\Support\Facades\Schema::table('customers', function ($table) {
+                    $table->decimal('outstanding_dues', 12, 2)->default(0.00)->after('points_balance');
+                });
+            }
+        } catch (\Exception $e) {}
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('sales', 'is_credit_sale')) {
+                \Illuminate\Support\Facades\Schema::table('sales', function ($table) {
+                    $table->boolean('is_credit_sale')->default(false)->after('payment_mode');
+                });
+            }
+        } catch (\Exception $e) {}
 
         // Fix 7: Create stock_adjustments table or add user_id column
-        if (!\Illuminate\Support\Facades\Schema::hasTable('stock_adjustments')) {
-            \Illuminate\Support\Facades\Schema::create('stock_adjustments', function ($table) {
-                $table->id();
-                $table->string('watch_id');
-                $table->foreign('watch_id')->references('id')->on('watches')->onDelete('cascade');
-                $table->foreignId('user_id')->nullable()->constrained('users');
-                $table->string('old_status')->nullable();
-                $table->string('new_status');
-                $table->string('reason');
-                $table->text('remarks')->nullable();
-                $table->timestamps();
-            });
-        } else {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'user_id')) {
-                try {
-                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER watch_id;");
-                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id);");
-                } catch (\Exception $ex) {}
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('stock_adjustments')) {
+                \Illuminate\Support\Facades\Schema::create('stock_adjustments', function ($table) {
+                    $table->id();
+                    $table->string('watch_id');
+                    $table->foreign('watch_id')->references('id')->on('watches')->onDelete('cascade');
+                    $table->foreignId('user_id')->nullable()->constrained('users');
+                    $table->string('old_status')->nullable();
+                    $table->string('new_status');
+                    $table->string('reason');
+                    $table->text('remarks')->nullable();
+                    $table->timestamps();
+                });
+            } else {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'user_id')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER watch_id;");
+                        \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id);");
+                    } catch (\Exception $ex) {}
+                }
             }
-        }
+        } catch (\Exception $e) {}
         
         // Seed the migrations table so `artisan migrate` works in the future
         if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
