@@ -38,6 +38,10 @@ const ServiceRepair = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [hideDelivered, setHideDelivered] = useState(true);
 
+  // Pagination for service tracker
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 5;
+
   // Dynamic list of watches to service
   const [watchesToService, setWatchesToService] = useState([
     {
@@ -99,6 +103,21 @@ const ServiceRepair = () => {
 
     return matchesQuery && matchesStatus && matchesHide;
   });
+
+  // Calculate pagination
+  const indexOfLastJob = currentPage * jobsPerPage;
+  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+  const currentJobs = filteredJobs.slice(indexOfFirstJob, indexOfLastJob);
+  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, hideDelivered]);
 
   const safeJobs = Array.isArray(jobs) ? jobs : [];
   const deliveredCount = safeJobs.filter(j => j?.status === 'delivered').length;
@@ -631,9 +650,9 @@ const ServiceRepair = () => {
               </button>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', maxHeight: '600px' }}>
-              {filteredJobs.length > 0 ? (
-                filteredJobs.map(job => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {currentJobs.length > 0 ? (
+                currentJobs.map(job => (
                   <div key={job.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--border-color)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                       <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>JC: {job.id}</span>
@@ -688,9 +707,46 @@ const ServiceRepair = () => {
                   </div>
                 ))
               ) : (
-                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>No service jobs registered.</p>
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  No service jobs found matching your criteria.
+                </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Showing {indexOfFirstJob + 1} to {Math.min(indexOfLastJob, filteredJobs.length)} of {filteredJobs.length} jobs
+                </span>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button 
+                    onClick={() => handlePageChange(currentPage - 1)} 
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Prev
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`btn btn-sm ${currentPage === i + 1 ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.25rem 0.6rem' }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button 
+                    onClick={() => handlePageChange(currentPage + 1)} 
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
