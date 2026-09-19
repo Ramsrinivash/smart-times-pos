@@ -85,11 +85,41 @@ class ReportController extends Controller
         $outstandingDuesTotal = (double) Customer::where('outstanding_dues', '>', 0)->sum('outstanding_dues');
         $outstandingDuesCount = Customer::where('outstanding_dues', '>', 0)->count();
 
-        // Today's birthdays
-        $todayMD = Carbon::now()->format('m-d');
-        $birthdaysToday = Customer::whereRaw("DATE_FORMAT(dob, '%m-%d') = ?", [$todayMD])
-            ->whereNotNull('dob')
-            ->get(['id', 'name', 'phone', 'dob']);
+        // Upcoming Birthdays (Next 30 Days)
+        $customersWithDob = Customer::whereNotNull('dob')->get(['id', 'name', 'phone', 'dob']);
+        $upcomingBirthdays = [];
+        
+        foreach ($customersWithDob as $c) {
+            $dob = Carbon::parse($c->dob);
+            $birthdayThisYear = $dob->copy()->year(Carbon::now()->year);
+            
+            if ($birthdayThisYear->isPast() && !$birthdayThisYear->isToday()) {
+                $birthdayThisYear->addYear();
+            }
+            
+            $daysAway = (int) Carbon::today()->diffInDays($birthdayThisYear, false);
+            
+            if ($daysAway >= 0 && $daysAway <= 30) {
+                // Dynamically add properties to the model instance
+                $c->daysAway = $daysAway;
+                if ($daysAway === 0) {
+                    $c->badgeText = "Today! 🎉";
+                    $c->isToday = true;
+                } elseif ($daysAway === 1) {
+                    $c->badgeText = "Tomorrow";
+                    $c->isToday = false;
+                } else {
+                    $c->badgeText = "In {$daysAway} days";
+                    $c->isToday = false;
+                }
+                $upcomingBirthdays[] = $c;
+            }
+        }
+        
+        // Sort by closest birthday
+        usort($upcomingBirthdays, function($a, $b) {
+            return $a->daysAway <=> $b->daysAway;
+        });
 
         return response()->json([
             'today_sales_count' => $todaySalesCount,
@@ -107,7 +137,8 @@ class ReportController extends Controller
             'pending_supplier_payments_sum' => $pendingPaymentsSum,
             'outstanding_dues_total' => $outstandingDuesTotal,
             'outstanding_dues_count' => $outstandingDuesCount,
-            'birthdays_today' => $birthdaysToday,
+            'upcoming_birthdays' => $upcomingBirthdays,
+            'birthdays_today' => [], // Fallback for older frontend
             'profit_snapshot' => $profitSnap,
             'month_profit_snapshot' => $monthProfitSnap,
             'total_profit_snapshot' => $totalProfitSnap
