@@ -216,7 +216,7 @@ Route::get('/migrate-db', function() {
             }
         } catch (\Exception $e) {}
 
-        // Fix 7: Create stock_adjustments table or add user_id column
+        // Fix 7: Create stock_adjustments table or add missing columns
         try {
             if (!\Illuminate\Support\Facades\Schema::hasTable('stock_adjustments')) {
                 \Illuminate\Support\Facades\Schema::create('stock_adjustments', function ($table) {
@@ -236,6 +236,18 @@ Route::get('/migrate-db', function() {
                         \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER watch_id;");
                         \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id);");
                     } catch (\Exception $ex) {}
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'old_status')) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN old_status VARCHAR(255) NULL;");
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'new_status')) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN new_status VARCHAR(255) NOT NULL DEFAULT 'reserved';");
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'reason')) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN reason VARCHAR(255) NOT NULL DEFAULT 'Other';");
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'remarks')) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE stock_adjustments ADD COLUMN remarks TEXT NULL;");
                 }
             }
         } catch (\Exception $e) {}
@@ -393,23 +405,11 @@ Route::get('/get-error-log', function () {
 });
 
 Route::get('/get-error-logs-dir', function () {
-    try {
-        $watch = \App\Models\Watch::first();
-        if (!$watch) return "No watches found.";
-
-        $user = \App\Models\User::first();
-        if (!$user) return "No users found.";
-
-        \App\Models\StockAdjustment::create([
-            'watch_id' => $watch->id,
-            'user_id' => $user->id,
-            'old_status' => 'in_stock',
-            'new_status' => 'reserved',
-            'reason' => 'Testing',
-            'remarks' => 'Test'
-        ]);
-        return response('Success', 200);
-    } catch (\Exception $e) {
-        return response($e->getMessage() . "\n" . $e->getTraceAsString(), 500)->header('Content-Type', 'text/plain');
+    $files = glob(storage_path('logs/*.log'));
+    if (empty($files)) {
+        return response('No logs found.', 404)->header('Content-Type', 'text/plain');
     }
+    $latest = end($files);
+    $lines = file($latest);
+    return response(implode('', array_slice($lines, -500)), 200)->header('Content-Type', 'text/plain');
 });
