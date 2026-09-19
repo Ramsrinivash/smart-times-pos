@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
 import { useAuth } from '../context/AuthContext';
-import { Download, FileText, BarChart2, TrendingUp, RefreshCw, Users, Wrench, Truck, Eye } from 'lucide-react';
+import { Download, FileText, BarChart2, TrendingUp, RefreshCw, Users, Wrench, Truck, Eye, Printer } from 'lucide-react';
 import { exportCSV, exportExcel } from '../utils/exportUtils';
 import PrintableInvoice from '../components/PrintableInvoice';
 
