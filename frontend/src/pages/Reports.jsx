@@ -23,7 +23,7 @@ const Reports = () => {
   const [loyaltyData, setLoyaltyData] = useState([]);
   const [serviceData, setServiceData] = useState([]);
   const [supplierDues, setSupplierDues] = useState([]);
-  const [gstData, setGstData] = useState([]);
+  const [gstData, setGstData] = useState({ sales: [], purchases: [] });
   const [loading, setLoading] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
