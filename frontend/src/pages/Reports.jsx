@@ -52,12 +52,12 @@ const Reports = () => {
       switch (tabId) {
         case 'sales': {
           const data = await api.getSalesReport(startDate || null, endDate || null);
-          setSalesData(data);
+          setSalesData(Array.isArray(data) ? data : []);
           break;
         }
         case 'profit': {
           const data = await api.getProfitReport(startDate || null, endDate || null);
-          setProfitData(data);
+          setProfitData(Array.isArray(data) ? data : []);
           break;
         }
         case 'stock': {
@@ -67,32 +67,32 @@ const Reports = () => {
         }
         case 'purchase': {
           const data = await api.getPurchaseLedger();
-          setPurchaseLedger(data);
+          setPurchaseLedger(Array.isArray(data) ? data : []);
           break;
         }
         case 'exchange': {
           const data = await api.getExchangeReport();
-          setExchangeData(data);
+          setExchangeData(Array.isArray(data) ? data : []);
           break;
         }
         case 'loyalty': {
           const data = await api.getLoyaltyReport();
-          setLoyaltyData(data);
+          setLoyaltyData(Array.isArray(data) ? data : []);
           break;
         }
         case 'services': {
           const data = await api.getPendingServiceReport();
-          setServiceData(data);
+          setServiceData(Array.isArray(data) ? data : []);
           break;
         }
         case 'supplier_dues': {
           const data = await api.getSupplierDuesReport();
-          setSupplierDues(data);
+          setSupplierDues(Array.isArray(data) ? data : []);
           break;
         }
         case 'gst': {
           const data = await api.getGstReport(gstMonth, gstYear);
-          setGstData(data);
+          setGstData(Array.isArray(data) ? data : []);
           break;
         }
         default: break;

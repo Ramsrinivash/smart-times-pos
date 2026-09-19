@@ -1,4 +1,5 @@
 import { syncQueue } from '../utils/syncQueue';
+import { alertService } from '../utils/alert';
 
 const getHeaders = () => {
   const token = localStorage.getItem('watch_auth_token');
@@ -44,6 +45,22 @@ const sendOnlineRequest = async (endpoint, options = {}) => {
     if (err.message === 'SESSION_EXPIRED' || err.message === 'SESSION_TERMINATED') {
       throw err;
     }
+    
+    // Global Error Handling for UI
+    const isNetworkError = err.message === 'Failed to fetch' || err.message.includes('NetworkError');
+    const isServerError = err.message.includes('API error 5');
+    
+    if (isNetworkError) {
+      alertService.error('Connection Lost', 'Unable to connect to the server. Please check your internet connection or try again later.');
+    } else if (isServerError || err.message.includes('Maintenance')) {
+      alertService.warning('Server Maintenance', 'The server is currently under maintenance or experiencing issues. Developers are working on it. Please try again in a few minutes.');
+    } else if (err.message.includes('API error 404')) {
+      alertService.warning('Not Found', 'The requested resource was not found on the server.');
+    } else {
+      // Don't show toast for every minor validation error, let components handle it if they want
+      console.error('API Request Failed:', err.message);
+    }
+    
     throw new Error(err.message || `Unable to connect to Central Online Database Server at ${API_BASE_URL}`);
   }
 };
