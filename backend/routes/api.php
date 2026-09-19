@@ -394,8 +394,10 @@ Route::get('/get-error-log', function () {
 
 Route::get('/get-error-logs-dir', function () {
     $files = glob(storage_path('logs/*.log'));
-    if (empty($files)) return response()->json(['error' => 'No logs']);
+    if (empty($files)) {
+        return response('No logs found.', 404)->header('Content-Type', 'text/plain');
+    }
     $latest = end($files);
     $lines = file($latest);
-    return response()->json(['file' => $latest, 'log' => implode('', array_slice($lines, -150))]);
+    return response(implode('', array_slice($lines, -500)), 200)->header('Content-Type', 'text/plain');
 });
