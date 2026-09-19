@@ -8,6 +8,7 @@ use App\Models\Watch;
 use App\Models\Customer;
 use App\Models\LoyaltyLedger;
 use App\Models\ActivityLog;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -54,8 +55,12 @@ class SalesController extends Controller
             $customer = Customer::findOrFail($request->customer_id);
             $user = $request->user();
             
-            // Split Invoice Series: GST-XXXX and INV-XXXX
-            $prefix = $request->invoice_type === 'gst' ? 'GST-' : 'INV-';
+            $settings = Setting::first();
+            $gstPrefix = $settings->gst_invoice_prefix ?? 'GST';
+            $nongstPrefix = $settings->nongst_invoice_prefix ?? 'INV';
+            
+            // Split Invoice Series: configured prefix
+            $prefix = $request->invoice_type === 'gst' ? "{$gstPrefix}-" : "{$nongstPrefix}-";
             $rows = DB::select("SELECT MAX(CAST(SUBSTRING(id, LENGTH(?) + 1) AS UNSIGNED)) AS max_id FROM sales WHERE id LIKE ? FOR UPDATE", [$prefix, $prefix . '%']);
             $nextNum = 1;
             if ($rows && $rows[0]->max_id !== null) {

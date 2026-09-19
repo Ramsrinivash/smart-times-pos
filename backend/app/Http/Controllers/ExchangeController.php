@@ -8,6 +8,7 @@ use App\Models\SaleItem;
 use App\Models\Watch;
 use App\Models\Customer;
 use App\Models\LoyaltyLedger;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -69,12 +70,15 @@ class ExchangeController extends Controller
             if ($difference > 0) {
                 $exchangeType = $originalSale->invoice_type === 'gst' ? 'tax_invoice' : 'exchange_note';
                 
-                $prefix = $originalSale->invoice_type === 'gst' ? "WS-GST-{$fy}-" : "WS-RETL-{$fy}-";
-                $lastInvoice = Sale::where('id', 'like', "{$prefix}%")->orderBy('id', 'desc')->first();
+                $settings = Setting::first();
+                $gstPrefix = $settings->gst_invoice_prefix ?? 'GST';
+                $nongstPrefix = $settings->nongst_invoice_prefix ?? 'INV';
+                
+                $prefix = $originalSale->invoice_type === 'gst' ? "{$gstPrefix}-" : "{$nongstPrefix}-";
+                $rows = DB::select("SELECT MAX(CAST(SUBSTRING(id, LENGTH(?) + 1) AS UNSIGNED)) AS max_id FROM sales WHERE id LIKE ? FOR UPDATE", [$prefix, $prefix . '%']);
                 $nextNum = 1;
-                if ($lastInvoice) {
-                    $parts = explode('-', $lastInvoice->id);
-                    $nextNum = ((int) end($parts)) + 1;
+                if ($rows && $rows[0]->max_id !== null) {
+                    $nextNum = ((int) $rows[0]->max_id) + 1;
                 }
                 $invoiceId = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
