@@ -52,7 +52,8 @@ const Inventory = () => {
     try {
       await api.adjustStock(adjustWatch.id, newStatus, 'other', 'Status adjusted via inventory manager');
       setAdjustWatch(null);
-      fetchInventory();
+      setInventory(prev => prev.map(w => w.id === adjustWatch.id ? { ...w, status: newStatus } : w));
+      alertService.toast('Status adjusted successfully');
     } catch (err) {
       alertService.error('Error', err.message || 'Failed to adjust stock status.');
     }

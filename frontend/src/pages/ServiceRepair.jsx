@@ -300,7 +300,7 @@ const ServiceRepair = () => {
         'Status Updated',
         `Job Card status successfully updated to: ${nextStatus.toUpperCase().replace('_', ' ')}.`
       );
-      loadData();
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: nextStatus } : j));
     } catch (err) {
       alertService.error('Update Failed', err.message || 'Failed to update job status.');
     }

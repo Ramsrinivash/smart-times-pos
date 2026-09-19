@@ -32,7 +32,7 @@ const SupplierLedger = () => {
     try {
       await api.updatePurchasePayment(id, 'paid');
       alertService.success('Success', 'Supplier payment marked as paid.');
-      await loadData();
+      setPurchases(prev => prev.map(p => p.id === id ? { ...p, payment_status: 'paid' } : p));
     } catch (err) {
       alertService.error('Error', 'Failed to update payment: ' + err.message);
     } finally {
