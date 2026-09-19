@@ -25,6 +25,9 @@ const Reports = () => {
   const [supplierDues, setSupplierDues] = useState([]);
   const [gstData, setGstData] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [storeSettings, setStoreSettings] = useState(null);
@@ -44,6 +47,7 @@ const Reports = () => {
 
   const loadReport = async (tabId) => {
     setLoading(true);
+    setCurrentPage(1); // Reset page on new load
     try {
       switch (tabId) {
         case 'sales': {
@@ -218,7 +222,7 @@ const Reports = () => {
                   <th>Subtotal</th><th>Discount</th><th>GST</th><th>Net Amount</th><th>Mode</th><th style={{ textAlign: 'center' }}>Action</th>
                 </tr></thead>
                 <tbody>
-                  {salesData.length > 0 ? salesData.map(s => (
+                  {salesData.length > 0 ? salesData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
                     <tr key={s.id}>
                       <td>
                         <button
@@ -263,6 +267,36 @@ const Reports = () => {
                     <tr><td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sales data for selected period.</td></tr>
                   )}
                 </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination Controls */}
+            {salesData.length > itemsPerPage && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, salesData.length)} of {salesData.length} entries
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary btn-sm" 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    className="btn btn-secondary btn-sm" 
+                    disabled={currentPage === Math.ceil(salesData.length / itemsPerPage)} 
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+              <table className="data-table">
                 {salesData.length > 0 && (
                   <tfoot>
                     <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
@@ -421,7 +455,7 @@ const Reports = () => {
                   <th>MRP</th><th>Disc %</th><th>Cost Price</th><th>Selling Price</th><th>GST</th><th>Status</th>
                 </tr></thead>
                 <tbody>
-                  {purchaseLedger.map((r, idx) => (
+                  {purchaseLedger.length > 0 ? purchaseLedger.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((r, idx) => (
                     <tr key={idx}>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{r.watch_id}</td>
                       <td><strong>{r.brand}</strong><br /><small style={{ color: 'var(--text-secondary)' }}>{r.model}</small></td>
@@ -434,10 +468,38 @@ const Reports = () => {
                       <td>{r.gst_rate}%</td>
                       <td><span className={`badge badge-${r.watch_status === 'in_stock' ? 'success' : r.watch_status === 'sold' ? 'info' : 'warning'}`}>{r.watch_status.replace('_', ' ')}</span></td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr><td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No purchase data found.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {purchaseLedger.length > itemsPerPage && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, purchaseLedger.length)} of {purchaseLedger.length} entries
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary btn-sm" 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    className="btn btn-secondary btn-sm" 
+                    disabled={currentPage === Math.ceil(purchaseLedger.length / itemsPerPage)} 
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 

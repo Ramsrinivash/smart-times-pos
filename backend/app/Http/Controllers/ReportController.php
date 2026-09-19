@@ -154,10 +154,10 @@ class ReportController extends Controller
 
         $query = Sale::with(['customer', 'items.watch']);
 
-        if ($request->has('start_date')) {
+        if ($request->has('start_date') && !empty($request->start_date)) {
             $query->where('invoice_date', '>=', $request->start_date);
         }
-        if ($request->has('end_date')) {
+        if ($request->has('end_date') && !empty($request->end_date)) {
             $query->where('invoice_date', '<=', $request->end_date);
         }
 
