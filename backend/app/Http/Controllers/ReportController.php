@@ -206,25 +206,41 @@ class ReportController extends Controller
     public function gstReport(Request $request)
     {
         $request->validate([
-            'month' => 'required|integer|min:1|max:12',
-            'year' => 'required|integer',
+            'month' => 'nullable|numeric|min:1|max:12',
+            'year'  => 'nullable|numeric',
         ]);
 
-        $monthStr = str_pad($request->month, 2, '0', STR_PAD_LEFT);
-        $prefix = "{$request->year}-{$monthStr}";
+        $month = $request->month ?? now()->month;
+        $year  = $request->year  ?? now()->year;
+
+        $monthStr = str_pad((int)$month, 2, '0', STR_PAD_LEFT);
+        $prefix = "{$year}-{$monthStr}";
 
         $sales = Sale::where('invoice_type', 'gst')
-            ->where('invoice_date', 'like', "{$prefix}%")
+            ->where(function($q) use ($prefix) {
+                $q->where('invoice_date', 'like', "{$prefix}%")
+                  ->orWhereRaw("strftime('%Y-%m', invoice_date) = ?", [$prefix]);
+            })
             ->with(['items.watch', 'customer'])
             ->get();
 
-        $purchases = Purchase::where('purchase_date', 'like', "{$prefix}%")
+        $purchases = Purchase::where(function($q) use ($prefix) {
+                $q->where('purchase_date', 'like', "{$prefix}%")
+                  ->orWhereRaw("strftime('%Y-%m', purchase_date) = ?", [$prefix]);
+            })
             ->with(['watches'])
             ->get();
 
         return response()->json([
-            'sales' => $sales,
-            'purchases' => $purchases
+            'sales'     => $sales,
+            'purchases' => $purchases,
+            'debug'     => [
+                'prefix'    => $prefix,
+                'month'     => $monthStr,
+                'year'      => $year,
+                'sales_count' => $sales->count(),
+                'purchases_count' => $purchases->count(),
+            ]
         ]);
     }
 
