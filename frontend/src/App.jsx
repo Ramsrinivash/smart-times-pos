@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import SupplierLedger from './pages/SupplierLedger';
 import AttendancePayroll from './pages/AttendancePayroll';
 import BillTemplate from './pages/BillTemplate';
+import ErrorPage from './pages/ErrorPage';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -79,7 +80,14 @@ const ProtectedLayout = ({ children, allowedRoles }) => {
 
   const userRole = user?.role || 'sales';
   if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <div className="app-container">
+        <Sidebar />
+        <div className="main-content">
+          <ErrorPage type="403" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -234,7 +242,11 @@ function App() {
             <Route path="/bill-template" element={<Navigate to="/settings?tab=bill_designer" replace />} />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={
+              <ProtectedLayout allowedRoles={['admin', 'manager', 'sales']}>
+                <ErrorPage type="404" />
+              </ProtectedLayout>
+            } />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
