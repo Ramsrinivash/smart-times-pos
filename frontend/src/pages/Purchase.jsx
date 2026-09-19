@@ -434,7 +434,7 @@ const Purchase = () => {
                 <p style={{ fontWeight: 500, margin: 0 }}>Please click "Save Supplier Details" above to activate the Itemized Inventory Pieces table.</p>
               </div>
             ) : (
-              <table style={{ minWidth: '1750px', borderCollapse: 'collapse' }}>
+              <table style={{ minWidth: '2000px', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                     <th style={{ width: '150px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Autofill Model</th>
@@ -447,7 +447,9 @@ const Purchase = () => {
                     <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Scheme %</th>
                     <th style={{ width: '80px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Qty *</th>
                     <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Cost Price *</th>
+                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Total Cost (₹)</th>
                     <th style={{ width: '110px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Selling Price *</th>
+                    <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Est. Profit (₹)</th>
                     <th style={{ width: '90px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>GST %</th>
                     <th style={{ width: '130px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Spec (Type) *</th>
                     <th style={{ width: '120px', padding: '0.75rem 0.5rem', textAlign: 'left' }}>Gender *</th>
@@ -569,6 +571,11 @@ const Purchase = () => {
                         />
                       </td>
                       <td style={{ padding: '0.5rem' }}>
+                        <div style={{ color: 'var(--primary-gold)', fontWeight: 700, fontSize: '0.85rem' }}>
+                          ₹{(Number(item.quantity || 0) * Number(item.cost_price || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
                         <input 
                           type="number" 
                           className="form-control" 
@@ -578,6 +585,11 @@ const Purchase = () => {
                           required
                           style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         />
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <div style={{ color: 'var(--success)', fontWeight: 700, fontSize: '0.85rem' }}>
+                          ₹{((Number(item.selling_price || 0) - Number(item.cost_price || 0)) * Number(item.quantity || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
                       </td>
                       <td style={{ padding: '0.5rem' }}>
                         <select 
