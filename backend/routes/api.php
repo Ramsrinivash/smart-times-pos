@@ -394,9 +394,22 @@ Route::get('/get-error-log', function () {
 
 Route::get('/get-error-logs-dir', function () {
     try {
-        $output = shell_exec('ls -la ' . storage_path('logs'));
-        return response($output, 200)->header('Content-Type', 'text/plain');
+        $watch = \App\Models\Watch::first();
+        if (!$watch) return "No watches found.";
+
+        $user = \App\Models\User::first();
+        if (!$user) return "No users found.";
+
+        \App\Models\StockAdjustment::create([
+            'watch_id' => $watch->id,
+            'user_id' => $user->id,
+            'old_status' => 'in_stock',
+            'new_status' => 'reserved',
+            'reason' => 'Testing',
+            'remarks' => 'Test'
+        ]);
+        return response('Success', 200);
     } catch (\Exception $e) {
-        return response($e->getMessage(), 500);
+        return response($e->getMessage() . "\n" . $e->getTraceAsString(), 500)->header('Content-Type', 'text/plain');
     }
 });
