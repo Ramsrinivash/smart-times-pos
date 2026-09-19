@@ -9,6 +9,7 @@ const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [searchVal, setSearchVal] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCustomerId, setEditingCustomerId] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [selectedHistory, setSelectedHistory] = useState([]);
   
@@ -120,7 +121,7 @@ const Customers = () => {
     if (pincode) addressStr += ` - ${pincode}`;
 
     try {
-      await api.addCustomer({ 
+      const payload = { 
         name, 
         phone: finalPhone, 
         email, 
@@ -130,8 +131,16 @@ const Customers = () => {
         tags, 
         notes,
         gstin
-      });
-      alertService.success('Success', 'Customer profile created successfully!');
+      };
+
+      if (editingCustomerId) {
+        await api.updateCustomer(editingCustomerId, payload);
+        alertService.success('Success', 'Customer profile updated successfully!');
+      } else {
+        await api.addCustomer(payload);
+        alertService.success('Success', 'Customer profile created successfully!');
+      }
+      
       setName('');
       setPhone('');
       setEmail('');
@@ -164,6 +173,75 @@ const Customers = () => {
 
   const activeCust = customers.find(c => c.id === selectedCustomerId);
 
+  const handleEditCustomerClick = () => {
+    if (!activeCust) return;
+    setName(activeCust.name);
+    setPhone(activeCust.phone);
+    setEmail(activeCust.email || '');
+    setAddress1(activeCust.address || ''); // Simplified mapping for edit
+    setAddress2('');
+    setTaluk('');
+    setDistrict('');
+    setStateName('');
+    setPincode('');
+    setDob(activeCust.dob || '');
+    setAnniversary(activeCust.anniversary || '');
+    setTags(activeCust.tags || 'Regular');
+    setNotes(activeCust.notes || '');
+    setGstin(activeCust.gstin || '');
+    setEditingCustomerId(activeCust.id);
+    setShowAddModal(true); // Re-use the same modal for simplicity
+  };
+
+  const openAddModal = () => {
+    setName('');
+    setPhone('');
+    setEmail('');
+    setAddress1('');
+    setAddress2('');
+    setPincode('');
+    setTaluk('');
+    setDistrict('');
+    setStateName('');
+    setDob('');
+    setAnniversary('');
+    setTags('Regular');
+    setNotes('');
+    setGstin('');
+    setEditingCustomerId(null);
+    setShowAddModal(true);
+  };
+
+  const handleSettleDues = async (saleId) => {
+    const { value: paymentMode } = await Swal.fire({
+      title: 'Settle Debt',
+      text: 'How did the customer pay the dues for this invoice?',
+      input: 'select',
+      inputOptions: {
+        'upi': 'UPI / Online',
+        'cash': 'Cash',
+        'card': 'Card'
+      },
+      inputPlaceholder: 'Select payment mode',
+      showCancelButton: true,
+      confirmButtonText: 'Settle Dues',
+      background: 'var(--surface-color)',
+      color: 'var(--text-primary)',
+      confirmButtonColor: 'var(--primary-gold)',
+    });
+
+    if (paymentMode) {
+      try {
+        await api.settleSaleDebt(saleId, paymentMode);
+        alertService.success('Settled', 'Debt settled successfully.');
+        fetchCustomers(); // Refresh outstanding dues
+        handleSelectCustomer(selectedCustomerId); // Refresh history
+      } catch (err) {
+        alertService.error('Error', err.message || 'Failed to settle debt.');
+      }
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -178,7 +256,7 @@ const Customers = () => {
             <h1 className="page-title">CRM Profiles</h1>
             <p className="page-subtitle">Loyalty ledger and customer purchase summaries.</p>
           </div>
-          <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+          <button onClick={openAddModal} className="btn btn-primary">
             <Plus size={16} /> Add Profile
           </button>
         </div>
@@ -227,8 +305,14 @@ const Customers = () => {
             {activeCust ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{activeCust.name}</h2>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{activeCust.name}</h2>
+                    <button onClick={handleEditCustomerClick} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.75rem' }}>
+                      Edit Profile
+                    </button>
+                  </div>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Phone: {activeCust.phone} | Email: {activeCust.email || 'N/A'}</p>
+                  {activeCust.gstin && <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>GSTIN: {activeCust.gstin}</p>}
                   <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <MapPin size={12} /> Address: {activeCust.address || 'Not specified'}
                   </p>
@@ -252,9 +336,23 @@ const Customers = () => {
                       selectedHistory.map(sale => (
                         <div key={sale.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                            <span>Bill Ref: {sale.id}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span>Bill Ref: {sale.id}</span>
+                              {sale.is_credit_sale && (
+                                <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>Unpaid Debt</span>
+                              )}
+                            </div>
                             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                               <span>₹{sale.net_amount.toLocaleString()}</span>
+                              {sale.is_credit_sale && (
+                                <button
+                                  onClick={() => handleSettleDues(sale.id)}
+                                  className="btn btn-primary btn-sm"
+                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}
+                                >
+                                  Settle Dues
+                                </button>
+                              )}
                               <button 
                                 onClick={async () => {
                                   try {

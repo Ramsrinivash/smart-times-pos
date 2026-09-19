@@ -203,10 +203,18 @@ class ReportController extends Controller
         $sales = Sale::where('invoice_type', 'gst')
             ->whereMonth('invoice_date', $request->month)
             ->whereYear('invoice_date', $request->year)
-            ->with(['items.watch'])
+            ->with(['items.watch', 'customer'])
             ->get();
 
-        return response()->json($sales);
+        $purchases = Purchase::whereMonth('purchase_date', $request->month)
+            ->whereYear('purchase_date', $request->year)
+            ->with(['watches'])
+            ->get();
+
+        return response()->json([
+            'sales' => $sales,
+            'purchases' => $purchases
+        ]);
     }
 
     public function profitReport(Request $request)

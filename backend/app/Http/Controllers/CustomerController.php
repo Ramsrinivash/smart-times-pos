@@ -32,7 +32,7 @@ class CustomerController extends Controller
             if ($existing) {
                 $changed = false;
                 // Fix #14: Update name, email, dob, alt_phone, address if provided and different
-                foreach (['name', 'email', 'alt_phone', 'address', 'dob', 'anniversary', 'tags', 'notes'] as $field) {
+                foreach (['name', 'email', 'alt_phone', 'address', 'dob', 'anniversary', 'tags', 'notes', 'gstin'] as $field) {
                     if ($request->filled($field) && $existing->$field !== $request->$field) {
                         $existing->$field = $request->$field;
                         $changed = true;
@@ -65,7 +65,8 @@ class CustomerController extends Controller
             'dob' => 'nullable|date',
             'anniversary' => 'nullable|date',
             'tags' => 'nullable|string',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
+            'gstin' => 'nullable|string'
         ]);
 
         $customer = Customer::create($request->all());

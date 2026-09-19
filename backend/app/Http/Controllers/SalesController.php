@@ -54,13 +54,14 @@ class SalesController extends Controller
             $customer = Customer::findOrFail($request->customer_id);
             $user = $request->user();
             
-            // Fix #2: Use SELECT FOR UPDATE to get an exclusive lock, preventing concurrent duplicate IDs
-            $rows = DB::select('SELECT MAX(CAST(id AS UNSIGNED)) AS max_id FROM sales WHERE id REGEXP \'^[0-9]+$\' FOR UPDATE');
+            // Split Invoice Series: GST-XXXX and INV-XXXX
+            $prefix = $request->invoice_type === 'gst' ? 'GST-' : 'INV-';
+            $rows = DB::select("SELECT MAX(CAST(SUBSTRING(id, LENGTH(?) + 1) AS UNSIGNED)) AS max_id FROM sales WHERE id LIKE ? FOR UPDATE", [$prefix, $prefix . '%']);
             $nextNum = 1;
             if ($rows && $rows[0]->max_id !== null) {
                 $nextNum = ((int) $rows[0]->max_id) + 1;
             }
-            $invoiceId = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            $invoiceId = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
             $subtotal = 0;
             $totalItemDiscounts = 0;
@@ -256,5 +257,44 @@ class SalesController extends Controller
     {
         $sale = Sale::with(['customer', 'user', 'items.watch.purchase'])->findOrFail($id);
         return response()->json($sale);
+    }
+
+    public function settleDebt(Request $request, $id)
+    {
+        $request->validate([
+            'payment_mode' => 'required|string'
+        ]);
+
+        return DB::transaction(function () use ($request, $id) {
+            $sale = Sale::findOrFail($id);
+            $user = $request->user();
+
+            if (!$sale->is_credit_sale) {
+                return response()->json(['message' => 'This invoice is not a credit sale.'], 400);
+            }
+
+            $customer = Customer::findOrFail($sale->customer_id);
+
+            // Update Sale
+            $sale->is_credit_sale = false;
+            $sale->payment_mode = $request->payment_mode;
+            $sale->save();
+
+            // Reduce Customer Outstanding Dues
+            if ($customer->outstanding_dues >= $sale->net_amount) {
+                $customer->outstanding_dues -= $sale->net_amount;
+            } else {
+                $customer->outstanding_dues = 0;
+            }
+            $customer->save();
+
+            // Log activity
+            ActivityLog::log($user->id, 'UPDATE', 'Sales', "Settled debt for invoice {$sale->id} (Amount: ₹" . number_format($sale->net_amount, 2) . ") via {$request->payment_mode}");
+
+            return response()->json([
+                'message' => 'Debt settled successfully.',
+                'sale' => $sale->load(['customer'])
+            ]);
+        });
     }
 }

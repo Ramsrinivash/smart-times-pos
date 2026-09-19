@@ -46,6 +46,7 @@ class SettingsController extends Controller
             'loyalty_redeem_rate' => 'nullable|integer',
             'loyalty_expiry_months' => 'nullable|integer',
             'job_card_terms' => 'nullable|string',
+            'default_gst_type' => 'nullable|string|in:intra-state,inter-state,dynamic',
         ]);
 
         $setting = Setting::firstOrCreate([], [

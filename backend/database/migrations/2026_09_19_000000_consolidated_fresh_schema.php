@@ -101,6 +101,9 @@ return new class extends Migration
                 if (!Schema::hasColumn('customers', 'outstanding_dues')) {
                     $table->decimal('outstanding_dues', 12, 2)->default(0.00)->after('points_balance');
                 }
+                if (!Schema::hasColumn('customers', 'gstin')) {
+                    $table->string('gstin')->nullable()->after('alt_phone');
+                }
             });
         }
 
@@ -423,8 +426,19 @@ return new class extends Migration
                 $table->integer('loyalty_earn_rate')->default(1);
                 $table->integer('loyalty_redeem_rate')->default(1);
                 $table->integer('loyalty_expiry_months')->default(12);
+                $table->decimal('loyalty_conversion_rate', 8, 2)->default(1.00);
+                $table->enum('default_gst_type', ['intra-state', 'inter-state', 'dynamic'])->default('dynamic');
                 $table->text('job_card_terms')->nullable();
                 $table->timestamps();
+            });
+        } else {
+            Schema::table('settings', function (Blueprint $table) {
+                if (!Schema::hasColumn('settings', 'loyalty_conversion_rate')) {
+                    $table->decimal('loyalty_conversion_rate', 8, 2)->default(1.00);
+                }
+                if (!Schema::hasColumn('settings', 'default_gst_type')) {
+                    $table->enum('default_gst_type', ['intra-state', 'inter-state', 'dynamic'])->default('dynamic');
+                }
             });
         }
 

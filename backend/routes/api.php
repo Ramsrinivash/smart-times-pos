@@ -344,6 +344,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales', [SalesController::class, 'index']);
     Route::post('/sales', [SalesController::class, 'store']);
     Route::get('/sales/{id}', [SalesController::class, 'show']);
+    Route::post('/sales/{id}/settle', [SalesController::class, 'settleDebt']);
 
     // Sales Returns Routes
     Route::get('/returns', [ReturnController::class, 'index']);

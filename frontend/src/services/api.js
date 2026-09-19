@@ -179,6 +179,9 @@ export const api = {
   addSale: async (data) => {
     return sendOnlineRequest('/sales', { method: 'POST', body: JSON.stringify(data) });
   },
+  settleSaleDebt: async (id, paymentMode) => {
+    return sendOnlineRequest(`/sales/${id}/settle`, { method: 'POST', body: JSON.stringify({ payment_mode: paymentMode }) });
+  },
 
   // Exchanges
   getExchanges: async () => {
