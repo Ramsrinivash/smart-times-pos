@@ -176,10 +176,12 @@ Route::get('/migrate-db', function() {
         }
         
         // Fix 5: Add timestamps to loyalty_ledgers
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('loyalty_ledgers', 'updated_at')) {
-            \Illuminate\Support\Facades\Schema::table('loyalty_ledgers', function ($table) {
-                $table->timestamps();
-            });
+        if (\Illuminate\Support\Facades\Schema::hasTable('loyalty_ledgers')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('loyalty_ledgers', 'updated_at')) {
+                \Illuminate\Support\Facades\Schema::table('loyalty_ledgers', function ($table) {
+                    $table->timestamps();
+                });
+            }
         }
 
         // Fix 6: Add POS Features (outstanding_dues to customers, is_credit_sale to sales)
