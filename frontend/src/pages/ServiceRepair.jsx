@@ -18,12 +18,18 @@ const ServiceRepair = () => {
   const [jobs, setJobs] = useState([]);
   const [selectedJobsForCard, setSelectedJobsForCard] = useState(null); // Array of jobs to print on 1 job card
 
-  const handleOpenJobCardModal = (job) => {
+  const handleOpenJobCardModal = (job, allJobsList = jobs) => {
+    const safeJobs = Array.isArray(allJobsList) ? allJobsList : [];
+    
+    // Extract date from created_at (YYYY-MM-DD format) for grouping
+    const jobDate = job.created_at ? job.created_at.split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0];
+    
     // Find sister jobs for same customer on same received date to print together on 1 page
-    const sisterJobs = safeJobs.filter(j => 
-      (j.customer_id === job.customer_id || j.customer?.phone === job.customer?.phone) && 
-      j.received_date === job.received_date
-    );
+    const sisterJobs = safeJobs.filter(j => {
+      const jDate = j.created_at ? j.created_at.split('T')[0].split(' ')[0] : null;
+      return (j.customer_id === job.customer_id || (j.customer && job.customer && j.customer.phone === job.customer.phone)) && jDate === jobDate;
+    });
+    
     setSelectedJobsForCard(sisterJobs.length > 0 ? sisterJobs : [job]);
   };
 
@@ -207,7 +213,7 @@ const ServiceRepair = () => {
         };
 
         const result = await api.addServiceJob(payload);
-        createdJobs.push(result);
+        createdJobs.push(result.job || result);
       }
 
       alertService.success('Job Registered!', `Successfully registered ${createdJobs.length} watch repair service job card(s).`);
@@ -216,7 +222,7 @@ const ServiceRepair = () => {
       const freshJobs = await api.getServiceJobs();
       setJobs(freshJobs);
       const matched = freshJobs.find(j => j.id === createdJobs[0].id);
-      handleOpenJobCardModal(matched || createdJobs[0]);
+      handleOpenJobCardModal(matched || createdJobs[0], freshJobs);
 
       // Reset form
       setCustName('');
@@ -724,7 +730,7 @@ const ServiceRepair = () => {
                     <p style={{ margin: '0.1rem 0', fontWeight: 700, fontSize: '0.85rem' }}>
                       JC #: {selectedJobsForCard.map(j => j.id).join(', ')}
                     </p>
-                    <p style={{ margin: 0, fontSize: '0.8rem' }}>Date: {selectedJobsForCard[0]?.received_date || new Date().toISOString().split('T')[0]}</p>
+                    <p style={{ margin: 0, fontSize: '0.8rem' }}>Date: {selectedJobsForCard[0]?.created_at ? selectedJobsForCard[0].created_at.split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0]}</p>
                   </div>
                 </div>
               </div>
