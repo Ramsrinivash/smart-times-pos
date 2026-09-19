@@ -21,6 +21,7 @@ const Customers = () => {
   const [taluk, setTaluk] = useState('');
   const [district, setDistrict] = useState('');
   const [stateName, setStateName] = useState('');
+  const [gstin, setGstin] = useState('');
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [dob, setDob] = useState('');
   const [anniversary, setAnniversary] = useState('');
@@ -111,27 +112,24 @@ const Customers = () => {
       return;
     }
 
-    // Combine Address parts
-    const parts = [
-      address1.trim(),
-      address2.trim(),
-      taluk.trim(),
-      district.trim(),
-      stateName.trim(),
-      pincode.trim() ? `PIN: ${pincode.trim()}` : ''
-    ].filter(Boolean);
-    const combinedAddress = parts.join(', ');
+    let addressStr = address1;
+    if (address2) addressStr += `, ${address2}`;
+    if (taluk) addressStr += `, ${taluk} Tk`;
+    if (district) addressStr += `, ${district} Dt`;
+    if (stateName) addressStr += `, ${stateName}`;
+    if (pincode) addressStr += ` - ${pincode}`;
 
     try {
       await api.addCustomer({ 
         name, 
         phone: finalPhone, 
         email, 
-        address: combinedAddress, 
+        address: addressStr, 
         dob, 
         anniversary, 
         tags, 
-        notes 
+        notes,
+        gstin
       });
       alertService.success('Success', 'Customer profile created successfully!');
       setName('');
@@ -385,6 +383,10 @@ const Customers = () => {
                       <option value="VIP">VIP</option>
                       <option value="New">New</option>
                     </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Customer GSTIN (Optional)</label>
+                    <input type="text" className="form-control" placeholder="e.g. 33AAAAA0000A1Z5" value={gstin} onChange={e => setGstin(e.target.value)} />
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: '1.5rem' }}>

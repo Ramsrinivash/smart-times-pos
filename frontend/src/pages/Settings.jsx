@@ -23,6 +23,7 @@ const Settings = () => {
   const [gstPrefix, setGstPrefix] = useState('ST-GST');
   const [nongstPrefix, setNongstPrefix] = useState('ST-RETL');
   const [jcPrefix, setJcPrefix] = useState('JC');
+  const [defaultGstType, setDefaultGstType] = useState('dynamic');
 
   // Tax and exchange
   const [exchangeDays, setExchangeDays] = useState(7);
@@ -128,6 +129,7 @@ const Settings = () => {
           setRedeemRate(s.loyalty_redeem_rate || 1);
           setExpiryMonths(s.loyalty_expiry_months || 12);
           setJobCardTerms(s.job_card_terms || '');
+          setDefaultGstType(s.default_gst_type || 'dynamic');
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
@@ -226,7 +228,8 @@ const Settings = () => {
         loyalty_earn_rate: Number(earnRate),
         loyalty_redeem_rate: Number(redeemRate),
         loyalty_expiry_months: Number(expiryMonths),
-        job_card_terms: jobCardTerms
+        job_card_terms: jobCardTerms,
+        default_gst_type: defaultGstType
       });
       alertService.success('Success', 'Settings saved successfully.');
     } catch (err) {
@@ -514,24 +517,40 @@ const Settings = () => {
           {activeTab === 'invoice' && (
             <div className="card" style={{ maxWidth: '800px' }}>
               <h3 style={{ marginBottom: '1.25rem' }}>Invoice Numbering & Policies</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">GST Invoice Prefix</label>
-                  <input type="text" className="form-control" value={gstPrefix} onChange={e => setGstPrefix(e.target.value)} />
-                  <small style={{ color: 'var(--text-secondary)' }}>Example: ST-GST-2627-0001</small>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Non-GST Invoice Prefix</label>
-                  <input type="text" className="form-control" value={nongstPrefix} onChange={e => setNongstPrefix(e.target.value)} />
-                  <small style={{ color: 'var(--text-secondary)' }}>Example: ST-RETL-2627-0001</small>
+              
+              {/* Invoice Prefixes & GST Settings */}
+              <div className="settings-section" style={{ marginBottom: '1.5rem' }}>
+                <h2 className="settings-section-title" style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={18} /> Billing & GST Configuration
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">GST Bill Prefix</label>
+                    <input type="text" className="form-control" value={gstPrefix} onChange={e => setGstPrefix(e.target.value)} />
+                    <small style={{ color: 'var(--text-muted)' }}>e.g., GST-0001</small>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Non-GST Bill Prefix</label>
+                    <input type="text" className="form-control" value={nongstPrefix} onChange={e => setNongstPrefix(e.target.value)} />
+                    <small style={{ color: 'var(--text-muted)' }}>e.g., INV-0001</small>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Default Tax Split (CGST/SGST vs IGST)</label>
+                    <select className="form-control" value={defaultGstType} onChange={e => setDefaultGstType(e.target.value)}>
+                      <option value="dynamic">Dynamic (Calculate half CGST / half SGST)</option>
+                      <option value="intra-state">Intra-State (CGST + SGST)</option>
+                      <option value="inter-state">Inter-State (IGST)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Job Card Prefix</label>
+                    <input type="text" className="form-control" value={jcPrefix} onChange={e => setJcPrefix(e.target.value)} />
+                    <small style={{ color: 'var(--text-secondary)' }}>Example: JC-202607-0001</small>
+                  </div>
                 </div>
               </div>
+
               <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Job Card Prefix</label>
-                  <input type="text" className="form-control" value={jcPrefix} onChange={e => setJcPrefix(e.target.value)} />
-                  <small style={{ color: 'var(--text-secondary)' }}>Example: JC-202607-0001</small>
-                </div>
                 <div className="form-group">
                   <label className="form-label">Exchange Window (Days)</label>
                   <input type="number" className="form-control" min="0" value={exchangeDays} onChange={e => setExchangeDays(e.target.value)} />

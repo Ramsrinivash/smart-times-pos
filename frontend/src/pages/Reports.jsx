@@ -92,7 +92,7 @@ const Reports = () => {
         }
         case 'gst': {
           const data = await api.getGstReport(gstMonth, gstYear);
-          setGstData(Array.isArray(data) ? data : []);
+          setGstData(data || { sales: [], purchases: [] });
           break;
         }
         default: break;
@@ -688,61 +688,133 @@ const Reports = () => {
 
         {/* ── GST REPORT ── */}
         {activeTab === 'gst' && !loading && user.role !== 'sales' && (
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h3>GST Output Report — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
-                  ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                  gstData.flatMap(s => s.items.map(si => [
-                    s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                    si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
-                  ])),
-                  'gst_report'
-                )}><Download size={13} /> Export CSV</button>
-                <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
-                  ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                  gstData.flatMap(s => s.items.map(si => [
-                    s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                    si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
-                  ])),
-                  'gst_report', 'GST Report'
-                )}><Download size={13} /> Export Excel</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h3>GST Output Report (Sales) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
+                    ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
+                    (gstData.sales || []).flatMap(s => s.items.map(si => [
+                      s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
+                      si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
+                    ])),
+                    'gst_output_report'
+                  )}><Download size={13} /> Export CSV</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
+                    ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
+                    (gstData.sales || []).flatMap(s => s.items.map(si => [
+                      s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
+                      si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
+                    ])),
+                    'gst_output_report', 'GST Output Report'
+                  )}><Download size={13} /> Export Excel</button>
+                </div>
               </div>
-            </div>
-            <table className="data-table">
-              <thead><tr>
-                <th>Invoice No</th><th>Date</th><th>Customer</th><th>Watch</th>
-                <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
-              </tr></thead>
-              <tbody>
-                {gstData.length > 0 ? gstData.flatMap(s => s.items.map((si, idx) => (
-                  <tr key={`${s.id}-${idx}`}>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
-                    <td>{s.invoice_date}</td>
-                    <td>{s.customer?.name}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{si.watch_id}</td>
-                    <td>{fmt(si.price_sold - si.discount_amount)}</td>
-                    <td>{fmt(si.gst_amount / 2)}</td>
-                    <td>{fmt(si.gst_amount / 2)}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(si.gst_amount)}</td>
-                  </tr>
-                ))) : (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST invoices for selected month/year.</td></tr>
+              <table className="data-table">
+                <thead><tr>
+                  <th>Invoice No</th><th>Date</th><th>Customer</th><th>Watch</th>
+                  <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
+                </tr></thead>
+                <tbody>
+                  {(gstData.sales && gstData.sales.length > 0) ? gstData.sales.flatMap(s => s.items.map((si, idx) => (
+                    <tr key={`${s.id}-${idx}`}>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
+                      <td>{s.invoice_date}</td>
+                      <td>{s.customer?.name}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{si.watch_id}</td>
+                      <td>{fmt(si.price_sold - si.discount_amount)}</td>
+                      <td>{fmt(si.gst_amount / 2)}</td>
+                      <td>{fmt(si.gst_amount / 2)}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(si.gst_amount)}</td>
+                    </tr>
+                  ))) : (
+                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST sales invoices for selected month/year.</td></tr>
+                  )}
+                </tbody>
+                {(gstData.sales && gstData.sales.length > 0) && (
+                  <tfoot>
+                    <tr style={{ fontWeight: 700 }}>
+                      <td colSpan="4">Total Output</td>
+                      <td></td>
+                      <td>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                      <td>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0), 0))}</td>
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-              {gstData.length > 0 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700 }}>
-                    <td colSpan="4">Total</td>
-                    <td></td>
-                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
-                    <td>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
-                    <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0), 0))}</td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
+              </table>
+            </div>
+
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h3>GST Input Report (Purchases) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
+                    ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
+                    (gstData.purchases || []).flatMap(p => p.watches.map(w => {
+                       // Input GST calc
+                       const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
+                       const totalGst = w.cost_price - taxableValue;
+                       return [
+                         p.invoice_number || p.id, p.purchase_date, p.supplier_name,
+                         w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, w.cost_price
+                       ];
+                    })),
+                    'gst_input_report'
+                  )}><Download size={13} /> Export CSV</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
+                    ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
+                    (gstData.purchases || []).flatMap(p => p.watches.map(w => {
+                       const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
+                       const totalGst = w.cost_price - taxableValue;
+                       return [
+                         p.invoice_number || p.id, p.purchase_date, p.supplier_name,
+                         w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, w.cost_price
+                       ];
+                    })),
+                    'gst_input_report', 'GST Input Report'
+                  )}><Download size={13} /> Export Excel</button>
+                </div>
+              </div>
+              <table className="data-table">
+                <thead><tr>
+                  <th>Invoice No</th><th>Date</th><th>Supplier</th><th>Watch</th>
+                  <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
+                </tr></thead>
+                <tbody>
+                  {(gstData.purchases && gstData.purchases.length > 0) ? gstData.purchases.flatMap(p => p.watches.map((w, idx) => {
+                    const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
+                    const totalGst = w.cost_price - taxableValue;
+                    return (
+                      <tr key={`${p.id}-${idx}`}>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{p.invoice_number || p.id}</td>
+                        <td>{p.purchase_date}</td>
+                        <td>{p.supplier_name}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{w.id}</td>
+                        <td>{fmt(taxableValue)}</td>
+                        <td>{fmt(totalGst / 2)}</td>
+                        <td>{fmt(totalGst / 2)}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(totalGst)}</td>
+                      </tr>
+                    );
+                  })) : (
+                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST purchase invoices for selected month/year.</td></tr>
+                  )}
+                </tbody>
+                {(gstData.purchases && gstData.purchases.length > 0) && (
+                  <tfoot>
+                    <tr style={{ fontWeight: 700 }}>
+                      <td colSpan="4">Total Input</td>
+                      <td></td>
+                      <td>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
+                      <td>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
+                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))), 0))}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           </div>
         )}
 
