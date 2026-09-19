@@ -56,6 +56,45 @@ Route::get('/debug-db', function() {
     }
 });
 
+// Diagnostic route to test all modules and database integrity
+Route::get('/test-modules', function() {
+    try {
+        $checks = [];
+        
+        // Check Users
+        $checks['users'] = \Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'base_salary') ? 'Passed' : 'Failed';
+        
+        // Check Watches
+        $checks['watches'] = \Illuminate\Support\Facades\Schema::hasTable('watches') && \Illuminate\Support\Facades\Schema::hasColumn('watches', 'hsn_code') ? 'Passed' : 'Failed';
+        
+        // Check Stock Adjustments
+        $checks['stock_adjustments'] = \Illuminate\Support\Facades\Schema::hasTable('stock_adjustments') && \Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'user_id') ? 'Passed' : 'Failed';
+        
+        // Check Customers
+        $checks['customers'] = \Illuminate\Support\Facades\Schema::hasTable('customers') && \Illuminate\Support\Facades\Schema::hasColumn('customers', 'outstanding_dues') ? 'Passed' : 'Failed';
+        
+        // Check Sales
+        $checks['sales'] = \Illuminate\Support\Facades\Schema::hasTable('sales') && \Illuminate\Support\Facades\Schema::hasColumn('sales', 'is_credit_sale') ? 'Passed' : 'Failed';
+        
+        // Check Payroll and Attendance
+        $checks['payrolls'] = \Illuminate\Support\Facades\Schema::hasTable('payrolls') ? 'Passed' : 'Failed';
+        $checks['attendances'] = \Illuminate\Support\Facades\Schema::hasTable('attendances') ? 'Passed' : 'Failed';
+
+        // Evaluate Overall Status
+        $overall = in_array('Failed', array_values($checks)) ? 'Errors Found' : 'All Modules Healthy';
+
+        return response()->json([
+            'status' => $overall,
+            'module_checks' => $checks
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'System Error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
 // Diagnostic route to test login action and dump exceptions
 Route::get('/test-login-action', function() {
     try {
@@ -155,7 +194,7 @@ Route::get('/migrate-db', function() {
             });
         }
 
-        // Fix 7: Create stock_adjustments table
+        // Fix 7: Create stock_adjustments table or add user_id column
         if (!\Illuminate\Support\Facades\Schema::hasTable('stock_adjustments')) {
             \Illuminate\Support\Facades\Schema::create('stock_adjustments', function ($table) {
                 $table->id();
@@ -168,6 +207,12 @@ Route::get('/migrate-db', function() {
                 $table->text('remarks')->nullable();
                 $table->timestamps();
             });
+        } else {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('stock_adjustments', 'user_id')) {
+                \Illuminate\Support\Facades\Schema::table('stock_adjustments', function ($table) {
+                    $table->foreignId('user_id')->nullable()->after('watch_id')->constrained('users');
+                });
+            }
         }
         
         // Seed the migrations table so `artisan migrate` works in the future
