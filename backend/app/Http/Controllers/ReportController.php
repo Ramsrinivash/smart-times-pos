@@ -286,7 +286,7 @@ class ReportController extends Controller
         $watches = Watch::with('purchase')->latest()->get();
         $data = $watches->map(function ($w) {
             return [
-                'id' => $w->id,
+                'watch_id' => $w->id,
                 'brand' => $w->brand,
                 'model' => $w->model,
                 'supplier_name' => $w->purchase ? $w->purchase->supplier_name : 'N/A',
@@ -297,7 +297,7 @@ class ReportController extends Controller
                 'cost_price' => $w->cost_price,
                 'selling_price' => $w->selling_price,
                 'gst_rate' => $w->gst_rate,
-                'status' => $w->status,
+                'watch_status' => $w->status,
             ];
         });
         return response()->json($data);
