@@ -511,12 +511,12 @@ const Reports = () => {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                   ['Date', 'Customer', 'Orig Invoice', 'Returned Watch', 'Replacement Watch', 'Difference ₹', 'Type', 'Within Window'],
-                  exchangeData.map(ex => [ex.exchange_date, ex.customer?.name, ex.original_sale_id, ex.returned_watch_id, ex.replacement_watch_id, ex.difference_amount, ex.exchange_type, ex.within_exchange_window ? 'Yes' : 'No']),
+                  exchangeData.map(ex => [ex.exchange_date, ex.original_sale?.customer?.name, ex.original_sale_id, ex.returned_watch_id, ex.replacement_watch_id, ex.difference_amount, ex.exchange_type, ex.within_exchange_window ? 'Yes' : 'No']),
                   'exchange_report'
                 )}><Download size={13} /> Export CSV</button>
                 <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
                   ['Date', 'Customer', 'Orig Invoice', 'Returned Watch', 'Replacement Watch', 'Difference ₹', 'Type', 'Within Window'],
-                  exchangeData.map(ex => [ex.exchange_date, ex.customer?.name, ex.original_sale_id, ex.returned_watch_id, ex.replacement_watch_id, ex.difference_amount, ex.exchange_type, ex.within_exchange_window ? 'Yes' : 'No']),
+                  exchangeData.map(ex => [ex.exchange_date, ex.original_sale?.customer?.name, ex.original_sale_id, ex.returned_watch_id, ex.replacement_watch_id, ex.difference_amount, ex.exchange_type, ex.within_exchange_window ? 'Yes' : 'No']),
                   'exchange_report', 'Exchange Report'
                 )}><Download size={13} /> Export Excel</button>
               </div>
@@ -529,7 +529,7 @@ const Reports = () => {
                 {exchangeData.length > 0 ? exchangeData.map(ex => (
                   <tr key={ex.id}>
                     <td>{ex.exchange_date}</td>
-                    <td>{ex.customer?.name}</td>
+                    <td>{ex.original_sale?.customer?.name}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{ex.original_sale_id}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--error)' }}>{ex.returned_watch_id}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--success)' }}>{ex.replacement_watch_id}</td>

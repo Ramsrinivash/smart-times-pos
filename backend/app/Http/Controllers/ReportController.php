@@ -246,7 +246,7 @@ class ReportController extends Controller
 
     public function exchangeReport()
     {
-        $exchanges = Exchange::with('customer')->latest()->get();
+        $exchanges = Exchange::with('originalSale.customer')->latest()->get();
         return response()->json($exchanges);
     }
 
