@@ -73,9 +73,15 @@ const PrintableInvoice = ({
   const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const itemDiscountTotal = invoice.items?.reduce((acc, si) => acc + Number(si.discount_amount || 0), 0) || 0;
-  const billDiscount = Number(invoice.bill_discount_amount || 0);
-  const pointsVal = Number(invoice.points_value || 0);
-  const roundOffVal = Number(invoice.round_off_amount || 0);
+  const totalDiscountFromDb = Number(invoice.discount_amount || 0);
+  const pointsVal = Number(invoice.points_value || invoice.points_redeemed || 0);
+  
+  let billDiscount = totalDiscountFromDb - itemDiscountTotal - pointsVal;
+  if (Math.abs(billDiscount) < 0.01) billDiscount = 0; // Float precision fix
+
+  const rawNet = Number(invoice.subtotal || 0) - totalDiscountFromDb;
+  let roundOffVal = Number(invoice.net_amount || 0) - rawNet;
+  if (Math.abs(roundOffVal) < 0.01) roundOffVal = 0; // Float precision fix
 
   // GST breakdown grouped by HSN + rate
   const hsnGroups = {};
@@ -221,6 +227,9 @@ const PrintableInvoice = ({
             <div>Phone: {invoice.customer_phone || invoice.customer?.phone || '-'}</div>
             {t.showCustomerAddress && (invoice.customer_address || invoice.customer?.address) && (
               <div style={{ wordBreak: 'break-word' }}>{invoice.customer_address || invoice.customer?.address}</div>
+            )}
+            {t.showLoyaltyPoints && invoice.customer?.points_balance !== undefined && (
+              <div style={{ marginTop: '3px', color: '#059669', fontWeight: 600 }}>Loyalty Balance: {invoice.customer.points_balance} pts</div>
             )}
           </div>
           <div style={{ textAlign: isThermal ? 'left' : 'right' }}>

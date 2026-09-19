@@ -278,6 +278,9 @@ const Sales = () => {
       notes,
       subtotal,
       totalDiscount,
+      totalItemDiscounts,
+      computedBillDisc,
+      pointsVal,
       netAmount,
       totalGst,
       taxableBase,
@@ -883,6 +886,24 @@ const Sales = () => {
                   <span style={{ color: 'var(--text-secondary)' }}>Gross Subtotal:</span>
                   <span>₹{Number(draftPayload?.subtotal || 0).toLocaleString()}</span>
                 </div>
+                {Number(draftPayload?.totalItemDiscounts || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
+                    <span>Store/Item Discount:</span>
+                    <span>-₹{Number(draftPayload?.totalItemDiscounts || 0).toLocaleString()}</span>
+                  </div>
+                )}
+                {Number(draftPayload?.pointsVal || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
+                    <span>Points Redeemed ({draftPayload?.redeem_points} pts):</span>
+                    <span>-₹{Number(draftPayload?.pointsVal || 0).toLocaleString()}</span>
+                  </div>
+                )}
+                {Number(draftPayload?.computedBillDisc || 0) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
+                    <span>Bill Discount:</span>
+                    <span>-₹{Number(draftPayload?.computedBillDisc || 0).toLocaleString()}</span>
+                  </div>
+                )}
                 {Number(draftPayload?.totalDiscount || 0) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--error)', marginBottom: '0.35rem' }}>
                     <span>Total Discount:</span>
