@@ -11,6 +11,7 @@ const ServiceRepair = () => {
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [settings, setSettings] = useState(null);
+  const [customerWatches, setCustomerWatches] = useState([]);
   
   const [registeredWatches, setRegisteredWatches] = useState([]);
   const [receivedDate, setReceivedDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
@@ -125,10 +126,17 @@ const ServiceRepair = () => {
   // CRM customer auto-lookup by phone
   useEffect(() => {
     if (custPhone.length >= 10) {
-      const matched = (Array.isArray(customers) ? customers : []).find(c => c && (c.phone || '').trim() === custPhone.trim());
-      if (matched) {
-        setCustName(matched.name);
-        setSelectedCustomerId(matched.id);
+      const normalizePhone = (p) => (p || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+      const searchNorm = normalizePhone(custPhone);
+      
+      if (searchNorm.length >= 10) {
+        const matched = (Array.isArray(customers) ? customers : []).find(c => normalizePhone(c.phone) === searchNorm);
+        if (matched) {
+          setCustName(matched.name);
+          setSelectedCustomerId(matched.id);
+        } else {
+          setSelectedCustomerId('');
+        }
       } else {
         setSelectedCustomerId('');
       }
@@ -136,6 +144,30 @@ const ServiceRepair = () => {
       setSelectedCustomerId('');
     }
   }, [custPhone, customers]);
+
+  // Fetch customer's watch purchase history when customer is identified
+  useEffect(() => {
+    if (selectedCustomerId) {
+      api.getCustomerHistory(selectedCustomerId)
+        .then(sales => {
+          const watches = [];
+          sales.forEach(sale => {
+            (sale.items || []).forEach(item => {
+              if (item.watch) {
+                // Prevent duplicates if a watch was somehow bought twice
+                if (!watches.find(w => w.id === item.watch.id)) {
+                  watches.push(item.watch);
+                }
+              }
+            });
+          });
+          setCustomerWatches(watches);
+        })
+        .catch(err => console.error('Failed to fetch customer history', err));
+    } else {
+      setCustomerWatches([]);
+    }
+  }, [selectedCustomerId]);
 
   const handleSubmitIntake = async (e) => {
     e.preventDefault();
@@ -478,9 +510,20 @@ const ServiceRepair = () => {
                         required
                       >
                         <option value="">-- Choose Watch --</option>
-                        {registeredWatches.map(w => (
-                          <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
-                        ))}
+                        {customerWatches.length > 0 && (
+                          <optgroup label={`Purchased by ${custName || 'Customer'}`}>
+                            {customerWatches.map(w => (
+                              <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="All Sold Showroom Watches">
+                          {registeredWatches
+                            .filter(w => !customerWatches.find(cw => cw.id === w.id))
+                            .map(w => (
+                            <option key={w.id} value={w.id}>{w.brand} {w.model} (Serial: {w.id})</option>
+                          ))}
+                        </optgroup>
                       </select>
                     </div>
                   )}
