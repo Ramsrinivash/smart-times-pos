@@ -142,6 +142,33 @@ Route::get('/migrate-db', function() {
                 $table->timestamps();
             });
         }
+
+        // Fix 6: Add POS Features (outstanding_dues to customers, is_credit_sale to sales)
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'outstanding_dues')) {
+            \Illuminate\Support\Facades\Schema::table('customers', function ($table) {
+                $table->decimal('outstanding_dues', 12, 2)->default(0.00)->after('points_balance');
+            });
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('sales', 'is_credit_sale')) {
+            \Illuminate\Support\Facades\Schema::table('sales', function ($table) {
+                $table->boolean('is_credit_sale')->default(false)->after('payment_mode');
+            });
+        }
+
+        // Fix 7: Create stock_adjustments table
+        if (!\Illuminate\Support\Facades\Schema::hasTable('stock_adjustments')) {
+            \Illuminate\Support\Facades\Schema::create('stock_adjustments', function ($table) {
+                $table->id();
+                $table->string('watch_id');
+                $table->foreign('watch_id')->references('id')->on('watches')->onDelete('cascade');
+                $table->foreignId('user_id')->nullable()->constrained('users');
+                $table->string('old_status')->nullable();
+                $table->string('new_status');
+                $table->string('reason');
+                $table->text('remarks')->nullable();
+                $table->timestamps();
+            });
+        }
         
         // Seed the migrations table so `artisan migrate` works in the future
         if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
