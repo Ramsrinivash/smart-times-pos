@@ -60,6 +60,20 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
     }
   };
 
+  const dismissAllNotifications = () => {
+    try {
+      const dismissed = getDismissedNotifications();
+      const todayStr = new Date().toISOString().split('T')[0];
+      notifications.forEach(notif => {
+        dismissed[notif.id] = todayStr;
+      });
+      localStorage.setItem('dismissed_notifications', JSON.stringify(dismissed));
+      setNotifications([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchNotifications = async () => {
     if (!user) return;
     try {
@@ -573,7 +587,22 @@ const Header = ({ searchVal, setSearchVal, searchPlaceholder = "Global Search...
                 <div className="notification-header">
                   <span className="notification-header-title">Notifications</span>
                   {notifications.length > 0 && (
-                    <span className="notification-header-count">{notifications.length} active</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissAllNotifications();
+                        }}
+                        style={{
+                          background: 'none', border: 'none', color: 'var(--primary-gold)', 
+                          fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Mark all as read
+                      </button>
+                      <span className="notification-header-count">{notifications.length} active</span>
+                    </div>
                   )}
                 </div>
                 <ul className="notification-list">
