@@ -701,7 +701,7 @@ const Reports = () => {
                   }}><Printer size={13} /> Print (PDF)</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                     ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                    (gstData.sales || []).flatMap(s => s.items.map(si => [
+                    (gstData.sales || []).flatMap(s => (s.items || []).map(si => [
                       s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
                       si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
                     ])),
@@ -709,7 +709,7 @@ const Reports = () => {
                   )}><Download size={13} /> Export CSV</button>
                   <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
                     ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                    (gstData.sales || []).flatMap(s => s.items.map(si => [
+                    (gstData.sales || []).flatMap(s => (s.items || []).map(si => [
                       s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
                       si.watch_id, si.watch?.hsn_code || '9102', (si.price_sold - si.discount_amount), si.gst_amount / 2, si.gst_amount / 2, si.gst_amount, s.net_amount
                     ])),
@@ -723,7 +723,7 @@ const Reports = () => {
                   <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
                 </tr></thead>
                 <tbody>
-                  {(gstData.sales && gstData.sales.length > 0) ? gstData.sales.flatMap(s => s.items.map((si, idx) => (
+                  {(gstData.sales && gstData.sales.length > 0) ? gstData.sales.flatMap(s => (s.items || []).map((si, idx) => (
                     <tr key={`${s.id}-${idx}`}>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
                       <td>{s.invoice_date}</td>
@@ -743,9 +743,9 @@ const Reports = () => {
                     <tr style={{ fontWeight: 700 }}>
                       <td colSpan="4">Total Output</td>
                       <td></td>
-                      <td>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
-                      <td>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
-                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.sales.flatMap(s => s.items).reduce((a, si) => a + Number(si.gst_amount || 0), 0))}</td>
+                      <td>{fmt(gstData.sales.flatMap(s => (s.items || [])).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                      <td>{fmt(gstData.sales.flatMap(s => (s.items || [])).reduce((a, si) => a + Number(si.gst_amount || 0) / 2, 0))}</td>
+                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.sales.flatMap(s => (s.items || [])).reduce((a, si) => a + Number(si.gst_amount || 0), 0))}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -764,7 +764,7 @@ const Reports = () => {
                   }}><Printer size={13} /> Print (PDF)</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                     ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
-                    (gstData.purchases || []).flatMap(p => p.watches.map(w => {
+                    (gstData.purchases || []).flatMap(p => (p.watches || []).map(w => {
                        // Input GST calc
                        const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
                        const totalGst = w.cost_price - taxableValue;
@@ -777,7 +777,7 @@ const Reports = () => {
                   )}><Download size={13} /> Export CSV</button>
                   <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
                     ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
-                    (gstData.purchases || []).flatMap(p => p.watches.map(w => {
+                    (gstData.purchases || []).flatMap(p => (p.watches || []).map(w => {
                        const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
                        const totalGst = w.cost_price - taxableValue;
                        return [
@@ -795,7 +795,7 @@ const Reports = () => {
                   <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
                 </tr></thead>
                 <tbody>
-                  {(gstData.purchases && gstData.purchases.length > 0) ? gstData.purchases.flatMap(p => p.watches.map((w, idx) => {
+                  {(gstData.purchases && gstData.purchases.length > 0) ? gstData.purchases.flatMap(p => (p.watches || []).map((w, idx) => {
                     const taxableValue = w.cost_price / (1 + (w.gst_rate/100));
                     const totalGst = w.cost_price - taxableValue;
                     return (
@@ -819,9 +819,9 @@ const Reports = () => {
                     <tr style={{ fontWeight: 700 }}>
                       <td colSpan="4">Total Input</td>
                       <td></td>
-                      <td>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
-                      <td>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
-                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.purchases.flatMap(p => p.watches).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))), 0))}</td>
+                      <td>{fmt(gstData.purchases.flatMap(p => (p.watches || [])).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
+                      <td>{fmt(gstData.purchases.flatMap(p => (p.watches || [])).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))) / 2, 0))}</td>
+                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.purchases.flatMap(p => (p.watches || [])).reduce((a, w) => a + (w.cost_price - (w.cost_price / (1 + (w.gst_rate/100)))), 0))}</td>
                     </tr>
                   </tfoot>
                 )}
