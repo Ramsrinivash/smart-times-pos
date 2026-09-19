@@ -238,7 +238,12 @@ const AttendancePayroll = () => {
   const handlePrintSlip = (record) => {
     setActiveSlip(record);
     setTimeout(() => {
+      const oldTitle = document.title;
+      const nameStr = record?.user_name ? `_${record.user_name.replace(/[^a-zA-Z0-9]/g, '-')}` : '';
+      const dateStr = record?.payment_date ? `_${record.payment_date}` : '';
+      document.title = `Payslip${nameStr}${dateStr}`;
       window.print();
+      setTimeout(() => { document.title = oldTitle; }, 1000);
     }, 300);
   };
 

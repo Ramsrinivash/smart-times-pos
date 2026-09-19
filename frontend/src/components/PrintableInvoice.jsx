@@ -483,7 +483,14 @@ const PrintableInvoice = ({
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
-              onClick={onPrint || (() => window.print())}
+              onClick={() => {
+                const oldTitle = document.title;
+                const nameStr = invoice?.customer?.name ? `_${invoice.customer.name.replace(/[^a-zA-Z0-9]/g, '-')}` : '';
+                const dateStr = invoice?.invoice_date ? `_${invoice.invoice_date.split(' ')[0]}` : '';
+                document.title = `Invoice_${invoice?.id}${nameStr}${dateStr}`;
+                if (onPrint) onPrint(); else window.print();
+                setTimeout(() => { document.title = oldTitle; }, 1000);
+              }}
               className="btn btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.85rem' }}
             >

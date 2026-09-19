@@ -372,7 +372,12 @@ const ServiceRepair = () => {
   };
 
   const handlePrint = () => {
+    const oldTitle = document.title;
+    const nameStr = activeJobCard?.customer?.name ? `_${activeJobCard.customer.name.replace(/[^a-zA-Z0-9]/g, '-')}` : '';
+    const dateStr = activeJobCard?.created_at ? `_${activeJobCard.created_at.split('T')[0]}` : '';
+    document.title = `JobCard_${activeJobCard?.id || 'New'}${nameStr}${dateStr}`;
     window.print();
+    setTimeout(() => { document.title = oldTitle; }, 1000);
   };
 
   return (
