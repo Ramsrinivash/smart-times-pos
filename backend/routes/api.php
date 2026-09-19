@@ -400,6 +400,18 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 Route::get('/force-admin', function() { return \App\Models\User::updateOrCreate(['email' => 'admin@smarttimes.in'], ['name' => 'Admin', 'password' => \Illuminate\Support\Facades\Hash::make('password'), 'role' => 'admin', 'base_salary' => 30000]); });
 
+Route::get('/debug-gst', function() {
+    $sales = \App\Models\Sale::where('invoice_type', 'gst')->get(['id','invoice_type','invoice_date','gst_amount']);
+    $purchases = \App\Models\Purchase::get(['id','purchase_date','supplier_name','total_amount']);
+    $testMonth9 = \App\Models\Sale::where('invoice_type','gst')->whereMonth('invoice_date',9)->whereYear('invoice_date',2026)->count();
+    return response()->json([
+        'all_gst_sales' => $sales,
+        'all_purchases' => $purchases,
+        'test_month9_year2026_count' => $testMonth9,
+        'server_time' => now()->toDateTimeString(),
+    ]);
+});
+
 Route::get('/get-error-log', function () {
     $logPath = storage_path('logs/laravel.log');
     if (!file_exists($logPath)) { return response()->json(['error' => 'Log file not found']); }
