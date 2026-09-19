@@ -210,14 +210,15 @@ class ReportController extends Controller
             'year' => 'required|integer',
         ]);
 
+        $monthStr = str_pad($request->month, 2, '0', STR_PAD_LEFT);
+        $prefix = "{$request->year}-{$monthStr}";
+
         $sales = Sale::where('invoice_type', 'gst')
-            ->whereMonth('invoice_date', $request->month)
-            ->whereYear('invoice_date', $request->year)
+            ->where('invoice_date', 'like', "{$prefix}%")
             ->with(['items.watch', 'customer'])
             ->get();
 
-        $purchases = Purchase::whereMonth('purchase_date', $request->month)
-            ->whereYear('purchase_date', $request->year)
+        $purchases = Purchase::where('purchase_date', 'like', "{$prefix}%")
             ->with(['watches'])
             ->get();
 

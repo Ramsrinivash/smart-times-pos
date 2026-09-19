@@ -693,6 +693,12 @@ const Reports = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3>GST Output Report (Sales) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => {
+                    const oldTitle = document.title;
+                    document.title = `GST_Output_Report_${gstMonth}_${gstYear}`;
+                    window.print();
+                    setTimeout(() => { document.title = oldTitle; }, 1000);
+                  }}><Printer size={13} /> Print (PDF)</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                     ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
                     (gstData.sales || []).flatMap(s => s.items.map(si => [
@@ -750,6 +756,12 @@ const Reports = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3>GST Input Report (Purchases) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => {
+                    const oldTitle = document.title;
+                    document.title = `GST_Input_Report_${gstMonth}_${gstYear}`;
+                    window.print();
+                    setTimeout(() => { document.title = oldTitle; }, 1000);
+                  }}><Printer size={13} /> Print (PDF)</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
                     ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
                     (gstData.purchases || []).flatMap(p => p.watches.map(w => {
