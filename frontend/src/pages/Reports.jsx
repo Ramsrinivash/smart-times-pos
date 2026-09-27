@@ -271,6 +271,18 @@ const Reports = () => {
                     <tr><td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No sales data for selected period.</td></tr>
                   )}
                 </tbody>
+                {salesData.length > 0 && (
+                  <tfoot>
+                    <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
+                      <td colSpan="4">Total ({salesData.length} invoices)</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.subtotal || 0), 0))}</td>
+                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0), 0))}</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.gst_amount || 0), 0))}</td>
+                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
+                      <td colSpan="2"></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
             
@@ -299,22 +311,7 @@ const Reports = () => {
               </div>
             )}
             
-            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-              <table className="data-table">
-                {salesData.length > 0 && (
-                  <tfoot>
-                    <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
-                      <td colSpan="4">Total ({salesData.length} invoices)</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.subtotal || 0), 0))}</td>
-                      <td style={{ color: 'var(--error)' }}>{fmt(salesData.reduce((a, s) => a + Number(s.discount_amount || 0), 0))}</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.gst_amount || 0), 0))}</td>
-                      <td>{fmt(salesData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
-                      <td colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+
           </div>
         )}
 
