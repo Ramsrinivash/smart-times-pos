@@ -496,7 +496,7 @@ const Sales = () => {
                           <td>{item.brand} {item.model}</td>
                           <td>₹{Number(item.selling_price).toLocaleString()}</td>
                           <td style={{ textAlign: 'center' }}>
-                            <span style={{ padding: '0.25rem 0.75rem', background: 'var(--surface-card)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <span style={{ fontWeight: 600 }}>
                               1
                             </span>
                           </td>
