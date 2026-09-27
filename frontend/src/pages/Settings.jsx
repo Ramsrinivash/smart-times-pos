@@ -19,6 +19,15 @@ const Settings = () => {
   const [phone, setPhone] = useState('97512 85945, 86672 88021');
   const [email, setEmail] = useState('info@smarttimes.in');
 
+  // SMTP Settings
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('');
+  const [smtpUsername, setSmtpUsername] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpEncryption, setSmtpEncryption] = useState('tls');
+  const [smtpFromAddress, setSmtpFromAddress] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+
   // Invoice numbering
   const [gstPrefix, setGstPrefix] = useState('ST-GST');
   const [nongstPrefix, setNongstPrefix] = useState('ST-RETL');
@@ -130,6 +139,13 @@ const Settings = () => {
           setExpiryMonths(s.loyalty_expiry_months || 12);
           setJobCardTerms(s.job_card_terms || '');
           setDefaultGstType(s.default_gst_type || 'dynamic');
+          setSmtpHost(s.smtp_host || '');
+          setSmtpPort(s.smtp_port || '');
+          setSmtpUsername(s.smtp_username || '');
+          setSmtpPassword(s.smtp_password || '');
+          setSmtpEncryption(s.smtp_encryption || 'tls');
+          setSmtpFromAddress(s.smtp_from_address || '');
+          setSmtpFromName(s.smtp_from_name || '');
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
@@ -229,7 +245,14 @@ const Settings = () => {
         loyalty_redeem_rate: Number(redeemRate),
         loyalty_expiry_months: Number(expiryMonths),
         job_card_terms: jobCardTerms,
-        default_gst_type: defaultGstType
+        default_gst_type: defaultGstType,
+        smtp_host: smtpHost,
+        smtp_port: smtpPort,
+        smtp_username: smtpUsername,
+        smtp_password: smtpPassword,
+        smtp_encryption: smtpEncryption,
+        smtp_from_address: smtpFromAddress,
+        smtp_from_name: smtpFromName
       });
       alertService.success('Success', 'Settings saved successfully.');
     } catch (err) {
@@ -453,6 +476,9 @@ const Settings = () => {
           <button style={tabStyle('jobcard')} onClick={() => handleTabChange('jobcard')}>
             Job Card Terms
           </button>
+          <button style={tabStyle('smtp')} onClick={() => handleTabChange('smtp')}>
+            <Globe size={14} style={{ marginRight: '0.3rem' }} /> SMTP / Email
+          </button>
           <button style={tabStyle('my_account')} onClick={() => handleTabChange('my_account')}>
             My Account
           </button>
@@ -561,6 +587,56 @@ const Settings = () => {
                 <label className="form-label">Warranty Period (Months)</label>
                 <input type="number" className="form-control" min="0" value={warrantyMonths} onChange={e => setWarrantyMonths(e.target.value)} />
                 <small style={{ color: 'var(--text-secondary)' }}>Auto in-warranty flag on service intake for watches sold within this period</small>
+              </div>
+            </div>
+          )}
+
+          {/* SMTP Settings */}
+          {activeTab === 'smtp' && (
+            <div className="card" style={{ maxWidth: '800px' }}>
+              <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Globe size={18} /> SMTP Server Configuration
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                Configure these settings to allow the system to send outgoing emails (e.g. Invoices, Service Alerts).
+              </p>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">SMTP Host</label>
+                  <input type="text" className="form-control" placeholder="smtp.gmail.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">SMTP Port</label>
+                  <input type="text" className="form-control" placeholder="587" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">SMTP Username</label>
+                  <input type="text" className="form-control" placeholder="your-email@gmail.com" value={smtpUsername} onChange={e => setSmtpUsername(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">SMTP Password</label>
+                  <input type="password" className="form-control" placeholder="App Password" value={smtpPassword} onChange={e => setSmtpPassword(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Encryption Protocol</label>
+                  <select className="form-control" value={smtpEncryption} onChange={e => setSmtpEncryption(e.target.value)}>
+                    <option value="tls">TLS</option>
+                    <option value="ssl">SSL</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Sender Name (From Name)</label>
+                  <input type="text" className="form-control" placeholder="Smart Times" value={smtpFromName} onChange={e => setSmtpFromName(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Sender Address (From Email)</label>
+                <input type="email" className="form-control" placeholder="no-reply@smarttimes.in" value={smtpFromAddress} onChange={e => setSmtpFromAddress(e.target.value)} />
               </div>
             </div>
           )}

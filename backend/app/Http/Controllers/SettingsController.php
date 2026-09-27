@@ -47,6 +47,13 @@ class SettingsController extends Controller
             'loyalty_expiry_months' => 'nullable|integer',
             'job_card_terms' => 'nullable|string',
             'default_gst_type' => 'nullable|string|in:intra-state,inter-state,dynamic',
+            'smtp_host' => 'nullable|string',
+            'smtp_port' => 'nullable|string',
+            'smtp_username' => 'nullable|string',
+            'smtp_password' => 'nullable|string',
+            'smtp_encryption' => 'nullable|string|in:tls,ssl',
+            'smtp_from_address' => 'nullable|email',
+            'smtp_from_name' => 'nullable|string',
         ]);
 
         $setting = Setting::firstOrCreate([], [

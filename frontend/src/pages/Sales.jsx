@@ -484,7 +484,7 @@ const Sales = () => {
                         <th>Watch ID</th>
                         <th>Description</th>
                         <th>Original Price</th>
-                        <th style={{ width: '110px' }}>Discount (₹)</th>
+                        <th style={{ width: '90px' }}>Qty</th>
                         <th>Net Total</th>
                         <th style={{ width: '50px' }}></th>
                       </tr>
@@ -495,19 +495,12 @@ const Sales = () => {
                           <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{item.watch_id}</td>
                           <td>{item.brand} {item.model}</td>
                           <td>₹{Number(item.selling_price).toLocaleString()}</td>
-                          <td>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
-                              value={item.discount_amount}
-                              onChange={(e) => handleDiscountChange(item.watch_id, e.target.value)}
-                              min="0"
-                              max={item.selling_price}
-                              placeholder="0"
-                            />
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ padding: '0.25rem 0.75rem', background: 'var(--surface-card)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                              1
+                            </span>
                           </td>
-                          <td>₹{(item.selling_price - item.discount_amount).toLocaleString()}</td>
+                          <td>₹{Number(item.selling_price).toLocaleString()}</td>
                           <td style={{ textAlign: 'center' }}>
                             <button 
                               type="button" 

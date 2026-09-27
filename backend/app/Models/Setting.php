@@ -24,6 +24,13 @@ class Setting extends Model
         'loyalty_earn_rate',
         'loyalty_redeem_rate',
         'loyalty_expiry_months',
-        'job_card_terms'
+        'job_card_terms',
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'smtp_from_address',
+        'smtp_from_name'
     ];
 }
