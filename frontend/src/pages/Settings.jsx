@@ -693,7 +693,7 @@ const Settings = () => {
           )}
 
           {/* Save Button (shown on settings tabs) */}
-          {['profile', 'invoice', 'loyalty', 'jobcard'].includes(activeTab) && (
+          {['profile', 'invoice', 'loyalty', 'jobcard', 'smtp'].includes(activeTab) && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', maxWidth: '800px', marginTop: '1rem' }}>
               <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Save size={16} /> Save Configuration
