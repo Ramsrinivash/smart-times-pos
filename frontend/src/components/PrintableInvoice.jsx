@@ -274,7 +274,7 @@ const PrintableInvoice = ({
                 {isThermal ? 'Item' : 'Model Description'}
               </th>
               <th style={{ padding: cellPad, textAlign: 'right', fontWeight: 700, fontSize: fs.sm }}>Price (₹)</th>
-              <th style={{ padding: cellPad, textAlign: 'right', fontWeight: 700, fontSize: fs.sm }}>Disc (₹)</th>
+              <th style={{ padding: cellPad, textAlign: 'center', fontWeight: 700, fontSize: fs.sm }}>Qty</th>
               {invoice.invoice_type === 'gst' && !isThermal && (
                 <th style={{ padding: cellPad, textAlign: 'right', fontWeight: 700, fontSize: fs.sm }}>GST%</th>
               )}
@@ -298,14 +298,14 @@ const PrintableInvoice = ({
                 <td style={{ padding: cellPad, textAlign: 'right', fontSize: fs.sm }}>
                   {Number(item.price_sold).toLocaleString('en-IN')}
                 </td>
-                <td style={{ padding: cellPad, textAlign: 'right', fontSize: fs.sm }}>
-                  {Number(item.discount_amount || 0).toLocaleString('en-IN')}
+                <td style={{ padding: cellPad, textAlign: 'center', fontSize: fs.sm }}>
+                  1
                 </td>
                 {invoice.invoice_type === 'gst' && !isThermal && (
                   <td style={{ padding: cellPad, textAlign: 'right', fontSize: fs.sm }}>{item.gst_rate}%</td>
                 )}
                 <td style={{ padding: cellPad, textAlign: 'right', fontWeight: 600, fontSize: fs.sm }}>
-                  {Number(item.price_sold - (item.discount_amount || 0)).toLocaleString('en-IN')}
+                  {Number(item.price_sold).toLocaleString('en-IN')}
                 </td>
               </tr>
             ))}

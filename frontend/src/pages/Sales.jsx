@@ -853,7 +853,7 @@ const Sales = () => {
                         <th>Watch ID / Serial</th>
                         <th>Brand & Model</th>
                         <th style={{ textAlign: 'right' }}>Selling Price</th>
-                        <th style={{ textAlign: 'right' }}>Discount</th>
+                        <th style={{ textAlign: 'center' }}>QTY</th>
                         <th style={{ textAlign: 'right' }}>Final Price</th>
                       </tr>
                     </thead>
@@ -866,8 +866,8 @@ const Sales = () => {
                             <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary-gold)' }}>{item.watch_id}</td>
                             <td>{item.brand} — {item.model}</td>
                             <td style={{ textAlign: 'right' }}>₹{Number(item.selling_price).toLocaleString()}</td>
-                            <td style={{ textAlign: 'right', color: 'var(--error)' }}>-₹{Number(item.discount_amount || 0).toLocaleString()}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700 }}>₹{finalP.toLocaleString()}</td>
+                            <td style={{ textAlign: 'center' }}>1</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700 }}>₹{Number(item.selling_price).toLocaleString()}</td>
                           </tr>
                         );
                       })}
