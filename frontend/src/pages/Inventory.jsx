@@ -237,7 +237,7 @@ const Inventory = () => {
                               )}
                             </td>
                           )}
-                          <td>{group.gst_rate}%</td>
+                          <td>{Number(group.gst_rate) === 0 ? '0% (Non-GST)' : `${group.gst_rate}%`}</td>
                           <td>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center' }}>
                               <span className="badge badge-info" style={{ fontWeight: 600 }}>{totalQty} Total</span>

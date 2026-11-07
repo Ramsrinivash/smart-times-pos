@@ -598,6 +598,7 @@ const Purchase = () => {
                           onChange={(e) => handleItemChange(index, 'gst_rate', Number(e.target.value))}
                           style={{ height: '36px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                         >
+                          <option value="0">0% (Non-GST / Exempt)</option>
                           <option value="5">5%</option>
                           <option value="12">12%</option>
                           <option value="18">18%</option>

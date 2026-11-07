@@ -230,7 +230,7 @@ const Sales = () => {
     if (invoiceType !== 'gst') return 0;
     const itemInitialNet = Number(item.selling_price) - Number(item.discount_amount || 0);
     const allocatedItemNet = totalInitialItemNet > 0 ? (itemInitialNet * (netAmount / totalInitialItemNet)) : (netAmount / (cart.length || 1));
-    const gstRate = Number(item.gst_rate || 18);
+    const gstRate = Number(item.gst_rate ?? 18);
     const itemGst = allocatedItemNet * (gstRate / 100);
     return acc + itemGst;
   }, 0);

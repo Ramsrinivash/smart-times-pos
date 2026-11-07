@@ -87,7 +87,7 @@ const PrintableInvoice = ({
   const hsnGroups = {};
   invoice.items?.forEach(si => {
     const hsn = si.watch?.hsn_code || '9102';
-    const rate = Number(si.gst_rate || 18);
+    const rate = Number(si.gst_rate ?? 18);
     const key = `${hsn}__${rate}`;
     if (!hsnGroups[key]) hsnGroups[key] = { hsn, rate, gstAmt: 0 };
     hsnGroups[key].gstAmt += Number(si.gst_amount || 0);
@@ -327,15 +327,24 @@ const PrintableInvoice = ({
                 <div style={{ fontWeight: 700, marginBottom: '5px', fontSize: fs.sm }}>GST HSN Breakdown</div>
                 {Object.values(hsnGroups).map(entry => (
                   <div key={`${entry.hsn}-${entry.rate}`} style={{ marginBottom: '5px', paddingBottom: '4px', borderBottom: '1px dashed #ddd' }}>
-                    <div style={{ fontWeight: 600, fontSize: fs.sm }}>HSN: {entry.hsn} | GST: {entry.rate}%</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '6px', fontSize: fs.sm }}>
-                      <span>CGST ({entry.rate / 2}%)</span>
-                      <span>{fmt(entry.gstAmt / 2)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '6px', fontSize: fs.sm, marginTop: '1px' }}>
-                      <span>SGST ({entry.rate / 2}%)</span>
-                      <span>{fmt(entry.gstAmt / 2)}</span>
-                    </div>
+                    <div style={{ fontWeight: 600, fontSize: fs.sm }}>HSN: {entry.hsn} | GST: {entry.rate === 0 ? '0% (Non-GST / Exempt)' : `${entry.rate}%`}</div>
+                    {entry.rate > 0 ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '6px', fontSize: fs.sm }}>
+                          <span>CGST ({entry.rate / 2}%)</span>
+                          <span>{fmt(entry.gstAmt / 2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '6px', fontSize: fs.sm, marginTop: '1px' }}>
+                          <span>SGST ({entry.rate / 2}%)</span>
+                          <span>{fmt(entry.gstAmt / 2)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '6px', fontSize: fs.sm, color: '#666' }}>
+                        <span>Exempt / Nil-Rated Goods</span>
+                        <span>₹0.00</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -405,7 +414,7 @@ const PrintableInvoice = ({
               <div style={{ marginTop: '5px' }}>
                 {Object.values(hsnGroups).map(entry => (
                   <div key={`${entry.hsn}-${entry.rate}`} style={{ fontSize: fs.sm }}>
-                    HSN {entry.hsn}: CGST {fmt(entry.gstAmt / 2)} + SGST {fmt(entry.gstAmt / 2)}
+                    {entry.rate === 0 ? `HSN ${entry.hsn}: Non-GST (0%)` : `HSN ${entry.hsn}: CGST ${fmt(entry.gstAmt / 2)} + SGST ${fmt(entry.gstAmt / 2)}`}
                   </div>
                 ))}
               </div>
