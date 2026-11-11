@@ -448,9 +448,9 @@ const Purchase = () => {
             </div>
 
             {/* Bill File Upload Section */}
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <FileText size={16} color="var(--primary-gold)" /> Upload Supplier Bill (PDF / JPEG / PNG) - Optional
                 </label>
                 {billFile && (
@@ -459,58 +459,90 @@ const Purchase = () => {
                       type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={() => setShowBillModal(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.35rem 0.75rem', color: 'var(--primary-gold)' }}
                     >
-                      <Eye size={13} /> View Attached Bill
+                      <Eye size={14} /> View Attached Bill
                     </button>
-                    {!isSupplierSaved && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleRemoveFile}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.25rem 0.6rem', color: 'var(--error)' }}
-                      >
-                        <X size={13} /> Remove
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleRemoveFile}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.35rem 0.75rem', color: 'var(--error)' }}
+                    >
+                      <X size={14} /> Remove Bill
+                    </button>
                   </div>
                 )}
               </div>
 
-              {!isSupplierSaved && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                  <label
-                    htmlFor="bill-upload"
-                    className="btn btn-secondary"
-                    style={{
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontSize: '0.85rem',
-                      padding: '0.45rem 1rem'
-                    }}
-                  >
-                    <Upload size={14} /> {billFile ? 'Change Bill Document' : 'Choose File (PDF or Image)'}
-                  </label>
-                  <input
-                    id="bill-upload"
-                    type="file"
-                    accept=".pdf,image/jpeg,image/png,image/webp,image/jpg"
-                    onChange={handleFileUpload}
-                    style={{ display: 'none' }}
-                  />
-                  {billFileName ? (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>
-                      ✓ Attached: {billFileName}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Upload scanned supplier receipt or tax invoice for future auditing.
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* Drag and Drop Zone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--primary-gold)';
+                  e.currentTarget.style.background = 'rgba(217, 119, 6, 0.08)';
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.background = 'var(--surface-card)';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.background = 'var(--surface-card)';
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) {
+                    const fakeEvent = { target: { files: [file] } };
+                    handleFileUpload(fakeEvent);
+                  }
+                }}
+                style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  background: 'var(--surface-card)',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => document.getElementById('bill-upload').click()}
+              >
+                <input
+                  id="bill-upload"
+                  type="file"
+                  accept=".pdf,image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+                
+                {billFileName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <div style={{ padding: '0.5rem', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}>
+                      <CheckCircle size={24} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{billFileName}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--success)' }}>Document successfully attached. Click anywhere or drop another file to replace.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={28} color="var(--primary-gold)" style={{ opacity: 0.8 }} />
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Drag & drop your supplier bill here, or <span style={{ color: 'var(--primary-gold)', textDecoration: 'underline' }}>browse</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      Supports PDF, JPEG, JPG, PNG, and WebP (up to 10 MB)
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="form-group" style={{ margin: '1rem 0 0 0' }}>
