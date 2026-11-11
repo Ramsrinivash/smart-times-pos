@@ -58,28 +58,25 @@ class ReportController extends Controller
         $monthProfitSnap = null;
         $totalProfitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
-            $todayGstTax = (double) Sale::whereDate('invoice_date', $today)->where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostToday = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->whereDate('sales.invoice_date', $today)
                 ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
-            $profitSnap = round(($todaySalesSum - $todayGstTax) - $totalCostToday, 2);
+            $profitSnap = round($todaySalesSum - $totalCostToday, 2);
 
-            $monthGstTax = (double) Sale::where('invoice_date', 'like', "{$month}%")->where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostMonth = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.invoice_date', 'like', "{$month}%")
                 ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
-            $monthProfitSnap = round(($monthSalesSum - $monthGstTax) - $totalCostMonth, 2);
+            $monthProfitSnap = round($monthSalesSum - $totalCostMonth, 2);
 
-            $totalGstTax = (double) Sale::where('invoice_type', 'gst')->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})->sum('gst_amount');
             $totalCostAll = (double) DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sale_items.is_returned', 0)
                 ->sum('sale_items.cost_price');
-            $totalProfitSnap = round(($totalSalesSum - $totalGstTax) - $totalCostAll, 2);
+            $totalProfitSnap = round($totalSalesSum - $totalCostAll, 2);
         }
 
         // Outstanding customer dues

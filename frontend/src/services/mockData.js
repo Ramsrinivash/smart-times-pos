@@ -815,7 +815,12 @@ export const mockAPI = {
       const { watch, itemDisc } = pi;
       const itemInitialNet = watch.selling_price - itemDisc;
       const allocatedItemNet = totalInitialItemNet > 0 ? (itemInitialNet * (finalNet / totalInitialItemNet)) : (finalNet / (preparedItems.length || 1));
-      const gstAmt = data.invoice_type === 'gst' ? (allocatedItemNet * ((watch.gst_rate || 18) / 100)) : 0;
+      const gstRate = Number(watch.gst_rate || 18);
+      let gstAmt = 0;
+      if (data.invoice_type === 'gst' && gstRate > 0) {
+        const itemTaxable = allocatedItemNet / (1 + (gstRate / 100));
+        gstAmt = Number((allocatedItemNet - itemTaxable).toFixed(2));
+      }
 
       itemsData.push({
         id: db.sale_items.length + itemsData.length + 1,

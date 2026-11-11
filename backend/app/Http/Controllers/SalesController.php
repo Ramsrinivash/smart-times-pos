@@ -136,8 +136,9 @@ class SalesController extends Controller
                     : ($netAmount / count($preparedItems));
 
                 $gstRate = (double) $watch->gst_rate;
-                if ($request->invoice_type === 'gst') {
-                    $itemGstAmount = $allocatedItemNet * ($gstRate / 100);
+                if ($request->invoice_type === 'gst' && $gstRate > 0) {
+                    $itemTaxable = $allocatedItemNet / (1 + ($gstRate / 100));
+                    $itemGstAmount = round($allocatedItemNet - $itemTaxable, 2);
                 } else {
                     $itemGstAmount = 0.00;
                 }
