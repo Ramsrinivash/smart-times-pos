@@ -11,7 +11,7 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Watch::query();
+        $query = Watch::with(['purchase:id,invoice_number,bill_file,supplier_name', 'saleItems.sale:id,invoice_type,invoice_date']);
 
         // Filter by status
         if ($request->filled('status')) {

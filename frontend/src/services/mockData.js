@@ -584,7 +584,16 @@ export const mockAPI = {
     }
     return list.map(w => {
       const purchase = db.purchases.find(p => p.id === w.purchase_id);
-      return { ...w, purchase };
+      const saleItem = (db.sale_items || []).find(si => si.watch_id === w.id);
+      let sale = null;
+      if (saleItem) {
+        sale = (db.sales || []).find(s => s.id === saleItem.sale_id);
+      }
+      return { 
+        ...w, 
+        purchase,
+        saleItems: saleItem ? [{ ...saleItem, sale }] : []
+      };
     });
   },
 

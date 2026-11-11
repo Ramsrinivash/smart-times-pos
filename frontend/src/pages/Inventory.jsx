@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
-import { Settings, Eye, Image as ImageIcon, Trash2, X, Plus } from 'lucide-react';
+import { Settings, Eye, Image as ImageIcon, Trash2, X, Plus, FileText } from 'lucide-react';
 import { alertService } from '../utils/alert';
 
 const Inventory = () => {
@@ -15,6 +15,7 @@ const Inventory = () => {
   const [adjustWatch, setAdjustWatch] = useState(null);
   const [newStatus, setNewStatus] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [viewingBillFile, setViewingBillFile] = useState(null);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -116,9 +117,13 @@ const Inventory = () => {
           gst_rate: w.gst_rate,
           discount_percent: w.discount_percent,
           thumbnail: w.image_urls?.[0] || null,
+          purchase: w.purchase || null,
           pieces: [],
         };
         grouped.push(groups[key]);
+      }
+      if (!groups[key].purchase && w.purchase) {
+        groups[key].purchase = w.purchase;
       }
       groups[key].pieces.push(w);
     });
@@ -175,7 +180,7 @@ const Inventory = () => {
                   <th>MRP</th>
                   <th>Selling Price</th>
                   {(user.role === 'admin' || user.role === 'manager') && <th>Cost Price</th>}
-                  <th>GST</th>
+                  <th>Invoice / Bill</th>
                   <th>Stock Summary</th>
                   <th style={{ width: '80px' }}>Actions</th>
                 </tr>
@@ -237,7 +242,52 @@ const Inventory = () => {
                               )}
                             </td>
                           )}
-                          <td>{Number(group.gst_rate) === 0 ? '0% (Non-GST)' : `${group.gst_rate}%`}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              {group.purchase?.invoice_number ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 600 }}>
+                                    {group.purchase.invoice_number}
+                                  </span>
+                                  {group.purchase.bill_file && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewingBillFile({
+                                          file: group.purchase.bill_file,
+                                          title: `${group.purchase.supplier_name || group.brand} - ${group.purchase.invoice_number}`
+                                        });
+                                      }}
+                                      style={{
+                                        background: 'rgba(217, 119, 6, 0.15)',
+                                        border: '1px solid var(--primary-gold)',
+                                        color: 'var(--primary-gold)',
+                                        borderRadius: '4px',
+                                        padding: '1px 5px',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '2px',
+                                        fontWeight: 600
+                                      }}
+                                      title="View Supplier Bill Document"
+                                    >
+                                      <FileText size={10} /> Bill
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>
+                              )}
+                              {group.pieces.some(p => p.saleItems && p.saleItems[0]?.sale?.id) && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                  Sold: {group.pieces.filter(p => p.saleItems && p.saleItems[0]?.sale?.id).map(p => p.saleItems[0].sale.id).slice(0, 2).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center' }}>
                               <span className="badge badge-info" style={{ fontWeight: 600 }}>{totalQty} Total</span>
@@ -271,6 +321,8 @@ const Inventory = () => {
                                     <tr style={{ background: 'var(--surface-card)', borderBottom: '1px solid var(--border-color)' }}>
                                       <th style={{ padding: '0.5rem', textAlign: 'left' }}>Serial / Watch ID</th>
                                       <th style={{ padding: '0.5rem', textAlign: 'left' }}>Status</th>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Supplier Invoice / Bill</th>
+                                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Sales Invoice No</th>
                                       <th style={{ padding: '0.5rem', textAlign: 'left' }}>MRP</th>
                                       <th style={{ padding: '0.5rem', textAlign: 'left' }}>Selling Price</th>
                                       {(user.role === 'admin' || user.role === 'manager') && <th style={{ padding: '0.5rem', textAlign: 'left' }}>Cost Price</th>}
@@ -278,48 +330,101 @@ const Inventory = () => {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {group.pieces.map(piece => (
-                                      <tr key={piece.id} style={{ borderBottom: '1px dashed var(--border-color)' }}>
-                                        <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: 600 }}>{piece.id}</td>
-                                        <td style={{ padding: '0.5rem' }}>
-                                          <span className={`badge badge-${
-                                            piece.status === 'in_stock' ? 'success' :
-                                            piece.status === 'sold' ? 'info' :
-                                            piece.status === 'refurbishing' ? 'warning' :
-                                            piece.status === 'exchanged_returned' ? 'warning' : 'danger'
-                                          }`} style={{ fontSize: '0.75rem' }}>
-                                            {piece.status.replace('_', ' ')}
-                                          </span>
-                                        </td>
-                                        <td style={{ padding: '0.5rem' }}>₹{Number(piece.mrp).toLocaleString()}</td>
-                                        <td style={{ padding: '0.5rem' }}>₹{Number(piece.selling_price).toLocaleString()}</td>
-                                        {(user.role === 'admin' || user.role === 'manager') && (
-                                          <td style={{ padding: '0.5rem', color: 'var(--primary-gold)' }}>₹{Number(piece.cost_price).toLocaleString()}</td>
-                                        )}
-                                        <td style={{ padding: '0.5rem' }}>
-                                          <div style={{ display: 'flex', gap: '0.35rem' }}>
-                                            <button 
-                                              onClick={() => setSelectedWatch(piece)}
-                                              className="btn btn-secondary btn-sm"
-                                              title="Photos & Details"
-                                              style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
-                                            >
-                                              <Eye size={12} />
-                                            </button>
-                                            {(user.role === 'admin' || user.role === 'manager') && (
+                                    {group.pieces.map(piece => {
+                                      const purchaseObj = piece.purchase || group.purchase;
+                                      const soldSale = piece.saleItems && piece.saleItems[0]?.sale;
+
+                                      return (
+                                        <tr key={piece.id} style={{ borderBottom: '1px dashed var(--border-color)' }}>
+                                          <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: 600 }}>{piece.id}</td>
+                                          <td style={{ padding: '0.5rem' }}>
+                                            <span className={`badge badge-${
+                                              piece.status === 'in_stock' ? 'success' :
+                                              piece.status === 'sold' ? 'info' :
+                                              piece.status === 'refurbishing' ? 'warning' :
+                                              piece.status === 'exchanged_returned' ? 'warning' : 'danger'
+                                            }`} style={{ fontSize: '0.75rem' }}>
+                                              {piece.status.replace('_', ' ')}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '0.5rem' }}>
+                                            {purchaseObj?.invoice_number ? (
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 600 }}>
+                                                  {purchaseObj.invoice_number}
+                                                </span>
+                                                {purchaseObj.bill_file && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setViewingBillFile({
+                                                        file: purchaseObj.bill_file,
+                                                        title: `${purchaseObj.supplier_name || group.brand} - ${purchaseObj.invoice_number}`
+                                                      });
+                                                    }}
+                                                    style={{
+                                                      background: 'rgba(217, 119, 6, 0.15)',
+                                                      border: '1px solid var(--primary-gold)',
+                                                      color: 'var(--primary-gold)',
+                                                      borderRadius: '4px',
+                                                      padding: '1px 5px',
+                                                      fontSize: '0.68rem',
+                                                      cursor: 'pointer',
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '2px',
+                                                      fontWeight: 600
+                                                    }}
+                                                    title="View Bill File"
+                                                  >
+                                                    <FileText size={10} /> Bill
+                                                  </button>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                                            )}
+                                          </td>
+                                          <td style={{ padding: '0.5rem' }}>
+                                            {soldSale?.id ? (
+                                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-gold)', fontSize: '0.8rem' }}>
+                                                {soldSale.id}
+                                              </span>
+                                            ) : (
+                                              <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                                            )}
+                                          </td>
+                                          <td style={{ padding: '0.5rem' }}>₹{Number(piece.mrp).toLocaleString()}</td>
+                                          <td style={{ padding: '0.5rem' }}>₹{Number(piece.selling_price).toLocaleString()}</td>
+                                          {(user.role === 'admin' || user.role === 'manager') && (
+                                            <td style={{ padding: '0.5rem', color: 'var(--primary-gold)' }}>₹{Number(piece.cost_price).toLocaleString()}</td>
+                                          )}
+                                          <td style={{ padding: '0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.35rem' }}>
                                               <button 
-                                                onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
+                                                onClick={() => setSelectedWatch(piece)}
                                                 className="btn btn-secondary btn-sm"
-                                                title="Adjust Status"
+                                                title="Photos & Details"
                                                 style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
                                               >
-                                                <Settings size={12} />
+                                                <Eye size={12} />
                                               </button>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                              {(user.role === 'admin' || user.role === 'manager') && (
+                                                <button 
+                                                  onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
+                                                  className="btn btn-secondary btn-sm"
+                                                  title="Adjust Status"
+                                                  style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
+                                                >
+                                                  <Settings size={12} />
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
@@ -406,6 +511,10 @@ const Inventory = () => {
                       <tr><td><strong>Movement</strong></td><td>{selectedWatch.movement_type}</td></tr>
                       <tr><td><strong>MRP</strong></td><td>₹{Number(selectedWatch.mrp).toLocaleString()}</td></tr>
                       <tr><td><strong>Selling Price</strong></td><td>₹{Number(selectedWatch.selling_price).toLocaleString()}</td></tr>
+                      <tr><td><strong>Supplier Invoice / Bill No</strong></td><td>{selectedWatch.purchase?.invoice_number || '—'}</td></tr>
+                      {selectedWatch.saleItems && selectedWatch.saleItems[0]?.sale && (
+                        <tr><td><strong>Sold Invoice No</strong></td><td style={{ color: 'var(--primary-gold)', fontWeight: 700 }}>{selectedWatch.saleItems[0].sale.id} ({selectedWatch.saleItems[0].sale.invoice_type?.toUpperCase()})</td></tr>
+                      )}
                       {(user.role === 'admin' || user.role === 'manager') && (
                         <>
                           <tr><td><strong>Cost Price</strong></td><td>₹{Number(selectedWatch.cost_price).toLocaleString()}</td></tr>
@@ -458,6 +567,91 @@ const Inventory = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Supplier Bill Document Viewer Modal */}
+        {viewingBillFile && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              width: '100%',
+              maxWidth: '900px',
+              height: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.25rem',
+                borderBottom: '1px solid var(--border-color)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={18} color="var(--primary-gold)" />
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Supplier Bill: {viewingBillFile.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setViewingBillFile(null)}
+                  style={{ padding: '0.3rem 0.6rem' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflow: 'auto', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0b0f19' }}>
+                {viewingBillFile.file.startsWith('data:application/pdf') ? (
+                  <iframe
+                    src={viewingBillFile.file}
+                    title="Supplier Bill PDF"
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+                  />
+                ) : (
+                  <img
+                    src={viewingBillFile.file}
+                    alt="Supplier Bill"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
+                  />
+                )}
+              </div>
+
+              <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <a
+                  href={viewingBillFile.file}
+                  download={`supplier_bill_${viewingBillFile.title.replace(/\s+/g, '_')}`}
+                  className="btn btn-primary btn-sm"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Download Bill
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setViewingBillFile(null)}
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
