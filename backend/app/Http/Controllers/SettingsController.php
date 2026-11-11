@@ -9,6 +9,9 @@ class SettingsController extends Controller
 {
     public function show()
     {
+        // Auto-migrate two_factor columns if missing on live MySQL server
+        $this->ensureTwoFactorColumnsExist();
+
         $setting = Setting::first();
         if (!$setting) {
             // Return empty default settings if not seeded
@@ -30,8 +33,11 @@ class SettingsController extends Controller
 
     public function update(Request $request)
     {
+        // Auto-migrate two_factor columns if missing on live MySQL server
+        $this->ensureTwoFactorColumnsExist();
+
         $request->validate([
-            'store_name' => 'required|string',
+            'store_name' => 'nullable|string',
             'tagline' => 'nullable|string',
             'gstin' => 'nullable|string',
             'address' => 'nullable|string',
@@ -62,7 +68,16 @@ class SettingsController extends Controller
             'store_name' => 'Smart Times'
         ]);
 
-        $setting->update($request->all());
+        $updateData = array_filter($request->all(), function ($val) {
+            return $val !== null;
+        });
+
+        // Ensure boolean cast for two_factor_enabled if present
+        if ($request->has('two_factor_enabled')) {
+            $updateData['two_factor_enabled'] = (bool) $request->input('two_factor_enabled');
+        }
+
+        $setting->update($updateData);
 
         return response()->json([
             'message' => 'Settings updated successfully',
@@ -280,5 +295,28 @@ class SettingsController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Ensure two_factor columns exist on live server even if artisan migrate was delayed.
+     */
+    private function ensureTwoFactorColumnsExist()
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'two_factor_secret')) {
+                    \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('two_factor_secret')->nullable()->after('job_card_terms');
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'two_factor_enabled')) {
+                    \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->boolean('two_factor_enabled')->default(false)->after('two_factor_secret');
+                    });
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Could not ensure 2FA columns on settings table: ' . $e->getMessage());
+        }
     }
 }

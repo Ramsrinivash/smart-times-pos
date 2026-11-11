@@ -458,6 +458,7 @@ const Settings = () => {
 
     try {
       await api.saveSettings({
+        store_name: storeName || 'Smart Times',
         two_factor_secret: twoFactorSecret,
         two_factor_enabled: true
       });
@@ -491,6 +492,7 @@ const Settings = () => {
         }
         try {
           await api.saveSettings({
+            store_name: storeName || 'Smart Times',
             two_factor_secret: '',
             two_factor_enabled: false
           });
