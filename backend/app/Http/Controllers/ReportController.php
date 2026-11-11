@@ -300,6 +300,7 @@ class ReportController extends Controller
                 'supplier_name' => $w->purchase ? $w->purchase->supplier_name : 'N/A',
                 'purchase_date' => $w->purchase ? $w->purchase->purchase_date : 'N/A',
                 'invoice_number' => $w->purchase ? $w->purchase->invoice_number : 'N/A',
+                'bill_file' => $w->purchase ? $w->purchase->bill_file : null,
                 'mrp' => $w->mrp,
                 'discount_percent' => $w->discount_percent,
                 'cost_price' => $w->cost_price,

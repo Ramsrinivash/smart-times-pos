@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Layout/Header';
 import { api } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle, RefreshCw, MapPin, Globe, Monitor, Clock } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Users, FileText, Shield, Database, Printer, Trash2, History, GitBranch, Sparkles, CheckCircle, RefreshCw, MapPin, Globe, Monitor, Clock, Key, Smartphone, Lock, QrCode } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { alertService } from '../utils/alert';
 import Swal from 'sweetalert2';
 import BillTemplate from './BillTemplate';
+import { generateTOTPSecret, verifyTOTP, getOTPAuthURL } from '../utils/totp';
+import QRCode from 'qrcode';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -53,6 +55,13 @@ const Settings = () => {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('sales');
   const [newUserSalary, setNewUserSalary] = useState('');
+
+  // Two-Factor Authentication (Google Authenticator)
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [showSetup2FA, setShowSetup2FA] = useState(false);
+  const [setupOtpInput, setSetupOtpInput] = useState('');
 
   // Personal credentials edit state
   const [myEmail, setMyEmail] = useState(user?.email || '');
@@ -146,6 +155,8 @@ const Settings = () => {
           setSmtpEncryption(s.smtp_encryption || 'tls');
           setSmtpFromAddress(s.smtp_from_address || '');
           setSmtpFromName(s.smtp_from_name || '');
+          setTwoFactorSecret(s.two_factor_secret || '');
+          setTwoFactorEnabled(!!s.two_factor_enabled);
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
@@ -415,29 +426,162 @@ const Settings = () => {
     });
   };
 
-  const handleResetDB = () => {
+  const handleStartSetup2FA = async () => {
+    let secret = twoFactorSecret;
+    if (!secret) {
+      secret = generateTOTPSecret(16);
+      setTwoFactorSecret(secret);
+    }
+    const otpAuthUrl = getOTPAuthURL(secret, user?.email || 'admin@smarttimes.in', storeName || 'Smart Times POS');
+    try {
+      const qrData = await QRCode.toDataURL(otpAuthUrl, { width: 220, margin: 1 });
+      setQrCodeDataUrl(qrData);
+      setShowSetup2FA(true);
+      setSetupOtpInput('');
+    } catch (e) {
+      alertService.error('Error', 'Failed to generate QR Code: ' + e.message);
+    }
+  };
+
+  const handleVerifyAndEnable2FA = async () => {
+    if (!setupOtpInput || setupOtpInput.trim().length !== 6) {
+      alertService.warning('Validation', 'Please enter a valid 6-digit code from Google Authenticator.');
+      return;
+    }
+    const isValid = await verifyTOTP(setupOtpInput, twoFactorSecret);
+    if (!isValid) {
+      alertService.error('Invalid OTP', 'The 6-digit code is incorrect or expired. Please check your authenticator clock and try again.');
+      return;
+    }
+
+    try {
+      await api.saveSettings({
+        two_factor_secret: twoFactorSecret,
+        two_factor_enabled: true
+      });
+      setTwoFactorEnabled(true);
+      setShowSetup2FA(false);
+      setSetupOtpInput('');
+      alertService.success('2FA Activated', 'Google Authenticator 2FA protection has been successfully enabled!');
+    } catch (err) {
+      alertService.error('Error', 'Failed to save 2FA configuration: ' + err.message);
+    }
+  };
+
+  const handleDisable2FA = async () => {
     Swal.fire({
-      title: 'Reset to 100% Clean Database?',
-      text: 'This will remove all test sample data (dummy watches, test sales, sample job cards) and start your showroom with a clean slate.',
-      icon: 'warning',
+      title: 'Disable 2FA Protection?',
+      text: 'Enter the 6-digit code from Google Authenticator to confirm disabling 2FA.',
+      input: 'text',
+      inputPlaceholder: '000000',
       showCancelButton: true,
-      confirmButtonText: 'Yes, Clear All Test Data',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: 'Verify & Disable',
       confirmButtonColor: '#dc2626',
       cancelButtonColor: 'var(--border-color)',
       background: 'var(--surface-color)',
       color: 'var(--text-primary)'
-    }).then(async (result) => {
-      if (result.isConfirmed) {
+    }).then(async (res) => {
+      if (res.isConfirmed && res.value) {
+        const isValid = await verifyTOTP(res.value, twoFactorSecret);
+        if (!isValid) {
+          alertService.error('Invalid OTP', 'The 6-digit code is incorrect.');
+          return;
+        }
         try {
-          await api.resetDatabase();
-          alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
-          setTimeout(() => window.location.reload(), 1000);
+          await api.saveSettings({
+            two_factor_secret: '',
+            two_factor_enabled: false
+          });
+          setTwoFactorEnabled(false);
+          setTwoFactorSecret('');
+          alertService.success('2FA Disabled', 'Google Authenticator 2FA has been disabled.');
         } catch (err) {
-          alertService.error('Reset Failed', err.message || 'Database reset failed.');
+          alertService.error('Error', err.message);
         }
       }
     });
+  };
+
+  const handleResetDB = () => {
+    if (twoFactorEnabled && twoFactorSecret) {
+      // 2FA is active: Require 6-digit OTP from Google Authenticator
+      Swal.fire({
+        title: '🔒 2FA Verification Required',
+        html: `
+          <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom: 1rem;">
+            Database reset is high-risk. Open your <b>Google Authenticator app</b> and enter the current 6-digit security code for <b>${storeName}</b>:
+          </p>
+        `,
+        input: 'text',
+        inputPlaceholder: '6-digit OTP (e.g. 582910)',
+        inputAttributes: {
+          maxlength: '6',
+          autocapitalize: 'off',
+          autocorrect: 'off',
+          style: 'text-align: center; letter-spacing: 4px; font-size: 1.25rem; font-weight: 700;'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Verify OTP & Wipe Database',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: 'var(--border-color)',
+        background: 'var(--surface-color)',
+        color: 'var(--text-primary)',
+        preConfirm: async (otp) => {
+          if (!otp || otp.trim().length !== 6) {
+            Swal.showValidationMessage('Please enter a complete 6-digit OTP code.');
+            return false;
+          }
+          const valid = await verifyTOTP(otp, twoFactorSecret);
+          if (!valid) {
+            Swal.showValidationMessage('Invalid or expired 2FA code. Please check your Google Authenticator.');
+            return false;
+          }
+          return otp.trim();
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed && result.value) {
+          try {
+            await api.resetDatabase(result.value);
+            alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
+            setTimeout(() => window.location.reload(), 1000);
+          } catch (err) {
+            alertService.error('Reset Failed', err.message || 'Database reset failed.');
+          }
+        }
+      });
+    } else {
+      // 2FA is not enabled yet
+      Swal.fire({
+        title: 'Reset to 100% Clean Database?',
+        html: `
+          <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom: 0.75rem;">
+            This will remove all test sample data (dummy watches, test sales, sample job cards) and start your showroom with a clean slate.
+          </p>
+          <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid #eab308; border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; color: #eab308; text-align: left;">
+            ⚠️ <b>Security Tip:</b> We strongly recommend enabling <b>Google Authenticator 2FA</b> under "Security & 2FA" on this page to prevent unauthorized data wipes.
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Clear All Test Data',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: 'var(--border-color)',
+        background: 'var(--surface-color)',
+        color: 'var(--text-primary)'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await api.resetDatabase();
+            alertService.success('Database Cleared', 'System has been reset to a 100% clean state with zero test data.');
+            setTimeout(() => window.location.reload(), 1000);
+          } catch (err) {
+            alertService.error('Reset Failed', err.message || 'Database reset failed.');
+          }
+        }
+      });
+    }
   };
 
   const tabStyle = (tabId) => ({
@@ -492,6 +636,9 @@ const Settings = () => {
               </button>
               <button style={tabStyle('activity')} onClick={() => handleTabChange('activity')}>
                 <Shield size={14} style={{ marginRight: '0.3rem' }} /> Activity Log
+              </button>
+              <button style={tabStyle('security')} onClick={() => handleTabChange('security')}>
+                <Lock size={14} style={{ marginRight: '0.3rem' }} /> Security & 2FA
               </button>
               <button style={tabStyle('backup')} onClick={() => handleTabChange('backup')}>
                 <Database size={14} style={{ marginRight: '0.3rem' }} /> Backup & Data
@@ -1021,6 +1168,138 @@ const Settings = () => {
           </div>
         )}
 
+        {/* Security & 2FA Tab */}
+        {activeTab === 'security' && user?.role === 'admin' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '750px' }}>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-gold)' }}>
+                  <Smartphone size={20} /> Two-Factor Authentication (Google Authenticator)
+                </h3>
+                {twoFactorEnabled ? (
+                  <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
+                    ● 2FA Enabled
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid #ef4444', fontWeight: 700 }}>
+                    ○ 2FA Not Configured
+                  </span>
+                )}
+              </div>
+
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                Enforce time-based OTP codes (RFC 6238 TOTP) using <b>Google Authenticator</b>, <b>Microsoft Authenticator</b>, or <b>Authy</b>. When enabled, dangerous operations such as <b>Clear All Test Data & Reset Database</b> cannot be triggered without entering the real-time 6-digit OTP code from your phone.
+              </p>
+
+              {!twoFactorEnabled ? (
+                <div>
+                  {!showSetup2FA ? (
+                    <button
+                      onClick={handleStartSetup2FA}
+                      className="btn btn-primary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+                    >
+                      <QrCode size={16} /> Setup Google Authenticator 2FA
+                    </button>
+                  ) : (
+                    <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
+                      <h4 style={{ margin: '0 0 1rem 0', color: 'var(--primary-gold)', fontSize: '1rem' }}>
+                        Scan QR Code with Google Authenticator
+                      </h4>
+
+                      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {qrCodeDataUrl && (
+                          <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', display: 'inline-block' }}>
+                            <img src={qrCodeDataUrl} alt="Google Authenticator QR Code" style={{ width: '180px', height: '180px', display: 'block' }} />
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: '220px' }}>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0' }}>
+                            1. Open <b>Google Authenticator</b> on your Android or iPhone.<br />
+                            2. Tap <b>+</b> and choose <b>Scan a QR code</b>.<br />
+                            3. If you cannot scan, manually enter this key:
+                          </p>
+                          <div style={{ background: 'var(--surface-color)', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px', color: 'var(--primary-gold)', fontSize: '0.95rem', wordBreak: 'break-all' }}>
+                            {twoFactorSecret}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Enter the 6-digit verification code generated by Google Authenticator:</label>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            type="text"
+                            maxLength="6"
+                            placeholder="000000"
+                            value={setupOtpInput}
+                            onChange={(e) => setSetupOtpInput(e.target.value.replace(/\D/g, ''))}
+                            className="form-control"
+                            style={{ width: '160px', textAlign: 'center', letterSpacing: '4px', fontSize: '1.2rem', fontWeight: 700 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyAndEnable2FA}
+                            className="btn btn-primary"
+                            style={{ fontWeight: 600 }}
+                          >
+                            Verify & Activate 2FA
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowSetup2FA(false)}
+                            className="btn btn-secondary"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                    <CheckCircle size={20} color="var(--success)" />
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                      Google Authenticator 2FA is active. Database wipes require real-time 6-digit confirmation code.
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      onClick={handleStartSetup2FA}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <QrCode size={14} /> Re-scan QR Code
+                    </button>
+                    <button
+                      onClick={handleDisable2FA}
+                      className="btn btn-danger btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      Disable 2FA
+                    </button>
+                  </div>
+
+                  {showSetup2FA && qrCodeDataUrl && (
+                    <div style={{ marginTop: '1rem', background: 'var(--surface-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--primary-gold)' }}>Your Authenticator QR Code</h4>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowSetup2FA(false)}>Close</button>
+                      </div>
+                      <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', display: 'inline-block' }}>
+                        <img src={qrCodeDataUrl} alt="Google Authenticator QR Code" style={{ width: '180px', height: '180px', display: 'block' }} />
+                      </div>
+                      <p style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--primary-gold)', marginTop: '0.5rem' }}>Secret: {twoFactorSecret}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Backup & Data */}
         {activeTab === 'backup' && user?.role === 'admin' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '700px' }}>
@@ -1068,11 +1347,27 @@ const Settings = () => {
 
             {/* Reset Database Card */}
             <div className="card" style={{ border: '1px solid rgba(220, 38, 38, 0.3)' }}>
-              <h3 style={{ marginBottom: '1rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Shield size={18} /> Clear Test Data & Reset Database
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ margin: 0, color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Shield size={18} /> Clear Test Data & Reset Database
+                </h3>
+                {twoFactorEnabled ? (
+                  <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid var(--success)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                    🔒 Protected by Google Authenticator (2FA)
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid #eab308', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                    ⚠️ 2FA Disabled — Recommend Enabling Under "Security & 2FA"
+                  </span>
+                )}
+              </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
                 Click below to wipe all sample test data (dummy watches, test sales, sample job cards) and reset your system to a 100% clean slate for real live showroom operations.
+                {twoFactorEnabled && (
+                  <strong style={{ display: 'block', color: 'var(--text-primary)', marginTop: '0.5rem' }}>
+                    🛡️ Notice: A valid 6-digit OTP code from your Google Authenticator app is strictly required before the system executes the wipe.
+                  </strong>
+                )}
               </p>
               <button 
                 onClick={handleResetDB} 

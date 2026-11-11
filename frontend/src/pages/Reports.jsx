@@ -31,6 +31,7 @@ const Reports = () => {
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [storeSettings, setStoreSettings] = useState(null);
+  const [viewingBillFile, setViewingBillFile] = useState(null);
 
   useEffect(() => {
     api.getSettings().then(s => setStoreSettings(s)).catch(() => {});
@@ -452,7 +453,7 @@ const Reports = () => {
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead><tr>
-                  <th>Watch ID</th><th>Brand / Model</th><th>Supplier</th><th>Date</th>
+                  <th>Watch ID</th><th>Brand / Model</th><th>Supplier</th><th>Invoice / Bill</th><th>Date</th>
                   <th>MRP</th><th>Disc %</th><th>Cost Price</th><th>Selling Price</th><th>GST</th><th>Status</th>
                 </tr></thead>
                 <tbody>
@@ -461,6 +462,32 @@ const Reports = () => {
                       <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{r.watch_id}</td>
                       <td><strong>{r.brand}</strong><br /><small style={{ color: 'var(--text-secondary)' }}>{r.model}</small></td>
                       <td>{r.supplier_name}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{r.invoice_number || '—'}</span>
+                          {r.bill_file && (
+                            <button
+                              type="button"
+                              onClick={() => setViewingBillFile({ file: r.bill_file, title: `${r.supplier_name} - ${r.invoice_number}` })}
+                              style={{
+                                background: 'rgba(217, 119, 6, 0.15)',
+                                border: '1px solid var(--primary-gold)',
+                                color: 'var(--primary-gold)',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                fontSize: '0.72rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                              title="Click to view uploaded bill document"
+                            >
+                              <FileText size={11} /> Bill
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td>{r.purchase_date}</td>
                       <td>{fmt(r.mrp)}</td>
                       <td>{r.discount_percent}%</td>
@@ -854,6 +881,91 @@ const Reports = () => {
                 onClose={() => setSelectedInvoice(null)}
                 onPrint={() => window.print()}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Supplier Bill Document Modal */}
+        {viewingBillFile && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              width: '100%',
+              maxWidth: '900px',
+              height: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.25rem',
+                borderBottom: '1px solid var(--border-color)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={18} color="var(--primary-gold)" />
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Supplier Bill: {viewingBillFile.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setViewingBillFile(null)}
+                  style={{ padding: '0.3rem 0.6rem' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflow: 'auto', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0b0f19' }}>
+                {viewingBillFile.file.startsWith('data:application/pdf') ? (
+                  <iframe
+                    src={viewingBillFile.file}
+                    title="Supplier Bill PDF"
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+                  />
+                ) : (
+                  <img
+                    src={viewingBillFile.file}
+                    alt="Supplier Bill"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
+                  />
+                )}
+              </div>
+
+              <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <a
+                  href={viewingBillFile.file}
+                  download={`supplier_bill_${viewingBillFile.title.replace(/\s+/g, '_')}`}
+                  className="btn btn-primary btn-sm"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Download Bill
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setViewingBillFile(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

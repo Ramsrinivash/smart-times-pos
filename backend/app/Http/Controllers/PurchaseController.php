@@ -21,8 +21,9 @@ class PurchaseController extends Controller
         $request->validate([
             'supplier_name' => 'required|string',
             'purchase_date' => 'required|date',
-            'invoice_number' => 'nullable|string',
+            'invoice_number' => 'required|string',
             'remarks' => 'nullable|string',
+            'bill_file' => 'nullable|string',
             'payment_status' => 'nullable|string|in:paid,pending',
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|string', // We will validate uniqueness manually in the loop
@@ -53,6 +54,7 @@ class PurchaseController extends Controller
                 'purchase_date' => $request->purchase_date,
                 'invoice_number' => $request->invoice_number,
                 'remarks' => $request->remarks,
+                'bill_file' => $request->bill_file,
                 'payment_status' => $request->payment_status ?? 'paid',
                 'total_amount' => 0.00
             ]);

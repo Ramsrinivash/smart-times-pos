@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
-import { Plus, Trash2, Save, CheckCircle, Edit, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Save, CheckCircle, Edit, RefreshCw, Upload, FileText, Eye, X } from 'lucide-react';
 import { alertService } from '../utils/alert';
 
 const Purchase = () => {
@@ -10,6 +10,10 @@ const Purchase = () => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [remarks, setRemarks] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('paid');
+  const [billFile, setBillFile] = useState(null);
+  const [billFileName, setBillFileName] = useState('');
+  const [billFilePreview, setBillFilePreview] = useState(null);
+  const [showBillModal, setShowBillModal] = useState(false);
   const [isSupplierSaved, setIsSupplierSaved] = useState(false);
   const [existingModels, setExistingModels] = useState([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
@@ -107,6 +111,10 @@ const Purchase = () => {
       alertService.warning('Required Field', 'Please enter supplier name.');
       return;
     }
+    if (!invoiceNumber || !invoiceNumber.trim()) {
+      alertService.warning('Required Field', 'Supplier Invoice / Bill Number is mandatory.');
+      return;
+    }
     setIsSupplierSaved(true);
     
     // Add the saved supplier to state immediately so it appears in the dropdown list if edited/revisited
@@ -120,6 +128,30 @@ const Purchase = () => {
 
   const handleEditSupplier = () => {
     setIsSupplierSaved(false);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alertService.warning('File Too Large', 'Maximum file size allowed is 10 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBillFile(reader.result);
+      setBillFileName(file.name);
+      setBillFilePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveFile = () => {
+    setBillFile(null);
+    setBillFileName('');
+    setBillFilePreview(null);
   };
 
   const handleAddItem = () => {
@@ -230,6 +262,11 @@ const Purchase = () => {
       return;
     }
 
+    if (!invoiceNumber || !invoiceNumber.trim()) {
+      alertService.warning('Required Field', 'Supplier Invoice / Bill Number is mandatory.');
+      return;
+    }
+
     const invalid = items.some(item => !item.id || !item.brand || !item.model || !item.mrp || !item.cost_price || !item.selling_price);
     if (invalid) {
       alertService.warning('Incomplete fields', 'Please fill out all mandatory fields for all watch pieces.');
@@ -243,12 +280,16 @@ const Purchase = () => {
         invoice_number: invoiceNumber,
         remarks,
         payment_status: paymentStatus,
+        bill_file: billFile,
         items
       });
       alertService.success('Success', 'Purchase batch and pieces successfully added to inventory!');
       setSupplierName('');
       setInvoiceNumber('');
       setRemarks('');
+      setBillFile(null);
+      setBillFileName('');
+      setBillFilePreview(null);
       setIsSupplierSaved(false);
       loadExistingSuppliers();
       setItems([{ 
@@ -381,14 +422,15 @@ const Purchase = () => {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Supplier Invoice Reference</label>
+                <label className="form-label">Supplier Invoice / Bill No. *</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. TT-9021" 
+                  placeholder="e.g. TT-9021 (Mandatory)" 
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   disabled={isSupplierSaved}
+                  required
                 />
               </div>
               <div className="form-group">
@@ -404,7 +446,74 @@ const Purchase = () => {
                 </select>
               </div>
             </div>
-            <div className="form-group" style={{ margin: 0 }}>
+
+            {/* Bill File Upload Section */}
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <FileText size={16} color="var(--primary-gold)" /> Upload Supplier Bill (PDF / JPEG / PNG) - Optional
+                </label>
+                {billFile && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowBillModal(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}
+                    >
+                      <Eye size={13} /> View Attached Bill
+                    </button>
+                    {!isSupplierSaved && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleRemoveFile}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', padding: '0.25rem 0.6rem', color: 'var(--error)' }}
+                      >
+                        <X size={13} /> Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {!isSupplierSaved && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <label
+                    htmlFor="bill-upload"
+                    className="btn btn-secondary"
+                    style={{
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.85rem',
+                      padding: '0.45rem 1rem'
+                    }}
+                  >
+                    <Upload size={14} /> {billFile ? 'Change Bill Document' : 'Choose File (PDF or Image)'}
+                  </label>
+                  <input
+                    id="bill-upload"
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                  {billFileName ? (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>
+                      ✓ Attached: {billFileName}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Upload scanned supplier receipt or tax invoice for future auditing.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="form-group" style={{ margin: '1rem 0 0 0' }}>
               <label className="form-label">Remarks</label>
               <input 
                 type="text" 
@@ -654,6 +763,91 @@ const Purchase = () => {
             </div>
           )}
         </form>
+
+        {/* Supplier Bill Viewer Modal */}
+        {showBillModal && billFile && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              width: '100%',
+              maxWidth: '900px',
+              height: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.25rem',
+                borderBottom: '1px solid var(--border-color)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={18} color="var(--primary-gold)" />
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Supplier Bill Preview: {billFileName || invoiceNumber}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowBillModal(false)}
+                  style={{ padding: '0.3rem 0.6rem' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflow: 'auto', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0b0f19' }}>
+                {billFile.startsWith('data:application/pdf') ? (
+                  <iframe
+                    src={billFile}
+                    title="Supplier Bill PDF"
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+                  />
+                ) : (
+                  <img
+                    src={billFile}
+                    alt="Supplier Bill"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
+                  />
+                )}
+              </div>
+
+              <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <a
+                  href={billFile}
+                  download={billFileName || `supplier_bill_${invoiceNumber || 'receipt'}`}
+                  className="btn btn-primary btn-sm"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Download Bill
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowBillModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -15,7 +15,8 @@ class Purchase extends Model
         'invoice_number',
         'total_amount',
         'payment_status',
-        'remarks'
+        'remarks',
+        'bill_file'
     ];
 
     public function watches()

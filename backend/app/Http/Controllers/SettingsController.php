@@ -46,6 +46,8 @@ class SettingsController extends Controller
             'loyalty_redeem_rate' => 'nullable|integer',
             'loyalty_expiry_months' => 'nullable|integer',
             'job_card_terms' => 'nullable|string',
+            'two_factor_secret' => 'nullable|string',
+            'two_factor_enabled' => 'nullable|boolean',
             'default_gst_type' => 'nullable|string|in:intra-state,inter-state,dynamic',
             'smtp_host' => 'nullable|string',
             'smtp_port' => 'nullable|string',
@@ -74,6 +76,25 @@ class SettingsController extends Controller
             return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
         }
 
+        $setting = Setting::first();
+        if ($setting && $setting->two_factor_enabled && !empty($setting->two_factor_secret)) {
+            $otp = trim($request->otp ?? '');
+            if (empty($otp)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '2FA OTP is required to reset the database. Please provide 6-digit code from Google Authenticator.'
+                ], 422);
+            }
+
+            // Verify TOTP in PHP
+            if (!$this->verifyTotpCode($otp, $setting->two_factor_secret)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid or expired 2FA code. Please check your Google Authenticator app.'
+                ], 422);
+            }
+        }
+
         try {
             \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
             
@@ -90,8 +111,16 @@ class SettingsController extends Controller
             \DB::table('customers')->truncate();
             \DB::table('loyalty_ledgers')->truncate();
             \DB::table('activity_logs')->truncate();
-            \DB::table('attendance')->truncate();
-            \DB::table('payrolls')->truncate();
+            
+            // Handle attendances table safely (schema uses attendances)
+            if (\Illuminate\Support\Facades\Schema::hasTable('attendances')) {
+                \DB::table('attendances')->truncate();
+            } elseif (\Illuminate\Support\Facades\Schema::hasTable('attendance')) {
+                \DB::table('attendance')->truncate();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('payrolls')) {
+                \DB::table('payrolls')->truncate();
+            }
 
             // Delete non-admin staff users
             \DB::table('users')->where('role', '!=', 'admin')->delete();
@@ -210,5 +239,46 @@ class SettingsController extends Controller
                 'message' => 'Import failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Helper to verify 6-digit TOTP code against Base32 secret (Google Authenticator)
+     */
+    private function verifyTotpCode($code, $secret)
+    {
+        $code = trim($code);
+        if (strlen($code) !== 6) return false;
+
+        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $clean = strtoupper(preg_replace('/[^A-Z2-7]/', '', $secret));
+        $bits = '';
+        for ($i = 0; $i < strlen($clean); $i++) {
+            $val = strpos($alphabet, $clean[$i]);
+            if ($val === false) continue;
+            $bits .= sprintf('%05b', $val);
+        }
+        $key = '';
+        for ($i = 0; $i + 8 <= strlen($bits); $i += 8) {
+            $key .= chr(bindec(substr($bits, $i, 8)));
+        }
+
+        $time = floor(time() / 30);
+        for ($offset = -1; $offset <= 1; $offset++) {
+            $counter = $time + $offset;
+            $binCounter = pack('N*', 0) . pack('N*', $counter);
+            $hash = hash_hmac('sha1', $binCounter, $key, true);
+            $offsetPos = ord($hash[19]) & 0xf;
+            $binary = (
+                ((ord($hash[$offsetPos]) & 0x7f) << 24) |
+                ((ord($hash[$offsetPos + 1]) & 0xff) << 16) |
+                ((ord($hash[$offsetPos + 2]) & 0xff) << 8) |
+                (ord($hash[$offsetPos + 3]) & 0xff)
+            );
+            $expectedOtp = str_pad($binary % 1000000, 6, '0', STR_PAD_LEFT);
+            if ($expectedOtp === $code) {
+                return true;
+            }
+        }
+        return false;
     }
 }
