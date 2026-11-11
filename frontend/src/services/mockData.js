@@ -111,11 +111,32 @@ const saveGlobalActiveSessions = (sessionsObj) => {
 };
 
 export const resetDatabase = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDB));
-  localStorage.setItem('watch_showroom_db_backup', JSON.stringify(defaultDB));
+  // Preserve 2FA security configuration so the user only has to setup once!
+  let current2FA = null;
+  try {
+    const existingData = localStorage.getItem(STORAGE_KEY);
+    if (existingData) {
+      const parsed = JSON.parse(existingData);
+      if (parsed?.settings?.two_factor_enabled && parsed?.settings?.two_factor_secret) {
+        current2FA = {
+          two_factor_secret: parsed.settings.two_factor_secret,
+          two_factor_enabled: true
+        };
+      }
+    }
+  } catch (e) {}
+
+  const freshDB = JSON.parse(JSON.stringify(defaultDB));
+  if (current2FA) {
+    freshDB.settings.two_factor_secret = current2FA.two_factor_secret;
+    freshDB.settings.two_factor_enabled = true;
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDB));
+  localStorage.setItem('watch_showroom_db_backup', JSON.stringify(freshDB));
   saveGlobalRegisteredUsers(defaultDB.users);
   saveGlobalActiveSessions({});
-  return JSON.parse(JSON.stringify(defaultDB));
+  return freshDB;
 };
 
 export const loadDB = () => {

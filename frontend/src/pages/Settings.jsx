@@ -263,7 +263,9 @@ const Settings = () => {
         smtp_password: smtpPassword,
         smtp_encryption: smtpEncryption,
         smtp_from_address: smtpFromAddress,
-        smtp_from_name: smtpFromName
+        smtp_from_name: smtpFromName,
+        two_factor_secret: twoFactorSecret,
+        two_factor_enabled: twoFactorEnabled
       });
       alertService.success('Success', 'Settings saved successfully.');
     } catch (err) {
@@ -502,8 +504,22 @@ const Settings = () => {
     });
   };
 
-  const handleResetDB = () => {
-    if (twoFactorEnabled && twoFactorSecret) {
+  const handleResetDB = async () => {
+    // Freshly fetch settings to ensure we always have the latest 2FA state from DB/localStorage
+    let is2faActive = twoFactorEnabled;
+    let secret = twoFactorSecret;
+
+    try {
+      const freshSettings = await api.getSettings();
+      if (freshSettings) {
+        if (freshSettings.two_factor_secret) secret = freshSettings.two_factor_secret;
+        if (freshSettings.two_factor_enabled !== undefined) is2faActive = !!freshSettings.two_factor_enabled;
+      }
+    } catch (e) {
+      console.warn('Could not refresh settings before reset check, using current state', e);
+    }
+
+    if (is2faActive && secret) {
       // 2FA is active: Require 6-digit OTP from Google Authenticator
       Swal.fire({
         title: '🔒 2FA Verification Required',
@@ -532,7 +548,7 @@ const Settings = () => {
             Swal.showValidationMessage('Please enter a complete 6-digit OTP code.');
             return false;
           }
-          const valid = await verifyTOTP(otp, twoFactorSecret);
+          const valid = await verifyTOTP(otp, secret);
           if (!valid) {
             Swal.showValidationMessage('Invalid or expired 2FA code. Please check your Google Authenticator.');
             return false;
