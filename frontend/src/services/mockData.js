@@ -27,35 +27,16 @@ const defaultDB = {
     { id: 2, name: 'Ram Srinivash', email: 'ram@smarttimes.in', password: 'admin', role: 'admin', base_salary: 1, created_at: '2026-09-05' }
   ],
   activity_logs: [],
-  customers: [
-    { id: 1, name: 'Rajesh Kumar', phone: '9876543210', alt_phone: '9876543211', email: 'rajesh@example.com', address: '12, Bazaar Street, Dharmapuri', points_balance: 150, tags: 'Regular', notes: 'Prefers leather straps', outstanding_dues: 0 },
-    { id: 2, name: 'Priya Sundaram', phone: '9842109876', alt_phone: '', email: 'priya.s@example.com', address: '45, R.C. Road, Dharmapuri', points_balance: 420, tags: 'VIP', notes: 'Interested in ladies luxury watches', outstanding_dues: 0 },
-    { id: 3, name: 'Suresh Babu', phone: '9443217890', alt_phone: '', email: 'suresh@example.com', address: '78, Pennagaram Main Rd, Dharmapuri', points_balance: 60, tags: 'Regular', notes: '', outstanding_dues: 1500 }
-  ],
-  purchases: [
-    { id: 1, supplier_name: 'Titan Company Ltd', purchase_date: '2026-10-01', invoice_number: 'TIT-2026-8812', total_amount: 45000, payment_status: 'paid', remarks: 'Festive season stock inbound' },
-    { id: 2, supplier_name: 'Casio India Pvt Ltd', purchase_date: '2026-10-05', invoice_number: 'CAS-9941', total_amount: 38000, payment_status: 'paid', remarks: 'G-Shock & Edifice assortment' }
-  ],
-  watches: [
-    { id: 'WT-TTN-001', purchase_id: 1, brand: 'Titan', model: 'Neo Analog Quartz', category: 'Analog', gender: 'Men', strap_type: 'Leather', dial_color: 'Black', movement_type: 'Quartz', mrp: 3995, discount_percent: 5, cost_price: 2600, selling_price: 3795, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-TTN-002', purchase_id: 1, brand: 'Titan', model: 'Raga Viva Rose Gold', category: 'Analog', gender: 'Women', strap_type: 'Stainless Steel', dial_color: 'Rose Gold', movement_type: 'Quartz', mrp: 4895, discount_percent: 5, cost_price: 3200, selling_price: 4650, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-FST-003', purchase_id: 1, brand: 'Fastrack', model: 'Casual Sports Chrono', category: 'Sports', gender: 'Men', strap_type: 'Silicone', dial_color: 'Blue', movement_type: 'Quartz', mrp: 2495, discount_percent: 5, cost_price: 1600, selling_price: 2350, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-CAS-004', purchase_id: 2, brand: 'Casio', model: 'Edifice Chronograph EFR-552', category: 'Chronograph', gender: 'Men', strap_type: 'Stainless Steel', dial_color: 'Black', movement_type: 'Quartz', mrp: 9995, discount_percent: 5, cost_price: 6500, selling_price: 9495, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-CAS-005', purchase_id: 2, brand: 'Casio', model: 'G-Shock GA-2100 CasiOak', category: 'Digital-Analog', gender: 'Unisex', strap_type: 'Resin', dial_color: 'All Black', movement_type: 'Quartz', mrp: 8995, discount_percent: 5, cost_price: 5800, selling_price: 8495, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-FSL-006', purchase_id: 2, brand: 'Fossil', model: 'Grant Chronograph', category: 'Chronograph', gender: 'Men', strap_type: 'Leather', dial_color: 'Navy Blue', movement_type: 'Quartz', mrp: 11995, discount_percent: 5, cost_price: 7800, selling_price: 11395, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-TMX-007', purchase_id: 1, brand: 'Timex', model: 'Waterbury Traditional', category: 'Analog', gender: 'Men', strap_type: 'Leather', dial_color: 'White', movement_type: 'Quartz', mrp: 5495, discount_percent: 5, cost_price: 3600, selling_price: 5195, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' },
-    { id: 'WT-SNT-008', purchase_id: 1, brand: 'Sonata', model: 'Classic Gold Plated', category: 'Analog', gender: 'Men', strap_type: 'Gold Plated', dial_color: 'Champagne', movement_type: 'Quartz', mrp: 1650, discount_percent: 5, cost_price: 1050, selling_price: 1550, gst_rate: 18, status: 'in_stock', image_urls: [], hsn_code: '9102' }
-  ],
+  customers: [],
+  purchases: [],
+  watches: [],
   sales: [],
   sale_items: [],
   exchanges: [],
   sales_returns: [],
   warranty_cards: [],
   stock_adjustments: [],
-  service_jobs: [
-    { id: 'JC-0001', customer_id: 1, watch_id: null, watch_details: 'Titan Chrono - Battery Replacement & Waterproof check', issue_reported: 'Watch stopped ticking, needs new Maxell battery', drop_off_condition: 'Minor scratches on bezel', estimated_cost: 350, actual_cost: 350, expected_delivery_date: '2026-10-28', actual_delivery_date: null, status: 'ready', terms_accepted: true, billing_invoice_id: null, created_by: 1, in_warranty: false },
-    { id: 'JC-0002', customer_id: 2, watch_id: null, watch_details: 'Fossil Automatic - Movement Servicing', issue_reported: 'Gaining 5 minutes per day, requires movement cleaning & lubrication', drop_off_condition: 'Good condition', estimated_cost: 1200, actual_cost: null, expected_delivery_date: '2026-10-30', actual_delivery_date: null, status: 'in_repair', terms_accepted: true, billing_invoice_id: null, created_by: 1, in_warranty: false }
-  ],
+  service_jobs: [],
   loyalty_ledgers: [],
   attendance: [],
   payroll: []
@@ -162,16 +143,16 @@ export const loadDB = () => {
     // Ensure all data arrays exist to prevent any UI/feature crashes
     if (!Array.isArray(db.users)) db.users = defaultDB.users;
     if (!Array.isArray(db.activity_logs)) db.activity_logs = [];
-    if (!Array.isArray(db.customers) || db.customers.length === 0) db.customers = [...defaultDB.customers];
-    if (!Array.isArray(db.purchases) || db.purchases.length === 0) db.purchases = [...defaultDB.purchases];
-    if (!Array.isArray(db.watches) || db.watches.length === 0) db.watches = [...defaultDB.watches];
+    if (!Array.isArray(db.customers)) db.customers = [];
+    if (!Array.isArray(db.purchases)) db.purchases = [];
+    if (!Array.isArray(db.watches)) db.watches = [];
     if (!Array.isArray(db.sales)) db.sales = [];
     if (!Array.isArray(db.sale_items)) db.sale_items = [];
     if (!Array.isArray(db.exchanges)) db.exchanges = [];
     if (!Array.isArray(db.sales_returns)) db.sales_returns = [];
     if (!Array.isArray(db.warranty_cards)) db.warranty_cards = [];
     if (!Array.isArray(db.stock_adjustments)) db.stock_adjustments = [];
-    if (!Array.isArray(db.service_jobs) || db.service_jobs.length === 0) db.service_jobs = [...defaultDB.service_jobs];
+    if (!Array.isArray(db.service_jobs)) db.service_jobs = [];
     if (!Array.isArray(db.loyalty_ledgers)) db.loyalty_ledgers = [];
     if (!Array.isArray(db.attendance)) db.attendance = [];
     if (!Array.isArray(db.payroll)) db.payroll = [];
