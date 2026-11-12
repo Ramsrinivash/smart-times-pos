@@ -777,160 +777,429 @@ const Reports = () => {
         )}
 
         {/* ── GST REPORT ── */}
-        {activeTab === 'gst' && !loading && user.role !== 'sales' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3>GST Output Report (Sales) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => {
-                    const monthName = new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' });
-                    const totalGstSales = (gstData.sales || []).flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(si?.gst_amount || 0), 0);
-                    const totalGstPurchases = (gstData.purchases || []).flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)))), 0);
-                    const subject = encodeURIComponent(`GST Report - ${monthName} ${gstYear} - Smart Times`);
-                    const body = encodeURIComponent(
-`GST Report Summary - ${monthName} ${gstYear}\n\nDear Auditor,\n\nPlease find the GST summary for ${monthName} ${gstYear}:\n\nOUTPUT TAX (Sales):\n  Total GST Invoices: ${(gstData.sales || []).length}\n  Total GST Collected: ₹${totalGstSales.toFixed(2)}\n  CGST: ₹${(totalGstSales/2).toFixed(2)}\n  SGST: ₹${(totalGstSales/2).toFixed(2)}\n\nINPUT TAX (Purchases):\n  Total Purchase Bills: ${(gstData.purchases || []).length}\n  Total GST Paid: ₹${totalGstPurchases.toFixed(2)}\n\nNET GST PAYABLE: ₹${(totalGstSales - totalGstPurchases).toFixed(2)}\n\nRegards,\nSmart Times`);
-                    window.open(`mailto:?subject=${subject}&body=${body}`);
-                  }} style={{ background: '#6366f1', color: '#fff', borderColor: '#6366f1' }}>
-                    📧 Email Auditor
-                  </button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => {
-                    const oldTitle = document.title;
-                    document.title = `GST_Output_Report_${gstMonth}_${gstYear}`;
-                    window.print();
-                    setTimeout(() => { document.title = oldTitle; }, 1000);
-                  }}><Printer size={13} /> Print (PDF)</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
-                    ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                    (gstData.sales || []).flatMap(s => (s?.items || []).map(si => [
-                      s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                      si.watch_id, si.watch?.hsn_code || '9102', (Number(si?.price_sold || 0) - Number(si?.discount_amount || 0)), Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0), s.net_amount
-                    ])),
-                    'gst_output_report'
-                  )}><Download size={13} /> Export CSV</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
-                    ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
-                    (gstData.sales || []).flatMap(s => (s?.items || []).map(si => [
-                      s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
-                      si.watch_id, si.watch?.hsn_code || '9102', (Number(si?.price_sold || 0) - Number(si?.discount_amount || 0)), Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0), s.net_amount
-                    ])),
-                    'gst_output_report', 'GST Output Report'
-                  )}><Download size={13} /> Export Excel</button>
+        {activeTab === 'gst' && !loading && user.role !== 'sales' && (() => {
+          const monthName = new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' });
+          const totalGstSales = (gstData.sales || []).flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(si?.gst_amount || 0), 0);
+          const totalTaxableSales = (gstData.sales || []).flatMap(s => (s?.items || [])).reduce((a, si) => a + (Number(si?.price_sold || 0) - Number(si?.discount_amount || 0)), 0);
+          
+          const totalGstPurchases = (gstData.purchases || []).flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)))), 0);
+          const totalTaxablePurchases = (gstData.purchases || []).flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100))), 0);
+
+          const netTaxDiff = totalGstSales - totalGstPurchases;
+          const isPayable = netTaxDiff > 0;
+          const recoveryLedger = gstData.recovery_ledger || [];
+
+          const totalTrappedGst = recoveryLedger.reduce((a, r) => a + Number(r.pending_gst_balance || 0), 0);
+          const totalGstRecovered = recoveryLedger.reduce((a, r) => a + Number(r.gst_recovered || 0), 0);
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              
+              {/* ── TOP AUDITOR SUBMISSION & NET GST RECOVERY SUMMARY CARD ── */}
+              <div className="card" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.06) 0%, rgba(20,20,25,0.95) 100%)', border: '1px solid var(--primary-gold)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileText size={22} color="var(--primary-gold)" /> GST Monthly Auditor & Tax Recovery Summary
+                    </h2>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Official GSTR-3B & GSTR-1 Reconciliation for <strong>{monthName} {gstYear}</strong>
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => {
+                      const subject = encodeURIComponent(`GST Filing Summary - ${monthName} ${gstYear} - Smart Times`);
+                      const body = encodeURIComponent(
+`Dear Auditor,
+
+Please find the official GST summary for ${monthName} ${gstYear} (Smart Times POS):
+
+1. OUTPUT TAX (Customer Sales):
+   • Invoices Count: ${(gstData.sales || []).length}
+   • Taxable Value: ₹${totalTaxableSales.toFixed(2)}
+   • Total GST Collected: ₹${totalGstSales.toFixed(2)}
+     - CGST: ₹${(totalGstSales/2).toFixed(2)}
+     - SGST: ₹${(totalGstSales/2).toFixed(2)}
+
+2. INPUT TAX CREDIT (Supplier Purchases):
+   • Purchase Bills Count: ${(gstData.purchases || []).length}
+   • Taxable Base Cost: ₹${totalTaxablePurchases.toFixed(2)}
+   • Total Input GST Claimable: ₹${totalGstPurchases.toFixed(2)}
+     - CGST: ₹${(totalGstPurchases/2).toFixed(2)}
+     - SGST: ₹${(totalGstPurchases/2).toFixed(2)}
+
+3. NET TAX STATUS FOR GSTR-3B:
+   • Status: ${isPayable ? `PAYABLE TO GOVERNMENT: ₹${netTaxDiff.toFixed(2)}` : `EXCESS INPUT CREDIT CARRY FORWARD: ₹${Math.abs(netTaxDiff).toFixed(2)}`}
+
+4. STOCK GST RECOVERY STATUS:
+   • Total GST Recovered via Sales: ₹${totalGstRecovered.toFixed(2)}
+   • Unsold Stock GST Balance to Recover: ₹${totalTrappedGst.toFixed(2)}
+
+Regards,
+Smart Times Showroom Management`);
+                      window.open(`mailto:?subject=${subject}&body=${body}`);
+                    }} style={{ background: '#6366f1', color: '#fff', borderColor: '#6366f1', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      📧 Email Auditor
+                    </button>
+
+                    <button className="btn btn-secondary btn-sm" onClick={() => {
+                      const oldTitle = document.title;
+                      document.title = `GST_Audit_Report_${gstMonth}_${gstYear}`;
+                      window.print();
+                      setTimeout(() => { document.title = oldTitle; }, 1000);
+                    }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Printer size={13} /> Print Auditor PDF
+                    </button>
+
+                    <button className="btn btn-primary btn-sm" onClick={() => {
+                      const rows = [
+                        ['--- GSTR-1 SALES SUMMARY ---', '', '', '', '', '', '', ''],
+                        ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Taxable Amt', 'CGST', 'SGST', 'Total GST'],
+                        ...(gstData.sales || []).flatMap(s => (s?.items || []).map(si => [
+                          s.id, s.invoice_date, s.customer?.name || 'Walk-in', s.customer?.gstin || 'B2C',
+                          Number(si?.price_sold || 0) - Number(si?.discount_amount || 0),
+                          Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0)
+                        ])),
+                        ['', '', '', '', '', '', '', ''],
+                        ['--- GSTR-3B PURCHASE ITC SUMMARY ---', '', '', '', '', '', '', ''],
+                        ['Bill / Invoice No', 'Date', 'Supplier', 'Units', 'Taxable Cost', 'Input CGST', 'Input SGST', 'Total Input GST'],
+                        ...(gstData.purchases || []).map(p => {
+                          const pCost = (p.watches || []).reduce((a, w) => a + Number(w.cost_price || 0), 0);
+                          const pRate = (p.watches?.[0]?.gst_rate || 18);
+                          const pTaxable = (pRate > 0) ? (pCost / (1 + (pRate / 100))) : pCost;
+                          const pGst = pCost - pTaxable;
+                          return [
+                            p.invoice_number || p.id, p.purchase_date, p.supplier_name, (p.watches || []).length,
+                            pTaxable, pGst / 2, pGst / 2, pGst
+                          ];
+                        }),
+                        ['', '', '', '', '', '', '', ''],
+                        ['--- NET AUDITOR TAX RECONCILIATION ---', '', '', '', '', '', '', ''],
+                        ['Metric', 'Amount (INR)', '', '', '', '', '', ''],
+                        ['Output GST (Collected from Customers)', totalGstSales, '', '', '', '', '', ''],
+                        ['Input Tax Credit (Paid to Suppliers)', totalGstPurchases, '', '', '', '', '', ''],
+                        ['Net Tax Payable / (Credit Carry Forward)', netTaxDiff, '', '', '', '', '', '']
+                      ];
+                      exportExcel(rows[1], rows.slice(2), `GST_Auditor_Master_${gstMonth}_${gstYear}`, 'GST Master');
+                    }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Download size={13} /> Export Master Excel for Auditor
+                    </button>
+                  </div>
                 </div>
 
-              </div>
-              <table className="data-table">
-                <thead><tr>
-                  <th>Invoice No</th><th>Date</th><th>Customer</th><th>Watch</th>
-                  <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
-                </tr></thead>
-                <tbody>
-                  {(gstData.sales && gstData.sales.length > 0) ? gstData.sales.flatMap(s => (s?.items || []).map((si, idx) => (
-                    <tr key={`${s.id}-${idx}`}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
-                      <td>{s.invoice_date}</td>
-                      <td>{s.customer?.name}</td>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{si.watch_id}</td>
-                      <td>{fmt(Number(si?.price_sold || 0) - Number(si?.discount_amount || 0))}</td>
-                      <td>{fmt(Number(si?.gst_amount || 0) / 2)}</td>
-                      <td>{fmt(Number(si?.gst_amount || 0) / 2)}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(Number(si?.gst_amount || 0))}</td>
-                    </tr>
-                  ))) : (
-                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST sales invoices for selected month/year.</td></tr>
-                  )}
-                </tbody>
-                {(gstData.sales && gstData.sales.length > 0) && (
-                  <tfoot>
-                    <tr style={{ fontWeight: 700 }}>
-                      <td colSpan="4">Total Output</td>
-                      <td></td>
-                      <td>{fmt(gstData.sales.flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(Number(si?.gst_amount || 0) || 0) / 2, 0))}</td>
-                      <td>{fmt(gstData.sales.flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(Number(si?.gst_amount || 0) || 0) / 2, 0))}</td>
-                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.sales.flatMap(s => (s?.items || [])).reduce((a, si) => a + Number(Number(si?.gst_amount || 0) || 0), 0))}</td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+                {/* 3 Metric Summary Boxes */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                  <div style={{ background: 'var(--surface-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Output GST (Sales)
+                    </div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary-gold)', marginTop: '0.35rem' }}>
+                      {fmt(totalGstSales)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                      Collected from customers ({(gstData.sales || []).length} Invoices)
+                    </div>
+                  </div>
 
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3>GST Input Report (Purchases) — {new Date(2000, Number(gstMonth) - 1).toLocaleString('en-IN', { month: 'long' })} {gstYear}</h3>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => {
-                    const oldTitle = document.title;
-                    document.title = `GST_Input_Report_${gstMonth}_${gstYear}`;
-                    window.print();
-                    setTimeout(() => { document.title = oldTitle; }, 1000);
-                  }}><Printer size={13} /> Print (PDF)</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
-                    ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
-                    (gstData.purchases || []).flatMap(p => (p?.watches || []).map(w => {
-                       // Input GST calc
-                       const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
-                       const totalGst = (Number(w?.cost_price || 0) - taxableValue);
-                       return [
-                         p.invoice_number || p.id, p.purchase_date, p.supplier_name,
-                         w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, Number(w?.cost_price || 0)
-                       ];
-                    })),
-                    'gst_input_report'
-                  )}><Download size={13} /> Export CSV</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
-                    ['Invoice No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
-                    (gstData.purchases || []).flatMap(p => (p?.watches || []).map(w => {
-                       const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
-                       const totalGst = (Number(w?.cost_price || 0) - taxableValue);
-                       return [
-                         p.invoice_number || p.id, p.purchase_date, p.supplier_name,
-                         w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, Number(w?.cost_price || 0)
-                       ];
-                    })),
-                    'gst_input_report', 'GST Input Report'
-                  )}><Download size={13} /> Export Excel</button>
+                  <div style={{ background: 'var(--surface-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Input Tax Credit (Purchases)
+                    </div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#3b82f6', marginTop: '0.35rem' }}>
+                      {fmt(totalGstPurchases)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                      Paid to suppliers ({(gstData.purchases || []).length} Supplier Bills)
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--surface-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${isPayable ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)'}` }}>
+                    <div style={{ fontSize: '0.8rem', color: isPayable ? '#ef4444' : 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+                      {isPayable ? '🔴 Net GST Payable to Govt' : '🔵 Carry-Forward Credit Balance'}
+                    </div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: isPayable ? '#ef4444' : 'var(--success)', marginTop: '0.35rem' }}>
+                      {fmt(Math.abs(netTaxDiff))}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                      {isPayable 
+                        ? 'Amount to pay in GSTR-3B before 20th' 
+                        : 'No cash tax to pay; balance rolls over to next month'}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <table className="data-table">
-                <thead><tr>
-                  <th>Invoice No</th><th>Date</th><th>Supplier</th><th>Watch</th>
-                  <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
-                </tr></thead>
-                <tbody>
-                  {(gstData.purchases && gstData.purchases.length > 0) ? gstData.purchases.flatMap(p => (p?.watches || []).map((w, idx) => {
-                    const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
-                    const totalGst = (Number(w?.cost_price || 0) - taxableValue);
-                    return (
-                      <tr key={`${p.id}-${idx}`}>
-                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{p.invoice_number || p.id}</td>
-                        <td>{p.purchase_date}</td>
-                        <td>{p.supplier_name}</td>
-                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{w.id}</td>
-                        <td>{fmt(taxableValue)}</td>
-                        <td>{fmt(totalGst / 2)}</td>
-                        <td>{fmt(totalGst / 2)}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(totalGst)}</td>
+
+              {/* ── SUPPLIER BILL-WISE GST RECOVERY & BALANCE TRACKER ── */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Supplier Bill-wise GST Recovery & Balance Tracker</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Track how much GST was paid on each purchase bill, how much has been recovered from watch sales, and what balance remains trapped in unsold stock.
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
+                      ['Supplier', 'Bill / Invoice No', 'Purchase Date', 'Total Units Bought', 'Units Sold', 'Unsold Units', 'Total GST Paid Upfront', 'GST Recovered from Sales', 'Pending GST Balance in Stock', 'Linked Sales Invoices'],
+                      recoveryLedger.map(r => [
+                        r.supplier_name, r.invoice_number, r.purchase_date, r.total_units, r.sold_units, r.unsold_units,
+                        r.total_gst_paid, r.gst_recovered, r.pending_gst_balance, (r.sales_invoices || []).join(', ')
+                      ]),
+                      'gst_supplier_recovery_ledger'
+                    )}>
+                      <Download size={13} /> Export Recovery CSV
+                    </button>
+                    <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
+                      ['Supplier', 'Bill / Invoice No', 'Purchase Date', 'Total Units Bought', 'Units Sold', 'Unsold Units', 'Total GST Paid Upfront', 'GST Recovered from Sales', 'Pending GST Balance in Stock', 'Linked Sales Invoices'],
+                      recoveryLedger.map(r => [
+                        r.supplier_name, r.invoice_number, r.purchase_date, r.total_units, r.sold_units, r.unsold_units,
+                        r.total_gst_paid, r.gst_recovered, r.pending_gst_balance, (r.sales_invoices || []).join(', ')
+                      ]),
+                      'gst_supplier_recovery_ledger', 'GST Recovery'
+                    )}>
+                      <Download size={13} /> Export Recovery Excel
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Supplier</th>
+                        <th>Supplier Bill No</th>
+                        <th>Bill Date</th>
+                        <th>Units (Bought / Sold)</th>
+                        <th>Total GST Paid Upfront</th>
+                        <th>GST Recovered</th>
+                        <th>Trapped GST in Stock</th>
+                        <th>Linked Sales Invoices</th>
+                        <th style={{ textAlign: 'center' }}>Doc</th>
                       </tr>
-                    );
-                  })) : (
-                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST purchase invoices for selected month/year.</td></tr>
-                  )}
-                </tbody>
-                {(gstData.purchases && gstData.purchases.length > 0) && (
-                  <tfoot>
-                    <tr style={{ fontWeight: 700 }}>
-                      <td colSpan="4">Total Input</td>
-                      <td></td>
-                      <td>{fmt(gstData.purchases.flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - ((Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100))))) / 2, 0))}</td>
-                      <td>{fmt(gstData.purchases.flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - ((Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100))))) / 2, 0))}</td>
-                      <td style={{ color: 'var(--primary-gold)' }}>{fmt(gstData.purchases.flatMap(p => (p?.watches || [])).reduce((a, w) => a + (Number(w?.cost_price || 0) - ((Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100))))), 0))}</td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                    </thead>
+                    <tbody>
+                      {recoveryLedger.length > 0 ? recoveryLedger.map((r, idx) => {
+                        const pctRecovered = r.total_units > 0 ? Math.round((r.sold_units / r.total_units) * 100) : 0;
+                        return (
+                          <tr key={idx}>
+                            <td><strong>{r.supplier_name}</strong></td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{r.invoice_number || '—'}</td>
+                            <td>{r.purchase_date}</td>
+                            <td>
+                              <span style={{ fontWeight: 600 }}>{r.sold_units} sold</span> of {r.total_units} units
+                              <div style={{ background: 'var(--border-color)', height: '5px', borderRadius: '3px', marginTop: '4px', overflow: 'hidden', width: '100px' }}>
+                                <div style={{ background: 'var(--success)', height: '100%', width: `${pctRecovered}%` }}></div>
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 600, color: '#3b82f6' }}>{fmt(r.total_gst_paid)}</td>
+                            <td style={{ fontWeight: 600, color: 'var(--success)' }}>{fmt(r.gst_recovered)}</td>
+                            <td>
+                              <span style={{ 
+                                fontWeight: 700, 
+                                color: r.pending_gst_balance > 0 ? '#eab308' : 'var(--success)',
+                                background: r.pending_gst_balance > 0 ? 'rgba(234, 179, 8, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                                padding: '2px 8px',
+                                borderRadius: '4px'
+                              }}>
+                                {r.pending_gst_balance > 0 ? `₹${r.pending_gst_balance.toFixed(2)} (Pending)` : '✓ Fully Recovered'}
+                              </span>
+                            </td>
+                            <td>
+                              {(r.sales_invoices && r.sales_invoices.length > 0) ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                  {r.sales_invoices.map(sId => (
+                                    <span key={sId} style={{ fontFamily: 'monospace', fontSize: '0.72rem', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--primary-gold)', padding: '1px 5px', borderRadius: '3px' }}>
+                                      {sId}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>No units sold yet</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {r.bill_file ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingBillFile({ file: r.bill_file, title: `${r.supplier_name} - ${r.invoice_number}` })}
+                                  style={{
+                                    background: 'rgba(217, 119, 6, 0.15)',
+                                    border: '1px solid var(--primary-gold)',
+                                    color: 'var(--primary-gold)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    fontSize: '0.72rem',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                  title="Click to view original supplier invoice document"
+                                >
+                                  <FileText size={11} /> Bill
+                                </button>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No supplier purchases for this month to track.</td></tr>
+                      )}
+                    </tbody>
+                    {recoveryLedger.length > 0 && (
+                      <tfoot>
+                        <tr style={{ fontWeight: 700, background: 'var(--surface-card)' }}>
+                          <td colSpan="4">Total Recovery Balance</td>
+                          <td style={{ color: '#3b82f6' }}>{fmt(recoveryLedger.reduce((a, r) => a + Number(r.total_gst_paid || 0), 0))}</td>
+                          <td style={{ color: 'var(--success)' }}>{fmt(totalGstRecovered)}</td>
+                          <td style={{ color: '#eab308' }}>{fmt(totalTrappedGst)}</td>
+                          <td colSpan="2"></td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+
+              {/* ── GST OUTPUT REPORT (SALES) ── */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3>GST Output Report (Sales) — {monthName} {gstYear}</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
+                      ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
+                      (gstData.sales || []).flatMap(s => (s?.items || []).map(si => [
+                        s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
+                        si.watch_id, si.watch?.hsn_code || '9102', (Number(si?.price_sold || 0) - Number(si?.discount_amount || 0)), Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0), s.net_amount
+                      ])),
+                      'gst_output_report'
+                    )}><Download size={13} /> Export CSV</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
+                      ['Invoice No', 'Date', 'Customer', 'GSTIN', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Invoice Total'],
+                      (gstData.sales || []).flatMap(s => (s?.items || []).map(si => [
+                        s.id, s.invoice_date, s.customer?.name, s.customer?.gstin || 'N/A',
+                        si.watch_id, si.watch?.hsn_code || '9102', (Number(si?.price_sold || 0) - Number(si?.discount_amount || 0)), Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0) / 2, Number(si?.gst_amount || 0), s.net_amount
+                      ])),
+                      'gst_output_report', 'GST Output Report'
+                    )}><Download size={13} /> Export Excel</button>
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead><tr>
+                      <th>Invoice No</th><th>Date</th><th>Customer</th><th>Watch</th>
+                      <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
+                    </tr></thead>
+                    <tbody>
+                      {(gstData.sales && gstData.sales.length > 0) ? gstData.sales.flatMap(s => (s?.items || []).map((si, idx) => (
+                        <tr key={`${s.id}-${idx}`}>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
+                          <td>{s.invoice_date}</td>
+                          <td>{s.customer?.name}</td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{si.watch_id}</td>
+                          <td>{fmt(Number(si?.price_sold || 0) - Number(si?.discount_amount || 0))}</td>
+                          <td>{fmt(Number(si?.gst_amount || 0) / 2)}</td>
+                          <td>{fmt(Number(si?.gst_amount || 0) / 2)}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(Number(si?.gst_amount || 0))}</td>
+                        </tr>
+                      ))) : (
+                        <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST sales invoices for selected month/year.</td></tr>
+                      )}
+                    </tbody>
+                    {(gstData.sales && gstData.sales.length > 0) && (
+                      <tfoot>
+                        <tr style={{ fontWeight: 700 }}>
+                          <td colSpan="4">Total Output</td>
+                          <td>{fmt(totalTaxableSales)}</td>
+                          <td>{fmt(totalGstSales / 2)}</td>
+                          <td>{fmt(totalGstSales / 2)}</td>
+                          <td style={{ color: 'var(--primary-gold)' }}>{fmt(totalGstSales)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+
+              {/* ── GST INPUT REPORT (PURCHASES) ── */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3>GST Input Report (Purchases) — {monthName} {gstYear}</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
+                      ['Supplier Bill No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
+                      (gstData.purchases || []).flatMap(p => (p?.watches || []).map(w => {
+                         const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
+                         const totalGst = (Number(w?.cost_price || 0) - taxableValue);
+                         return [
+                           p.invoice_number || p.id, p.purchase_date, p.supplier_name,
+                           w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, Number(w?.cost_price || 0)
+                         ];
+                      })),
+                      'gst_input_report'
+                    )}><Download size={13} /> Export CSV</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
+                      ['Supplier Bill No', 'Date', 'Supplier', 'Watch Serial', 'HSN', 'Taxable Value', 'CGST', 'SGST', 'Total GST', 'Total Amount'],
+                      (gstData.purchases || []).flatMap(p => (p?.watches || []).map(w => {
+                         const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
+                         const totalGst = (Number(w?.cost_price || 0) - taxableValue);
+                         return [
+                           p.invoice_number || p.id, p.purchase_date, p.supplier_name,
+                           w.id, w.hsn_code || '9102', taxableValue, totalGst / 2, totalGst / 2, totalGst, Number(w?.cost_price || 0)
+                         ];
+                      })),
+                      'gst_input_report', 'GST Input Report'
+                    )}><Download size={13} /> Export Excel</button>
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead><tr>
+                      <th>Supplier Bill No</th><th>Date</th><th>Supplier</th><th>Watch</th>
+                      <th>Taxable Amt</th><th>CGST</th><th>SGST</th><th>Total GST</th>
+                    </tr></thead>
+                    <tbody>
+                      {(gstData.purchases && gstData.purchases.length > 0) ? gstData.purchases.flatMap(p => (p?.watches || []).map((w, idx) => {
+                        const taxableValue = (Number(w?.cost_price || 0) / (1 + (Number(w?.gst_rate ?? 18)/100)));
+                        const totalGst = (Number(w?.cost_price || 0) - taxableValue);
+                        return (
+                          <tr key={`${p.id}-${idx}`}>
+                            <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{p.invoice_number || p.id}</td>
+                            <td>{p.purchase_date}</td>
+                            <td>{p.supplier_name}</td>
+                            <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{w.id}</td>
+                            <td>{fmt(taxableValue)}</td>
+                            <td>{fmt(totalGst / 2)}</td>
+                            <td>{fmt(totalGst / 2)}</td>
+                            <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>{fmt(totalGst)}</td>
+                          </tr>
+                        );
+                      })) : (
+                        <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No GST purchase invoices for selected month/year.</td></tr>
+                      )}
+                    </tbody>
+                    {(gstData.purchases && gstData.purchases.length > 0) && (
+                      <tfoot>
+                        <tr style={{ fontWeight: 700 }}>
+                          <td colSpan="4">Total Input</td>
+                          <td>{fmt(totalTaxablePurchases)}</td>
+                          <td>{fmt(totalGstPurchases / 2)}</td>
+                          <td>{fmt(totalGstPurchases / 2)}</td>
+                          <td style={{ color: 'var(--primary-gold)' }}>{fmt(totalGstPurchases)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Printable Invoice View / Reprint Modal Overlay */}
         {selectedInvoice && (

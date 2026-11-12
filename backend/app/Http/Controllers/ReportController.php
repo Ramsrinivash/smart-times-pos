@@ -231,17 +231,77 @@ class ReportController extends Controller
         $sales = Sale::where('invoice_type', 'gst')
             ->whereMonth('invoice_date', $month)
             ->whereYear('invoice_date', $year)
-            ->with(['items.watch', 'customer'])
+            ->with(['items.watch.purchase', 'customer'])
             ->get();
 
         $purchases = Purchase::whereMonth('purchase_date', $month)
             ->whereYear('purchase_date', $year)
-            ->with(['watches'])
+            ->with(['watches.saleItems.sale'])
             ->get();
+
+        // Calculate Supplier Bill-wise GST Recovery & Balance Tracker
+        // Gives showroom owner exact insight into:
+        // 1. How much GST was paid to each supplier bill
+        // 2. How many watches were sold vs unsold
+        // 3. How much GST has been recovered through sales
+        // 4. How much GST balance remains trapped in unsold stock
+        $recoveryLedger = [];
+        foreach ($purchases as $p) {
+            $totalUnits = $p->watches->count();
+            $soldUnits = 0;
+            $unsoldUnits = 0;
+            $totalGstPaid = 0.0;
+            $gstRecovered = 0.0;
+            $linkedSalesInvoices = [];
+
+            foreach ($p->watches as $w) {
+                $cost = (double) $w->cost_price;
+                $rate = (double) ($w->gst_rate ?? 18);
+                $unitTaxableCost = ($rate > 0) ? ($cost / (1 + ($rate / 100))) : $cost;
+                $unitGstPaid = $cost - $unitTaxableCost;
+                $totalGstPaid += $unitGstPaid;
+
+                // Check if this watch is sold
+                $soldItem = $w->saleItems->first(function($si) {
+                    return $si->is_returned == 0 && $si->sale;
+                });
+
+                if ($soldItem && $soldItem->sale) {
+                    $soldUnits++;
+                    $saleGst = ($soldItem->sale->invoice_type === 'gst') 
+                        ? (double) ($soldItem->gst_amount ?? (($soldItem->price_sold - $soldItem->discount_amount) - (($soldItem->price_sold - $soldItem->discount_amount)/(1+($rate/100)))))
+                        : 0.0;
+                    $gstRecovered += $unitGstPaid; // Base input GST recovered against this sold unit
+                    if (!in_array($soldItem->sale->id, $linkedSalesInvoices)) {
+                        $linkedSalesInvoices[] = $soldItem->sale->id;
+                    }
+                } else {
+                    $unsoldUnits++;
+                }
+            }
+
+            $pendingGstTrapped = max(0.0, round($totalGstPaid - $gstRecovered, 2));
+
+            $recoveryLedger[] = [
+                'purchase_id' => $p->id,
+                'supplier_name' => $p->supplier_name,
+                'invoice_number' => $p->invoice_number,
+                'bill_file' => $p->bill_file,
+                'purchase_date' => $p->purchase_date,
+                'total_units' => $totalUnits,
+                'sold_units' => $soldUnits,
+                'unsold_units' => $unsoldUnits,
+                'total_gst_paid' => round($totalGstPaid, 2),
+                'gst_recovered' => round($gstRecovered, 2),
+                'pending_gst_balance' => $pendingGstTrapped,
+                'sales_invoices' => $linkedSalesInvoices,
+            ];
+        }
 
         return response()->json([
             'sales'     => $sales,
             'purchases' => $purchases,
+            'recovery_ledger' => $recoveryLedger,
         ]);
     }
 

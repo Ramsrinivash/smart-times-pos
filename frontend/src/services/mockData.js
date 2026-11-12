@@ -1497,20 +1497,90 @@ export const mockAPI = {
 
   getGstReport: (month, year) => {
     const db = loadDB();
-    return db.sales
+    const sales = (db.sales || [])
       .filter(s => {
         if (s.invoice_type !== 'gst') return false;
         const d = new Date(s.invoice_date);
         return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
       })
       .map(s => {
-        const customer = db.customers.find(c => c.id === s.customer_id);
-        const items = db.sale_items.filter(si => si.sale_id === s.id).map(si => {
-          const watch = db.watches.find(w => w.id === si.watch_id);
-          return { ...si, watch };
+        const customer = (db.customers || []).find(c => c.id === s.customer_id);
+        const items = (db.sale_items || []).filter(si => si.sale_id === s.id).map(si => {
+          const watch = (db.watches || []).find(w => w.id === si.watch_id);
+          const purchase = watch ? (db.purchases || []).find(p => p.id === watch.purchase_id) : null;
+          return { ...si, watch: { ...watch, purchase } };
         });
         return { ...s, customer, items };
       });
+
+    const purchases = (db.purchases || [])
+      .filter(p => {
+        const d = new Date(p.purchase_date);
+        return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
+      })
+      .map(p => {
+        const watches = (db.watches || []).filter(w => w.purchase_id === p.id).map(w => {
+          const saleItem = (db.sale_items || []).find(si => si.watch_id === w.id);
+          const sale = saleItem ? (db.sales || []).find(s => s.id === saleItem.sale_id) : null;
+          return {
+            ...w,
+            saleItems: saleItem ? [{ ...saleItem, sale }] : []
+          };
+        });
+        return { ...p, watches };
+      });
+
+    const recoveryLedger = purchases.map(p => {
+      const totalUnits = (p.watches || []).length;
+      let soldUnits = 0;
+      let unsoldUnits = 0;
+      let totalGstPaid = 0;
+      let gstRecovered = 0;
+      const linkedSalesInvoices = [];
+
+      (p.watches || []).forEach(w => {
+        const cost = Number(w.cost_price || 0);
+        const rate = Number(w.gst_rate ?? 18);
+        const unitTaxableCost = (rate > 0) ? (cost / (1 + (rate / 100))) : cost;
+        const unitGstPaid = cost - unitTaxableCost;
+        totalGstPaid += unitGstPaid;
+
+        const isSold = w.saleItems && w.saleItems[0]?.sale;
+        if (isSold) {
+          soldUnits++;
+          gstRecovered += unitGstPaid;
+          const sId = w.saleItems[0].sale.id;
+          if (sId && !linkedSalesInvoices.includes(sId)) {
+            linkedSalesInvoices.push(sId);
+          }
+        } else {
+          unsoldUnits++;
+        }
+      });
+
+      const pendingGstTrapped = Math.max(0, Math.round((totalGstPaid - gstRecovered) * 100) / 100);
+
+      return {
+        purchase_id: p.id,
+        supplier_name: p.supplier_name,
+        invoice_number: p.invoice_number,
+        bill_file: p.bill_file || null,
+        purchase_date: p.purchase_date,
+        total_units: totalUnits,
+        sold_units: soldUnits,
+        unsold_units: unsoldUnits,
+        total_gst_paid: Math.round(totalGstPaid * 100) / 100,
+        gst_recovered: Math.round(gstRecovered * 100) / 100,
+        pending_gst_balance: pendingGstTrapped,
+        sales_invoices: linkedSalesInvoices
+      };
+    });
+
+    return {
+      sales,
+      purchases,
+      recovery_ledger: recoveryLedger
+    };
   },
 
   getPurchaseLedger: () => {
