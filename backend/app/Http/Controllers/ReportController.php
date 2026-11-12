@@ -58,25 +58,48 @@ class ReportController extends Controller
         $monthProfitSnap = null;
         $totalProfitSnap = null;
         if ($user->role === 'admin' || $user->role === 'manager') {
-            $totalCostToday = (double) DB::table('sale_items')
-                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->whereDate('sales.invoice_date', $today)
-                ->where('sale_items.is_returned', 0)
-                ->sum('sale_items.cost_price');
-            $profitSnap = round($todaySalesSum - $totalCostToday, 2);
+            // Helper to calculate Option B True Audited GST Net Profit
+            $calculateAuditedNetProfit = function($salesQuery) {
+                $sales = $salesQuery->with(['items.watch'])->get();
+                $totalNetProfit = 0.0;
 
-            $totalCostMonth = (double) DB::table('sale_items')
-                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sales.invoice_date', 'like', "{$month}%")
-                ->where('sale_items.is_returned', 0)
-                ->sum('sale_items.cost_price');
-            $monthProfitSnap = round($monthSalesSum - $totalCostMonth, 2);
+                foreach ($sales as $s) {
+                    $isGst = ($s->invoice_type === 'gst');
+                    $saleGst = $isGst ? (double) $s->gst_amount : 0.0;
+                    $taxableSalesRevenue = (double) $s->net_amount - $saleGst;
 
-            $totalCostAll = (double) DB::table('sale_items')
-                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sale_items.is_returned', 0)
-                ->sum('sale_items.cost_price');
-            $totalProfitSnap = round($totalSalesSum - $totalCostAll, 2);
+                    $taxableCostTotal = 0.0;
+                    foreach ($s->items as $item) {
+                        if ($item->is_returned) continue;
+                        $cost = (double) $item->cost_price;
+                        $rate = (double) ($item->gst_rate ?? ($item->watch ? $item->watch->gst_rate : 0));
+                        if ($isGst && $rate > 0) {
+                            // Reverse extract purchase base cost (ITC credited)
+                            $taxableCostTotal += ($cost / (1 + ($rate / 100)));
+                        } else {
+                            $taxableCostTotal += $cost;
+                        }
+                    }
+
+                    $totalNetProfit += ($taxableSalesRevenue - $taxableCostTotal);
+                }
+
+                return round($totalNetProfit, 2);
+            };
+
+            $profitSnap = $calculateAuditedNetProfit(
+                Sale::whereDate('invoice_date', $today)
+                    ->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
+            );
+
+            $monthProfitSnap = $calculateAuditedNetProfit(
+                Sale::where('invoice_date', 'like', "{$month}%")
+                    ->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
+            );
+
+            $totalProfitSnap = $calculateAuditedNetProfit(
+                Sale::whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
+            );
         }
 
         // Outstanding customer dues
@@ -229,7 +252,7 @@ class ReportController extends Controller
             'end_date' => 'nullable|date',
         ]);
 
-        $query = Sale::with(['customer', 'items']);
+        $query = Sale::with(['customer', 'items.watch']);
 
         if ($request->has('start_date') && $request->start_date) {
             $query->where('invoice_date', '>=', $request->start_date);
@@ -241,8 +264,36 @@ class ReportController extends Controller
         $sales = $query->latest()->get();
 
         $sales->map(function ($s) {
-            $totalCost = (double) $s->items->sum('cost_price');
-            $s->total_profit = (double) $s->net_amount - $totalCost;
+            $isGst = ($s->invoice_type === 'gst');
+            $saleGst = $isGst ? (double) $s->gst_amount : 0.0;
+            $taxableSalesRevenue = (double) $s->net_amount - $saleGst;
+
+            $totalGrossCost = 0.0;
+            $totalTaxableCost = 0.0;
+
+            foreach ($s->items as $item) {
+                if ($item->is_returned) continue;
+                $cost = (double) $item->cost_price;
+                $totalGrossCost += $cost;
+
+                $rate = (double) ($item->gst_rate ?? ($item->watch ? $item->watch->gst_rate : 0));
+                if ($isGst && $rate > 0) {
+                    // Extract base purchase cost before GST (credited by Input Tax Credit)
+                    $totalTaxableCost += ($cost / (1 + ($rate / 100)));
+                } else {
+                    $totalTaxableCost += $cost;
+                }
+            }
+
+            // Option B: True Audited Net Profit (Taxable Revenue - Base Cost)
+            // Equals (Gross Revenue - Gross Cost - Net GST Payable to Govt)
+            $s->total_profit = round($taxableSalesRevenue - $totalTaxableCost, 2);
+            $s->total_cost = round($totalGrossCost, 2);
+            $s->taxable_cost = round($totalTaxableCost, 2);
+            $s->output_gst = round($saleGst, 2);
+            $s->input_gst = round($totalGrossCost - $totalTaxableCost, 2);
+            $s->net_tax_payable = round($s->output_gst - $s->input_gst, 2);
+
             return $s;
         });
 

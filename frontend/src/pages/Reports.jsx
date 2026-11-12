@@ -319,66 +319,128 @@ const Reports = () => {
         {/* ── PROFIT REPORT ── */}
         {activeTab === 'profit' && !loading && user.role !== 'sales' && (
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3>Profit Margin Report</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Audited Profit Margin Report (True GST Norms)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Net Profit = Taxable Sales Revenue − Taxable Purchase Cost (Accounts for Input Tax Credit & Net GST Payable)
+                </span>
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(
-                  ['Invoice No', 'Date', 'Customer', 'Net Amount', 'Cost', 'Profit', 'Margin %'],
+                  ['Invoice No', 'Type', 'Date', 'Customer', 'Net Sale', 'Cost Price', 'Taxable Cost (Base)', 'Output GST', 'Input Tax Credit', 'Net GST to Govt', 'Audited Profit', 'Margin %'],
                   profitData.map(s => {
-                    const cost = s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                    const cost = s.total_cost || s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
                     const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
-                    return [s.id, s.invoice_date, s.customer?.name, s.net_amount, cost, s.total_profit, margin + '%'];
+                    return [
+                      s.id, 
+                      (s.invoice_type || 'nongst').toUpperCase(), 
+                      s.invoice_date, 
+                      s.customer?.name || 'Walk-in', 
+                      s.net_amount, 
+                      cost, 
+                      s.taxable_cost || cost, 
+                      s.output_gst || 0, 
+                      s.input_gst || 0, 
+                      s.net_tax_payable || 0, 
+                      s.total_profit, 
+                      margin + '%'
+                    ];
                   }),
-                  'profit_report'
+                  'audited_profit_report'
                 )}>
                   <Download size={13} /> Export CSV
                 </button>
                 <button className="btn btn-primary btn-sm" onClick={() => exportExcel(
-                  ['Invoice No', 'Date', 'Customer', 'Net Amount', 'Cost', 'Profit', 'Margin %'],
+                  ['Invoice No', 'Type', 'Date', 'Customer', 'Net Sale', 'Cost Price', 'Taxable Cost (Base)', 'Output GST', 'Input Tax Credit', 'Net GST to Govt', 'Audited Profit', 'Margin %'],
                   profitData.map(s => {
-                    const cost = s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                    const cost = s.total_cost || s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
                     const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
-                    return [s.id, s.invoice_date, s.customer?.name, s.net_amount, cost, s.total_profit, margin + '%'];
+                    return [
+                      s.id, 
+                      (s.invoice_type || 'nongst').toUpperCase(), 
+                      s.invoice_date, 
+                      s.customer?.name || 'Walk-in', 
+                      s.net_amount, 
+                      cost, 
+                      s.taxable_cost || cost, 
+                      s.output_gst || 0, 
+                      s.input_gst || 0, 
+                      s.net_tax_payable || 0, 
+                      s.total_profit, 
+                      margin + '%'
+                    ];
                   }),
-                  'profit_report', 'Profit Report'
+                  'audited_profit_report', 'Audited Profit Report'
                 )}>
                   <Download size={13} /> Export Excel
                 </button>
               </div>
             </div>
-            <table className="data-table">
-              <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Net Sale</th><th>Total Cost</th><th>Profit</th><th>Margin %</th></tr></thead>
-              <tbody>
-                {profitData.length > 0 ? profitData.map(s => {
-                  const cost = s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
-                  const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
-                  return (
-                    <tr key={s.id}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
-                      <td>{s.invoice_date}</td>
-                      <td>{s.customer?.name}</td>
-                      <td>{fmt(s.net_amount)}</td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{fmt(cost)}</td>
-                      <td style={{ color: Number(s.total_profit || 0) >= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 700 }}>{fmt(s.total_profit)}</td>
-                      <td><span className={`badge badge-${Number(margin) > 20 ? 'success' : Number(margin) > 10 ? 'warning' : 'danger'}`}>{margin}%</span></td>
-                    </tr>
-                  );
-                }) : (
-                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No profit data for selected period.</td></tr>
-                )}
-              </tbody>
-              {profitData.length > 0 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700 }}>
-                    <td colSpan="3">Total</td>
-                    <td>{fmt(profitData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
-                    <td>{fmt(profitData.reduce((a, s) => a + s?.items.reduce((b, si) => b + Number(si.cost_price || 0), 0), 0))}</td>
-                    <td style={{ color: 'var(--success)' }}>{fmt(profitData.reduce((a, s) => a + Number(s.total_profit || 0), 0))}</td>
-                    <td></td>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Net Sale</th>
+                    <th>Cost Price</th>
+                    <th>Net GST to Govt</th>
+                    <th>Audited Profit</th>
+                    <th>Margin %</th>
                   </tr>
-                </tfoot>
-              )}
-            </table>
+                </thead>
+                <tbody>
+                  {profitData.length > 0 ? profitData.map(s => {
+                    const cost = s.total_cost || s?.items.reduce((a, si) => a + Number(si.cost_price || 0), 0);
+                    const margin = Number(s.net_amount) > 0 ? ((Number(s.total_profit) / Number(s.net_amount)) * 100).toFixed(1) : 0;
+                    const netTax = Number(s.net_tax_payable || 0);
+
+                    return (
+                      <tr key={s.id}>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.id}</td>
+                        <td>
+                          <span className={`badge badge-${s.invoice_type === 'gst' ? 'info' : 'secondary'}`} style={{ fontSize: '0.72rem', textTransform: 'uppercase' }}>
+                            {s.invoice_type || 'nongst'}
+                          </span>
+                        </td>
+                        <td>{s.invoice_date}</td>
+                        <td>{s.customer?.name || 'Walk-in Customer'}</td>
+                        <td style={{ fontWeight: 600 }}>{fmt(s.net_amount)}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{fmt(cost)}</td>
+                        <td style={{ fontSize: '0.8rem', color: netTax > 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                          {netTax > 0 ? `₹${netTax.toFixed(2)}` : '₹0.00'}
+                        </td>
+                        <td style={{ color: Number(s.total_profit || 0) >= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 700 }}>
+                          {fmt(s.total_profit)}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${Number(margin) > 20 ? 'success' : Number(margin) > 10 ? 'warning' : 'danger'}`}>
+                            {margin}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  }) : (
+                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No profit data for selected period.</td></tr>
+                  )}
+                </tbody>
+                {profitData.length > 0 && (
+                  <tfoot>
+                    <tr style={{ fontWeight: 700 }}>
+                      <td colSpan="4">Total</td>
+                      <td>{fmt(profitData.reduce((a, s) => a + Number(s.net_amount || 0), 0))}</td>
+                      <td>{fmt(profitData.reduce((a, s) => a + Number(s.total_cost || s?.items.reduce((b, si) => b + Number(si.cost_price || 0), 0)), 0))}</td>
+                      <td style={{ color: '#ef4444' }}>{fmt(profitData.reduce((a, s) => a + Number(s.net_tax_payable || 0), 0))}</td>
+                      <td style={{ color: 'var(--success)' }}>{fmt(profitData.reduce((a, s) => a + Number(s.total_profit || 0), 0))}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           </div>
         )}
 

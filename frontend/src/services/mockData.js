@@ -1259,11 +1259,24 @@ export const mockAPI = {
       const calcProfit = (salesList) => {
         let p = 0;
         salesList.forEach(s => {
-          const items = db.sale_items.filter(si => si.sale_id === s.id);
-          const totalCost = items.reduce((acc, si) => acc + Number(si.cost_price || 0), 0);
-          const gstTax = (s.invoice_type === 'gst' && s.gst_amount) ? Number(s.gst_amount) : 0;
-          const netRevenueExclGst = Number(s.net_amount || 0) - gstTax;
-          p += (netRevenueExclGst - totalCost);
+          const isGst = (s.invoice_type === 'gst');
+          const saleGst = isGst ? Number(s.gst_amount || 0) : 0;
+          const taxableSalesRevenue = Number(s.net_amount || 0) - saleGst;
+
+          const items = db.sale_items.filter(si => si.sale_id === s.id && !si.is_returned);
+          let taxableCostTotal = 0;
+          items.forEach(si => {
+            const watch = db.watches.find(w => w.id === si.watch_id);
+            const cost = Number(si.cost_price || 0);
+            const rate = Number(si.gst_rate || watch?.gst_rate || 0);
+            if (isGst && rate > 0) {
+              taxableCostTotal += (cost / (1 + (rate / 100)));
+            } else {
+              taxableCostTotal += cost;
+            }
+          });
+
+          p += (taxableSalesRevenue - taxableCostTotal);
         });
         return Math.round(p * 100) / 100;
       };
@@ -1401,13 +1414,41 @@ export const mockAPI = {
     if (endDate) sales = sales.filter(s => s.invoice_date <= endDate);
     return sales.map(s => {
       const customer = db.customers.find(c => c.id === s.customer_id);
+      const isGst = (s.invoice_type === 'gst');
+      const saleGst = isGst ? Number(s.gst_amount || 0) : 0;
+      const taxableSalesRevenue = Number(s.net_amount || 0) - saleGst;
+
+      let totalGrossCost = 0;
+      let totalTaxableCost = 0;
+
       const items = db.sale_items.filter(si => si.sale_id === s.id).map(si => {
         const watch = db.watches.find(w => w.id === si.watch_id);
-        const itemProfit = (si.price_sold - si.discount_amount) - si.cost_price;
-        return { ...si, watch, item_profit: itemProfit };
+        const cost = Number(si.cost_price || 0);
+        totalGrossCost += cost;
+
+        const rate = Number(si.gst_rate || watch?.gst_rate || 0);
+        const taxableCost = (isGst && rate > 0) ? (cost / (1 + (rate / 100))) : cost;
+        totalTaxableCost += taxableCost;
+
+        const itemRevenue = (si.price_sold - (si.discount_amount || 0));
+        const itemTaxableRev = isGst && rate > 0 ? (itemRevenue / (1 + (rate / 100))) : itemRevenue;
+        const itemProfit = itemTaxableRev - taxableCost;
+
+        return { ...si, watch, item_profit: Math.round(itemProfit * 100) / 100 };
       });
-      const totalProfit = items.reduce((acc, si) => acc + si.item_profit, 0) - (s.bill_discount_amount || 0);
-      return { ...s, customer, items, total_profit: totalProfit };
+
+      const totalProfit = Math.round((taxableSalesRevenue - totalTaxableCost) * 100) / 100;
+      return { 
+        ...s, 
+        customer, 
+        items, 
+        total_profit: totalProfit,
+        total_cost: Math.round(totalGrossCost * 100) / 100,
+        taxable_cost: Math.round(totalTaxableCost * 100) / 100,
+        output_gst: Math.round(saleGst * 100) / 100,
+        input_gst: Math.round((totalGrossCost - totalTaxableCost) * 100) / 100,
+        net_tax_payable: Math.round((saleGst - (totalGrossCost - totalTaxableCost)) * 100) / 100
+      };
     }).sort((a, b) => b.invoice_date.localeCompare(a.invoice_date));
   },
 
