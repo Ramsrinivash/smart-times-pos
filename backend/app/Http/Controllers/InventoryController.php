@@ -126,17 +126,30 @@ class InventoryController extends Controller
             'dial_color' => 'nullable|string',
             'movement_type' => 'nullable|string',
             'mrp' => 'sometimes|required|numeric|min:0',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
             'selling_price' => 'sometimes|required|numeric|min:0',
             'cost_price' => 'sometimes|required|numeric|min:0',
             'gst_rate' => 'nullable|numeric|min:0',
+            'hsn_code' => 'nullable|string',
             'status' => 'nullable|string'
         ]);
 
+        $oldCost = (double) $watch->cost_price;
         $watch->update($request->all());
+
+        // If cost_price changed and this watch has a parent purchase, update purchase total_amount
+        if ($request->has('cost_price') && $watch->purchase_id) {
+            $purchase = $watch->purchase;
+            if ($purchase) {
+                $newTotal = (double) Watch::where('purchase_id', $purchase->id)->sum('cost_price');
+                $purchase->total_amount = $newTotal;
+                $purchase->save();
+            }
+        }
 
         return response()->json([
             'message' => 'Watch details updated successfully',
-            'watch' => $watch
+            'watch' => $watch->load('purchase')
         ]);
     }
 }

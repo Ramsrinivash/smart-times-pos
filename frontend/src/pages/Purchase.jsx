@@ -18,6 +18,8 @@ const Purchase = () => {
   const [existingModels, setExistingModels] = useState([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSupplierNameChange = (val) => {
     setSupplierName(val);
@@ -255,7 +257,7 @@ const Purchase = () => {
     setItems(next);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!supplierName) {
       alertService.warning('Required Field', 'Please enter supplier name.');
@@ -273,6 +275,12 @@ const Purchase = () => {
       return;
     }
 
+    // Open confirmation review modal instead of saving immediately
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSavePurchase = async () => {
+    setIsSubmitting(true);
     try {
       await api.addPurchase({
         supplier_name: supplierName,
@@ -283,6 +291,7 @@ const Purchase = () => {
         bill_file: billFile,
         items
       });
+      setShowConfirmModal(false);
       alertService.success('Success', 'Purchase batch and pieces successfully added to inventory!');
       setSupplierName('');
       setInvoiceNumber('');
@@ -312,6 +321,8 @@ const Purchase = () => {
       }]);
     } catch (err) {
       alertService.error('Error', err.message || 'Failed to record purchase batch.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -876,6 +887,158 @@ const Purchase = () => {
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Purchase Confirmation & Review Modal */}
+        {showConfirmModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              width: '100%',
+              maxWidth: '950px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 30px rgba(0,0,0,0.6)'
+            }}>
+              {/* Header */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--border-color)',
+                background: 'var(--surface-card)'
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--primary-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <CheckCircle size={20} /> Review & Confirm Purchase Entry
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Supplier: <strong>{supplierName}</strong> • Bill No: <strong>{invoiceNumber}</strong> • Date: <strong>{purchaseDate}</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowConfirmModal(false)}
+                  style={{ padding: '0.35rem 0.6rem' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body Summary Table */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div style={{ background: 'var(--surface-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total Watch Pieces</span>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>{items.length} units</h4>
+                  </div>
+                  <div style={{ background: 'var(--surface-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Payment Status</span>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.1rem', color: paymentStatus === 'paid' ? 'var(--success)' : '#ef4444', textTransform: 'capitalize' }}>
+                      {paymentStatus === 'paid' ? '✓ Paid' : 'Pending Payment'}
+                    </h4>
+                  </div>
+                  <div style={{ background: 'var(--surface-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total Purchase Cost</span>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.2rem', color: 'var(--primary-gold)' }}>
+                      ₹{items.reduce((acc, i) => acc + Number(i.cost_price || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </h4>
+                  </div>
+                </div>
+
+                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Watch Pieces to be Added to Inventory:</h4>
+                <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                  <table className="data-table" style={{ fontSize: '0.825rem', width: '100%' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--surface-card)' }}>
+                        <th>#</th>
+                        <th>Serial / Barcode</th>
+                        <th>Brand & Model</th>
+                        <th>Specs</th>
+                        <th>MRP</th>
+                        <th>Disc %</th>
+                        <th>Scheme %</th>
+                        <th>Unit Cost Price</th>
+                        <th>Selling Price</th>
+                        <th>GST %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it, idx) => (
+                        <tr key={idx}>
+                          <td>{idx + 1}</td>
+                          <td style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary-gold)' }}>{it.id}</td>
+                          <td><strong>{it.brand}</strong> {it.model}</td>
+                          <td>{it.category} • {it.movement_type}</td>
+                          <td>₹{Number(it.mrp || 0).toLocaleString()}</td>
+                          <td>{it.discount_percent || 0}%</td>
+                          <td>{it.additional_scheme || 0}%</td>
+                          <td style={{ fontWeight: 700, color: 'var(--primary-gold)' }}>₹{Number(it.cost_price || 0).toLocaleString()}</td>
+                          <td>₹{Number(it.selling_price || 0).toLocaleString()}</td>
+                          <td>{Number(it.gst_rate) === 0 ? '0% (Non-GST)' : `${it.gst_rate}%`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div style={{
+                padding: '1rem 1.5rem',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: 'var(--surface-card)'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowConfirmModal(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                >
+                  <Edit size={15} /> Edit Details (Go Back)
+                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowConfirmModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleConfirmSavePurchase}
+                    disabled={isSubmitting}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.65rem 1.75rem' }}
+                  >
+                    <CheckCircle size={17} /> {isSubmitting ? 'Saving...' : 'Confirm & Save to Stock'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

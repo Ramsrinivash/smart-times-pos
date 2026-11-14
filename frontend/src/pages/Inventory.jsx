@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Layout/Header';
-import { Settings, Eye, Image as ImageIcon, Trash2, X, Plus, FileText } from 'lucide-react';
+import { Settings, Eye, Image as ImageIcon, Trash2, X, Plus, FileText, Edit, Save } from 'lucide-react';
 import { alertService } from '../utils/alert';
 
 const Inventory = () => {
@@ -16,6 +16,24 @@ const Inventory = () => {
   const [newStatus, setNewStatus] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [viewingBillFile, setViewingBillFile] = useState(null);
+
+  // Per-watch Edit State
+  const [editingWatch, setEditingWatch] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    brand: '',
+    model: '',
+    category: '',
+    gender: '',
+    movement_type: '',
+    mrp: '',
+    discount_percent: '',
+    scheme_percent: '',
+    cost_price: '',
+    selling_price: '',
+    gst_rate: '18',
+    hsn_code: '9102'
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -95,6 +113,93 @@ const Inventory = () => {
       fetchInventory();
     } catch (err) {
       alertService.error('Error', 'Failed to remove image: ' + err.message);
+    }
+  };
+
+  const handleOpenEdit = (piece) => {
+    setEditingWatch(piece);
+    setEditFormData({
+      brand: piece.brand || '',
+      model: piece.model || '',
+      category: piece.category || 'Analog',
+      gender: piece.gender || 'Men',
+      movement_type: piece.movement_type || 'Quartz',
+      mrp: piece.mrp !== undefined && piece.mrp !== null ? String(piece.mrp) : '',
+      discount_percent: piece.discount_percent !== undefined && piece.discount_percent !== null ? String(piece.discount_percent) : '0',
+      scheme_percent: piece.scheme_percent !== undefined && piece.scheme_percent !== null ? String(piece.scheme_percent) : '0',
+      cost_price: piece.cost_price !== undefined && piece.cost_price !== null ? String(piece.cost_price) : '',
+      selling_price: piece.selling_price !== undefined && piece.selling_price !== null ? String(piece.selling_price) : '',
+      gst_rate: piece.gst_rate !== undefined && piece.gst_rate !== null ? String(piece.gst_rate) : '18',
+      hsn_code: piece.hsn_code || '9102'
+    });
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditFormData(prev => {
+      const next = { ...prev, [field]: value };
+      // Auto-recalculate Cost Price if mrp, discount_percent or scheme_percent changes
+      if (field === 'mrp' || field === 'discount_percent' || field === 'scheme_percent') {
+        const mrpNum = parseFloat(field === 'mrp' ? value : next.mrp) || 0;
+        const discNum = parseFloat(field === 'discount_percent' ? value : next.discount_percent) || 0;
+        const schemeNum = parseFloat(field === 'scheme_percent' ? value : next.scheme_percent) || 0;
+        if (mrpNum > 0) {
+          const afterDisc = mrpNum * (1 - discNum / 100);
+          const calculatedCost = afterDisc * (1 - schemeNum / 100);
+          next.cost_price = calculatedCost.toFixed(2);
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleSaveWatchEdit = async (e) => {
+    e.preventDefault();
+    if (!editingWatch) return;
+
+    if (!editFormData.brand.trim() || !editFormData.model.trim()) {
+      alertService.error('Required', 'Brand and Model are required.');
+      return;
+    }
+
+    const mrp = parseFloat(editFormData.mrp);
+    const cost = parseFloat(editFormData.cost_price);
+    const selling = parseFloat(editFormData.selling_price);
+
+    if (isNaN(mrp) || mrp <= 0) {
+      alertService.error('Invalid MRP', 'Please provide a valid MRP.');
+      return;
+    }
+    if (isNaN(selling) || selling <= 0) {
+      alertService.error('Invalid Selling Price', 'Please provide a valid Selling Price.');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const payload = {
+        brand: editFormData.brand.trim(),
+        model: editFormData.model.trim(),
+        category: editFormData.category,
+        gender: editFormData.gender,
+        movement_type: editFormData.movement_type,
+        mrp: mrp,
+        discount_percent: parseFloat(editFormData.discount_percent) || 0,
+        scheme_percent: parseFloat(editFormData.scheme_percent) || 0,
+        cost_price: isNaN(cost) ? 0 : cost,
+        selling_price: selling,
+        gst_rate: parseFloat(editFormData.gst_rate) || 18,
+        hsn_code: editFormData.hsn_code || '9102'
+      };
+
+      await api.updateWatch(editingWatch.id, payload);
+      alertService.success('Watch Updated', `Watch ${editingWatch.id} (${payload.brand} ${payload.model}) updated successfully.`);
+      setEditingWatch(null);
+      await fetchInventory();
+    } catch (err) {
+      console.error(err);
+      alertService.error('Update Failed', err.message || 'Could not update watch details.');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -411,14 +516,24 @@ const Inventory = () => {
                                                 <Eye size={12} />
                                               </button>
                                               {(user.role === 'admin' || user.role === 'manager') && (
-                                                <button 
-                                                  onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
-                                                  className="btn btn-secondary btn-sm"
-                                                  title="Adjust Status"
-                                                  style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
-                                                >
-                                                  <Settings size={12} />
-                                                </button>
+                                                <>
+                                                  <button 
+                                                    onClick={() => handleOpenEdit(piece)} 
+                                                    className="btn btn-secondary btn-sm"
+                                                    title="Edit Watch Details (MRP, Scheme, Cost, Selling Price)"
+                                                    style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto', color: 'var(--primary-gold)' }}
+                                                  >
+                                                    <Edit size={12} />
+                                                  </button>
+                                                  <button 
+                                                    onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
+                                                    className="btn btn-secondary btn-sm"
+                                                    title="Adjust Status"
+                                                    style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
+                                                  >
+                                                    <Settings size={12} />
+                                                  </button>
+                                                </>
                                               )}
                                             </div>
                                           </td>
@@ -573,6 +688,241 @@ const Inventory = () => {
         )}
 
         {/* Supplier Bill Document Viewer Modal */}
+        {/* Edit Watch Modal */}
+        {editingWatch && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}>
+              <div style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Edit size={18} color="var(--primary-gold)" /> Edit Watch Details
+                  </h3>
+                  <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                    Serial / ID: <span style={{ fontFamily: 'monospace', color: 'var(--primary-gold)', fontWeight: 600 }}>{editingWatch.id}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingWatch(null)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ padding: '0.35rem 0.6rem' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveWatchEdit} style={{ padding: '1.5rem', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Brand</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editFormData.brand}
+                      onChange={(e) => handleEditFieldChange('brand', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Model / Number</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editFormData.model}
+                      onChange={(e) => handleEditFieldChange('model', e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Category</label>
+                    <select
+                      className="form-control"
+                      value={editFormData.category}
+                      onChange={(e) => handleEditFieldChange('category', e.target.value)}
+                    >
+                      <option value="Analog">Analog</option>
+                      <option value="Digital">Digital</option>
+                      <option value="Chronograph">Chronograph</option>
+                      <option value="Smart">Smart</option>
+                      <option value="Luxury">Luxury</option>
+                      <option value="Automatic">Automatic</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Gender</label>
+                    <select
+                      className="form-control"
+                      value={editFormData.gender}
+                      onChange={(e) => handleEditFieldChange('gender', e.target.value)}
+                    >
+                      <option value="Men">Men</option>
+                      <option value="Women">Women</option>
+                      <option value="Unisex">Unisex</option>
+                      <option value="Kids">Kids</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Movement</label>
+                    <select
+                      className="form-control"
+                      value={editFormData.movement_type}
+                      onChange={(e) => handleEditFieldChange('movement_type', e.target.value)}
+                    >
+                      <option value="Quartz">Quartz</option>
+                      <option value="Automatic">Automatic</option>
+                      <option value="Solar">Solar</option>
+                      <option value="Digital">Digital</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: 'rgba(217, 119, 6, 0.05)',
+                  border: '1px solid rgba(217, 119, 6, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  marginBottom: '1.25rem'
+                }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary-gold)', marginBottom: '0.75rem' }}>
+                    Pricing, Trade Discount & Cost Calculation
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>MRP (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        value={editFormData.mrp}
+                        onChange={(e) => handleEditFieldChange('mrp', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Trade Disc %</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        value={editFormData.discount_percent}
+                        onChange={(e) => handleEditFieldChange('discount_percent', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Scheme %</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        value={editFormData.scheme_percent}
+                        onChange={(e) => handleEditFieldChange('scheme_percent', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem', color: 'var(--primary-gold)' }}>Cost Price (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        value={editFormData.cost_price}
+                        onChange={(e) => handleEditFieldChange('cost_price', e.target.value)}
+                        style={{ borderColor: 'var(--primary-gold)' }}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Formula: Cost = MRP × (1 − Trade Disc %) × (1 − Scheme %)
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Selling Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={editFormData.selling_price}
+                      onChange={(e) => handleEditFieldChange('selling_price', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>GST Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={editFormData.gst_rate}
+                      onChange={(e) => handleEditFieldChange('gst_rate', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>HSN Code</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editFormData.hsn_code}
+                      onChange={(e) => handleEditFieldChange('hsn_code', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditingWatch(null)}
+                    className="btn btn-secondary"
+                    disabled={savingEdit}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={savingEdit}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <Save size={16} />
+                    {savingEdit ? 'Saving Changes...' : 'Save Watch Details'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {viewingBillFile && (
           <div style={{
             position: 'fixed',
