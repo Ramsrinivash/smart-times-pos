@@ -152,4 +152,56 @@ class InventoryController extends Controller
             'watch' => $watch->load('purchase')
         ]);
     }
+
+    public function updateGroup(Request $request)
+    {
+        $request->validate([
+            'watch_ids' => 'required|array|min:1',
+            'watch_ids.*' => 'required|string|exists:watches,id',
+            'brand' => 'sometimes|required|string',
+            'model' => 'sometimes|required|string',
+            'category' => 'nullable|string',
+            'gender' => 'nullable|string',
+            'movement_type' => 'nullable|string',
+            'mrp' => 'sometimes|required|numeric|min:0',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
+            'selling_price' => 'sometimes|required|numeric|min:0',
+            'cost_price' => 'sometimes|required|numeric|min:0',
+            'gst_rate' => 'nullable|numeric|min:0',
+            'hsn_code' => 'nullable|string',
+        ]);
+
+        $updateData = $request->only([
+            'brand', 'model', 'category', 'gender', 'movement_type',
+            'mrp', 'discount_percent', 'selling_price', 'cost_price',
+            'gst_rate', 'hsn_code'
+        ]);
+
+        $watchIds = $request->watch_ids;
+        $watches = Watch::whereIn('id', $watchIds)->get();
+
+        $affectedPurchaseIds = [];
+        foreach ($watches as $w) {
+            $w->update($updateData);
+            if ($w->purchase_id && !in_array($w->purchase_id, $affectedPurchaseIds)) {
+                $affectedPurchaseIds[] = $w->purchase_id;
+            }
+        }
+
+        // Recalculate total_amount for any affected purchase bills
+        if ($request->has('cost_price') && !empty($affectedPurchaseIds)) {
+            foreach ($affectedPurchaseIds as $pId) {
+                $purchase = \App\Models\Purchase::find($pId);
+                if ($purchase) {
+                    $purchase->total_amount = (double) Watch::where('purchase_id', $pId)->sum('cost_price');
+                    $purchase->save();
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'All watches in group updated successfully',
+            'updated_count' => count($watches)
+        ]);
+    }
 }

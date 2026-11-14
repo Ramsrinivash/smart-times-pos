@@ -17,8 +17,8 @@ const Inventory = () => {
   const [expandedGroups, setExpandedGroups] = useState({});
   const [viewingBillFile, setViewingBillFile] = useState(null);
 
-  // Per-watch Edit State
-  const [editingWatch, setEditingWatch] = useState(null);
+  // Common Group Edit State
+  const [editingGroup, setEditingGroup] = useState(null);
   const [editFormData, setEditFormData] = useState({
     brand: '',
     model: '',
@@ -116,21 +116,22 @@ const Inventory = () => {
     }
   };
 
-  const handleOpenEdit = (piece) => {
-    setEditingWatch(piece);
+  const handleOpenEditGroup = (group) => {
+    const repPiece = group.pieces[0] || {};
+    setEditingGroup(group);
     setEditFormData({
-      brand: piece.brand || '',
-      model: piece.model || '',
-      category: piece.category || 'Analog',
-      gender: piece.gender || 'Men',
-      movement_type: piece.movement_type || 'Quartz',
-      mrp: piece.mrp !== undefined && piece.mrp !== null ? String(piece.mrp) : '',
-      discount_percent: piece.discount_percent !== undefined && piece.discount_percent !== null ? String(piece.discount_percent) : '0',
-      scheme_percent: piece.scheme_percent !== undefined && piece.scheme_percent !== null ? String(piece.scheme_percent) : '0',
-      cost_price: piece.cost_price !== undefined && piece.cost_price !== null ? String(piece.cost_price) : '',
-      selling_price: piece.selling_price !== undefined && piece.selling_price !== null ? String(piece.selling_price) : '',
-      gst_rate: piece.gst_rate !== undefined && piece.gst_rate !== null ? String(piece.gst_rate) : '18',
-      hsn_code: piece.hsn_code || '9102'
+      brand: group.brand || repPiece.brand || '',
+      model: group.model || repPiece.model || '',
+      category: group.category || repPiece.category || 'Analog',
+      gender: group.gender || repPiece.gender || 'Men',
+      movement_type: group.movement_type || repPiece.movement_type || 'Quartz',
+      mrp: group.mrp !== undefined && group.mrp !== null ? String(group.mrp) : (repPiece.mrp !== undefined ? String(repPiece.mrp) : ''),
+      discount_percent: repPiece.discount_percent !== undefined && repPiece.discount_percent !== null ? String(repPiece.discount_percent) : (group.discount_percent ? String(group.discount_percent) : '0'),
+      scheme_percent: repPiece.scheme_percent !== undefined && repPiece.scheme_percent !== null ? String(repPiece.scheme_percent) : '0',
+      cost_price: group.cost_price !== undefined && group.cost_price !== null ? String(group.cost_price) : (repPiece.cost_price !== undefined ? String(repPiece.cost_price) : ''),
+      selling_price: group.selling_price !== undefined && group.selling_price !== null ? String(group.selling_price) : (repPiece.selling_price !== undefined ? String(repPiece.selling_price) : ''),
+      gst_rate: repPiece.gst_rate !== undefined && repPiece.gst_rate !== null ? String(repPiece.gst_rate) : (group.gst_rate ? String(group.gst_rate) : '18'),
+      hsn_code: repPiece.hsn_code || '9102'
     });
   };
 
@@ -152,9 +153,9 @@ const Inventory = () => {
     });
   };
 
-  const handleSaveWatchEdit = async (e) => {
+  const handleSaveGroupEdit = async (e) => {
     e.preventDefault();
-    if (!editingWatch) return;
+    if (!editingGroup || !editingGroup.pieces || editingGroup.pieces.length === 0) return;
 
     if (!editFormData.brand.trim() || !editFormData.model.trim()) {
       alertService.error('Required', 'Brand and Model are required.');
@@ -176,7 +177,9 @@ const Inventory = () => {
 
     setSavingEdit(true);
     try {
+      const watchIds = editingGroup.pieces.map(p => p.id);
       const payload = {
+        watch_ids: watchIds,
         brand: editFormData.brand.trim(),
         model: editFormData.model.trim(),
         category: editFormData.category,
@@ -191,13 +194,13 @@ const Inventory = () => {
         hsn_code: editFormData.hsn_code || '9102'
       };
 
-      await api.updateWatch(editingWatch.id, payload);
-      alertService.success('Watch Updated', `Watch ${editingWatch.id} (${payload.brand} ${payload.model}) updated successfully.`);
-      setEditingWatch(null);
+      await api.updateWatchGroup(payload);
+      alertService.success('Inventory Updated', `Updated details for ${payload.brand} ${payload.model} (${watchIds.length} watches).`);
+      setEditingGroup(null);
       await fetchInventory();
     } catch (err) {
       console.error(err);
-      alertService.error('Update Failed', err.message || 'Could not update watch details.');
+      alertService.error('Update Failed', err.message || 'Could not update watch model details.');
     } finally {
       setSavingEdit(false);
     }
@@ -402,14 +405,26 @@ const Inventory = () => {
                             </div>
                           </td>
                           <td onClick={e => e.stopPropagation()}>
-                            <button 
-                              onClick={() => setSelectedWatch(group.pieces[0])}
-                              className="btn btn-secondary btn-sm"
-                              title="View Group Photos"
-                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Eye size={14} />
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                              <button 
+                                onClick={() => setSelectedWatch(group.pieces[0])}
+                                className="btn btn-secondary btn-sm"
+                                title="View Group Photos"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.3rem 0.5rem' }}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              {(user.role === 'admin' || user.role === 'manager') && (
+                                <button 
+                                  onClick={() => handleOpenEditGroup(group)}
+                                  className="btn btn-secondary btn-sm"
+                                  title="Edit Model Details (MRP, Scheme, Cost, Selling Price for all pieces)"
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.3rem 0.5rem', color: 'var(--primary-gold)' }}
+                                >
+                                  <Edit size={14} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
 
@@ -516,24 +531,14 @@ const Inventory = () => {
                                                 <Eye size={12} />
                                               </button>
                                               {(user.role === 'admin' || user.role === 'manager') && (
-                                                <>
-                                                  <button 
-                                                    onClick={() => handleOpenEdit(piece)} 
-                                                    className="btn btn-secondary btn-sm"
-                                                    title="Edit Watch Details (MRP, Scheme, Cost, Selling Price)"
-                                                    style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto', color: 'var(--primary-gold)' }}
-                                                  >
-                                                    <Edit size={12} />
-                                                  </button>
-                                                  <button 
-                                                    onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
-                                                    className="btn btn-secondary btn-sm"
-                                                    title="Adjust Status"
-                                                    style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
-                                                  >
-                                                    <Settings size={12} />
-                                                  </button>
-                                                </>
+                                                <button 
+                                                  onClick={() => { setAdjustWatch(piece); setNewStatus(piece.status); }} 
+                                                  className="btn btn-secondary btn-sm"
+                                                  title="Adjust Status"
+                                                  style={{ padding: '0.2rem 0.4rem', height: '24px', minHeight: 'auto' }}
+                                                >
+                                                  <Settings size={12} />
+                                                </button>
                                               )}
                                             </div>
                                           </td>
@@ -688,8 +693,8 @@ const Inventory = () => {
         )}
 
         {/* Supplier Bill Document Viewer Modal */}
-        {/* Edit Watch Modal */}
-        {editingWatch && (
+        {/* Common Edit Watch Model Group Modal */}
+        {editingGroup && (
           <div style={{
             position: 'fixed',
             inset: 0,
@@ -722,15 +727,15 @@ const Inventory = () => {
               }}>
                 <div>
                   <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Edit size={18} color="var(--primary-gold)" /> Edit Watch Details
+                    <Edit size={18} color="var(--primary-gold)" /> Edit Model Details (Common for All Pieces)
                   </h3>
                   <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    Serial / ID: <span style={{ fontFamily: 'monospace', color: 'var(--primary-gold)', fontWeight: 600 }}>{editingWatch.id}</span>
+                    Model: <strong style={{ color: 'var(--primary-gold)' }}>{editingGroup.brand} {editingGroup.model}</strong> • Applies to <strong>{editingGroup.pieces?.length || 0} pieces</strong>
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setEditingWatch(null)}
+                  onClick={() => setEditingGroup(null)}
                   className="btn btn-secondary btn-sm"
                   style={{ padding: '0.35rem 0.6rem' }}
                 >
@@ -738,7 +743,7 @@ const Inventory = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveWatchEdit} style={{ padding: '1.5rem', overflowY: 'auto' }}>
+              <form onSubmit={handleSaveGroupEdit} style={{ padding: '1.5rem', overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>Brand</label>
@@ -902,7 +907,7 @@ const Inventory = () => {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                   <button
                     type="button"
-                    onClick={() => setEditingWatch(null)}
+                    onClick={() => setEditingGroup(null)}
                     className="btn btn-secondary"
                     disabled={savingEdit}
                   >
@@ -915,7 +920,7 @@ const Inventory = () => {
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                   >
                     <Save size={16} />
-                    {savingEdit ? 'Saving Changes...' : 'Save Watch Details'}
+                    {savingEdit ? 'Saving Changes...' : `Update All ${editingGroup.pieces?.length || 0} Pieces`}
                   </button>
                 </div>
               </form>

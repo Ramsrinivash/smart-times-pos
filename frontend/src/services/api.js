@@ -168,6 +168,9 @@ export const api = {
   updateWatch: async (watchId, data) => {
     return requestWithFallback(`/inventory/${encodeURIComponent(watchId)}`, { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateWatch(watchId, data));
   },
+  updateWatchGroup: async (data) => {
+    return requestWithFallback('/inventory/group', { method: 'PUT', body: JSON.stringify(data) }, () => mockAPI.updateWatchGroup(data));
+  },
 
   // Purchases
   getPurchases: async () => {

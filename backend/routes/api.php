@@ -324,6 +324,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Inventory Routes
     Route::get('/inventory', [InventoryController::class, 'index']);
+    Route::put('/inventory/group', [InventoryController::class, 'updateGroup']);
     Route::put('/inventory/{id}', [InventoryController::class, 'update']);
     Route::get('/inventory/adjustments', [InventoryController::class, 'getAdjustmentLogs'])
          ->middleware('role:admin,manager');

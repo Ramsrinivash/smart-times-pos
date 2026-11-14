@@ -588,6 +588,25 @@ export const mockAPI = {
     return db.watches[idx];
   },
 
+  updateWatchGroup: (data, userId = 1) => {
+    const db = loadDB();
+    const { watch_ids, ...updateFields } = data;
+    if (!Array.isArray(watch_ids) || watch_ids.length === 0) throw new Error('No watch ids provided.');
+    
+    let updatedCount = 0;
+    db.watches = db.watches.map(w => {
+      if (watch_ids.includes(w.id)) {
+        updatedCount++;
+        return { ...w, ...updateFields };
+      }
+      return w;
+    });
+
+    logActivity(db, userId, 'UPDATE', 'Inventory', `Updated group of ${updatedCount} watches: ${updateFields.brand || ''} ${updateFields.model || ''}`);
+    saveDB(db);
+    return { message: 'All watches in group updated successfully', updated_count: updatedCount };
+  },
+
   adjustStock: (watchId, status, userId = 1) => {
     const db = loadDB();
     const watch = db.watches.find(w => w.id === watchId);
