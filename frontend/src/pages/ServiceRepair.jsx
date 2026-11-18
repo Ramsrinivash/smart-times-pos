@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Header from '../components/Layout/Header';
-import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle, UserCheck } from 'lucide-react';
+import { Plus, Wrench, Calendar, ClipboardList, Printer, CheckCircle, UserCheck, Share2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import PrintableInvoice from '../components/PrintableInvoice';
 import { alertService } from '../utils/alert';
 import Swal from 'sweetalert2';
 
 const ServiceRepair = () => {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [custName, setCustName] = useState('');
@@ -18,6 +21,10 @@ const ServiceRepair = () => {
   const [jobs, setJobs] = useState([]);
   const [selectedJobsForCard, setSelectedJobsForCard] = useState(null); // Array of jobs to print on 1 job card
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Modal for previewing intake cart
+
+  // Service Delivery Invoice Modal state
+  const [deliveryInvoice, setDeliveryInvoice] = useState(null);
+  const [deliveryWhatsAppUrl, setDeliveryWhatsAppUrl] = useState(null);
 
   const handleOpenJobCardModal = (job, allJobsList = jobs) => {
     const safeJobs = Array.isArray(allJobsList) ? allJobsList : [];
@@ -352,10 +359,54 @@ const ServiceRepair = () => {
         const invoiceType = invoiceTypeChoice.isConfirmed ? 'gst' : 'non-gst';
 
         const result = await api.addServiceBill(jobId, actualCost, payMode, invoiceType);
-        alertService.success(
-          'Service Delivered!',
-          `Service billed and delivered successfully. Bill Invoice No: ${result.id || result}. Total collected: ₹${actualCost.toLocaleString()}.`
-        );
+        const invoiceId = result.id || (result.sale ? result.sale.id : result);
+        
+        // Fetch full sale detail for printing and preview
+        let fullSale = null;
+        try {
+          fullSale = await api.getSale(invoiceId);
+        } catch (fetchErr) {
+          fullSale = result.sale || null;
+        }
+
+        // Generate WhatsApp link for the service bill
+        const targetJob = jobs.find(j => j.id === jobId);
+        const custObj = fullSale?.customer || targetJob?.customer || {};
+        const rawCustPhone = (custObj.phone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+        const phoneFormatted = rawCustPhone.length === 10 ? `91${rawCustPhone}` : rawCustPhone;
+        const watchName = targetJob?.watch_id 
+          ? `${targetJob.watch?.brand || ''} ${targetJob.watch?.model || ''}`.trim()
+          : `${targetJob?.watch_details?.brand || ''} ${targetJob?.watch_details?.model || ''}`.trim();
+
+        const billWaText = `Dear ${custObj.name || 'Valued Customer'}, thank you for choosing *${settings?.store_name || 'Smart Times'}* for your watch service!\n\n📄 *Service Invoice: ${invoiceId}*\n• Job Card: *${jobId}*\n• Watch: ${watchName || 'Watch Service'}\n• Service Issue: "${targetJob?.issue_reported || 'Repair'}"\n\n💰 *Total Paid: ₹${actualCost.toLocaleString('en-IN')}*\nPayment Mode: ${payMode.toUpperCase()} (${invoiceType.toUpperCase()})\nWarranty: 6 Months Service Warranty\n\n🙏 Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
+
+        const billWaUrl = phoneFormatted.length >= 10 
+          ? `https://wa.me/${phoneFormatted}?text=${encodeURIComponent(billWaText)}` 
+          : null;
+
+        setDeliveryWhatsAppUrl(billWaUrl);
+        setDeliveryInvoice(fullSale || {
+          id: invoiceId,
+          invoice_type: invoiceType,
+          invoice_date: new Date().toISOString().split('T')[0],
+          customer: custObj,
+          user: user,
+          subtotal: actualCost,
+          net_amount: actualCost,
+          payment_mode: payMode,
+          items: [{
+            watch_id: targetJob?.watch_id || `SERVICE-${jobId}`,
+            watch: {
+              brand: targetJob?.watch_id ? (targetJob.watch?.brand || 'Watch') : (targetJob?.watch_details?.brand || 'Service'),
+              model: targetJob?.watch_id ? (targetJob.watch?.model || 'Service') : (targetJob?.watch_details?.model || 'Repair Charges'),
+              hsn_code: '998729'
+            },
+            price_sold: actualCost,
+            gst_rate: invoiceType === 'gst' ? 18 : 0,
+            gst_amount: invoiceType === 'gst' ? Math.round((actualCost - (actualCost / 1.18)) * 100) / 100 : 0
+          }]
+        });
+
         loadData();
         return;
       }
@@ -372,12 +423,21 @@ const ServiceRepair = () => {
   };
 
   const handlePrint = () => {
-    const oldTitle = document.title;
-    const nameStr = activeJobCard?.customer?.name ? `_${activeJobCard.customer.name.replace(/[^a-zA-Z0-9]/g, '-')}` : '';
-    const dateStr = activeJobCard?.created_at ? `_${activeJobCard.created_at.split('T')[0]}` : '';
-    document.title = `JobCard_${activeJobCard?.id || 'New'}${nameStr}${dateStr}`;
-    window.print();
-    setTimeout(() => { document.title = oldTitle; }, 1000);
+    // Print job card via dedicated window to preserve format cleanly
+    const cardEl = document.querySelector('.job-card-print-container');
+    if (!cardEl) {
+      window.print();
+      return;
+    }
+    const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('');
+    const pw = window.open('', '_blank', 'width=900,height=700');
+    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>JobCard_${selectedJobsForCard?.[0]?.id || 'Service'}</title>${styleSheets}<style>
+      html, body { height: auto !important; min-height: auto !important; overflow: visible !important; margin: 0; padding: 10mm; background: #fff !important; color: #000 !important; }
+      @media print { html, body { height: auto !important; overflow: visible !important; padding: 0 !important; } .no-print { display: none !important; } }
+    </style></head><body>${cardEl.outerHTML}</body></html>`);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => { pw.print(); pw.close(); }, 350);
   };
 
   return (
@@ -830,7 +890,9 @@ const ServiceRepair = () => {
                       <td style={{ padding: '0.45rem 0.5rem', fontFamily: 'monospace', fontWeight: 700 }}>{job.id}</td>
                       <td style={{ padding: '0.45rem 0.5rem' }}>
                         <div style={{ fontWeight: 700 }}>
-                          {job.watch_id ? `${job.watch?.brand} ${job.watch?.model}` : `${job.watch_details?.brand} ${job.watch_details?.model}`}
+                          {job.watch_id 
+                            ? `${job.watch?.brand || 'Watch'} ${job.watch?.model || ''}`.trim() 
+                            : `${job.watch_details?.brand || 'External Watch'} ${job.watch_details?.model || ''}`.trim()}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: '#555' }}>
                           {job.watch_id ? `Serial: ${job.watch_id}` : `Gender: ${job.watch_details?.gender || 'Unisex'}`}
@@ -869,13 +931,51 @@ const ServiceRepair = () => {
                 </div>
               </div>
               
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                <button onClick={handlePrint} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
-                  <Printer size={16} style={{ marginRight: '0.4rem' }}/> Print Job Card ({selectedJobsForCard.length} Watch)
-                </button>
-                <button onClick={() => setSelectedJobsForCard(null)} className="btn btn-secondary">
-                  Close
-                </button>
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                  {(() => {
+                    const custObj = selectedJobsForCard[0]?.customer;
+                    const rawCustPhone = (custObj?.phone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+                    const phoneFormatted = rawCustPhone.length === 10 ? `91${rawCustPhone}` : rawCustPhone;
+                    const jcIds = selectedJobsForCard.map(j => j.id).join(', ');
+                    const watchesSummary = selectedJobsForCard.map(j => {
+                      const name = j.watch_id 
+                        ? `${j.watch?.brand || 'Watch'} ${j.watch?.model || ''}`.trim() 
+                        : `${j.watch_details?.brand || 'External Watch'} ${j.watch_details?.model || ''}`.trim();
+                      const est = j.estimated_cost ? ` (Est: ₹${Number(j.estimated_cost).toLocaleString('en-IN')})` : '';
+                      return `• *${j.id}*: ${name} — "${j.issue_reported}"${est}`;
+                    }).join('\n');
+                    const jcDate = selectedJobsForCard[0]?.created_at ? selectedJobsForCard[0].created_at.split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0];
+                    const dueDate = selectedJobsForCard[0]?.expected_delivery_date || 'Informed via phone';
+
+                    const jcWaText = `Dear ${custObj?.name || 'Customer'}, your Service Job Card has been registered at *${settings?.store_name || 'Smart Times'}*!\n\n📋 *Job Card: ${jcIds}*\nDate: ${jcDate}\nDue Date: ${dueDate}\n\n*Watches Registered:*\n${watchesSummary}\n\n📍 ${settings?.address || 'Smart Times Showroom'}\n📞 Helpline: ${settings?.phone || '97512 85945'}\n\n_Please retain this job card message at pickup._`;
+
+                    const jcWaUrl = phoneFormatted.length >= 10 
+                      ? `https://wa.me/${phoneFormatted}?text=${encodeURIComponent(jcWaText)}` 
+                      : null;
+
+                    return jcWaUrl ? (
+                      <a
+                        href={jcWaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#25D366', color: '#fff', borderColor: '#25D366', textDecoration: 'none' }}
+                      >
+                        <Share2 size={16} /> Share Job Card on WhatsApp
+                      </a>
+                    ) : null;
+                  })()}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={handlePrint} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Printer size={16} /> Print Job Card ({selectedJobsForCard.length} Watch)
+                  </button>
+                  <button onClick={() => setSelectedJobsForCard(null)} className="btn btn-secondary">
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -952,6 +1052,21 @@ const ServiceRepair = () => {
                   Confirm & Create Job Card
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delivery Invoice & WhatsApp Modal */}
+        {deliveryInvoice && (
+          <div className="modal-overlay no-print" style={{ overflowY: 'auto', padding: '2rem 1rem', zIndex: 1100 }}>
+            <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', padding: '1rem' }}>
+              <PrintableInvoice
+                invoice={deliveryInvoice}
+                storeSettings={settings}
+                currentUser={user}
+                waUrl={deliveryWhatsAppUrl}
+                onClose={() => { setDeliveryInvoice(null); setDeliveryWhatsAppUrl(null); }}
+              />
             </div>
           </div>
         )}

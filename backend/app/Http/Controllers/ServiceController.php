@@ -126,28 +126,91 @@ class ServiceController extends Controller
             $job = ServiceJob::findOrFail($request->job_id);
             $user = $request->user();
 
-            // Fix #2: Use SELECT FOR UPDATE inside the transaction to lock and prevent race conditions
-            $rows = DB::select('SELECT MAX(CAST(id AS UNSIGNED)) AS max_id FROM sales WHERE id REGEXP \'^[0-9]+$\' FOR UPDATE');
+            // Determine prefix based on invoice_type (GST or Non-GST) and Setting
+            $settings = \App\Models\Setting::first();
+            $isGst = ($request->invoice_type === 'gst');
+            $gstPrefix = $settings->gst_invoice_prefix ?? 'GST';
+            $nongstPrefix = $settings->nongst_invoice_prefix ?? 'INV';
+            $prefix = $isGst ? "{$gstPrefix}-" : "{$nongstPrefix}-";
+
+            // Next sequential invoice number for this prefix
+            $rows = DB::select("SELECT MAX(CAST(SUBSTRING(id, LENGTH(?) + 1) AS UNSIGNED)) AS max_id FROM sales WHERE id LIKE ? FOR UPDATE", [$prefix, $prefix . '%']);
             $nextNum = 1;
             if ($rows && $rows[0]->max_id !== null) {
                 $nextNum = ((int) $rows[0]->max_id) + 1;
             }
-            $invoiceId = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            $invoiceId = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+
+            $netAmount = (double) $request->actual_cost;
+            $gstAmount = 0.00;
+            $subtotal = $netAmount;
+
+            // If GST invoice is requested, calculate GST (18% standard service GST rate SAC 998729 / 9102)
+            if ($isGst && $netAmount > 0) {
+                $taxableBase = round($netAmount / 1.18, 2);
+                $gstAmount = round($netAmount - $taxableBase, 2);
+                $subtotal = $taxableBase;
+            }
 
             $sale = Sale::create([
                 'id' => $invoiceId,
                 'customer_id' => $job->customer_id,
                 'user_id' => $user->id,
-                'invoice_type' => $request->invoice_type ?? 'non-gst', // Fix #11: Use provided type
+                'invoice_type' => $isGst ? 'gst' : 'non-gst',
                 'invoice_date' => Carbon::now()->toDateString(),
-                'subtotal' => $request->actual_cost,
+                'subtotal' => $subtotal,
                 'discount_amount' => 0.00,
-                'gst_amount' => 0.00,
+                'gst_amount' => $gstAmount,
                 'points_redeemed' => 0,
                 'points_value' => 0.00,
-                'net_amount' => $request->actual_cost,
+                'net_amount' => $netAmount,
                 'payment_mode' => $request->payment_mode,
                 'notes' => 'Service & Repair delivery charges for Job Card ' . $job->id,
+            ]);
+
+            // Ensure a valid watch reference exists for SaleItem foreign key constraint
+            $watchId = $job->watch_id;
+            if (!$watchId) {
+                $watchId = 'SVC-' . $job->id;
+                $servicePurchase = \App\Models\Purchase::firstOrCreate(
+                    ['invoice_number' => 'SERVICE-INTERNAL'],
+                    [
+                        'supplier_name' => 'Internal Service Department',
+                        'purchase_date' => Carbon::now()->toDateString(),
+                        'total_amount' => 0.00,
+                        'payment_status' => 'paid',
+                        'remarks' => 'Internal placeholder purchase for service delivery billing'
+                    ]
+                );
+
+                \App\Models\Watch::firstOrCreate(
+                    ['id' => $watchId],
+                    [
+                        'purchase_id' => $servicePurchase->id,
+                        'brand' => $job->watch_details['brand'] ?? 'Service Repair',
+                        'model' => ($job->watch_details['model'] ?? 'Job Card ' . $job->id),
+                        'category' => 'Service',
+                        'gender' => $job->watch_details['gender'] ?? 'Unisex',
+                        'movement_type' => 'Service',
+                        'mrp' => $netAmount,
+                        'discount_percent' => 0.00,
+                        'cost_price' => 0.00,
+                        'selling_price' => $netAmount,
+                        'gst_rate' => $isGst ? 18.00 : 0.00,
+                        'status' => 'delivered',
+                        'hsn_code' => '998729'
+                    ]
+                );
+            }
+
+            \App\Models\SaleItem::create([
+                'sale_id' => $invoiceId,
+                'watch_id' => $watchId,
+                'price_sold' => $netAmount,
+                'discount_amount' => 0.00,
+                'cost_price' => 0.00,
+                'gst_rate' => $isGst ? 18.00 : 0.00,
+                'gst_amount' => $gstAmount,
             ]);
 
             // Update the Service Job Card
