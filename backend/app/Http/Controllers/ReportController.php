@@ -242,22 +242,6 @@ class ReportController extends Controller
             'recent_activities' => $recentActivities
         ]);
     }
-            'jobs_due_today' => $jobsDueToday,
-            'jobs_overdue' => $jobsOverdue,
-            'jobs_ready' => $jobsReady,
-            'jobs_active' => $jobsActive,
-            'pending_supplier_payments_count' => $pendingPaymentsCount,
-            'pending_supplier_payments_sum' => $pendingPaymentsSum,
-            'outstanding_dues_total' => $outstandingDuesTotal,
-            'outstanding_dues_count' => $outstandingDuesCount,
-            'upcoming_birthdays' => $upcomingBirthdays,
-            'birthdays_today' => [], // Fallback for older frontend
-            'profit_snapshot' => $profitSnap,
-            'month_profit_snapshot' => $monthProfitSnap,
-            'total_profit_snapshot' => $totalProfitSnap,
-            'recent_activities' => $recentActivities
-        ]);
-    }
 
     public function salesReport(Request $request)
     {

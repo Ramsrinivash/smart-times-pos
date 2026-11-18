@@ -440,6 +440,24 @@ const ServiceRepair = () => {
     setTimeout(() => { pw.print(); pw.close(); }, 350);
   };
 
+  const handlePrintDeliveryBill = () => {
+    // Print service delivery bill via isolated window so it is not hidden by .no-print
+    const invoiceEl = document.querySelector('.smarttimes-printable-invoice');
+    if (!invoiceEl) {
+      window.print();
+      return;
+    }
+    const styleSheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('');
+    const pw = window.open('', '_blank', 'width=900,height=700');
+    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice_${deliveryInvoice?.id || 'Service_Bill'}</title>${styleSheets}<style>
+      html, body { height: auto !important; min-height: auto !important; overflow: visible !important; margin: 0; padding: 0; background: #fff !important; color: #000 !important; }
+      @media print { html, body { height: auto !important; overflow: visible !important; } .no-print { display: none !important; } }
+    </style></head><body>${invoiceEl.outerHTML}</body></html>`);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => { pw.print(); pw.close(); }, 350);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
       <Header searchPlaceholder="Search service jobs..." />
@@ -1065,6 +1083,7 @@ const ServiceRepair = () => {
                 storeSettings={settings}
                 currentUser={user}
                 waUrl={deliveryWhatsAppUrl}
+                onPrint={handlePrintDeliveryBill}
                 onClose={() => { setDeliveryInvoice(null); setDeliveryWhatsAppUrl(null); }}
               />
             </div>

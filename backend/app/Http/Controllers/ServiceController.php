@@ -145,11 +145,12 @@ class ServiceController extends Controller
             $gstAmount = 0.00;
             $subtotal = $netAmount;
 
-            // If GST invoice is requested, calculate GST (18% standard service GST rate SAC 998729 / 9102)
+            // If GST invoice is requested, calculate GST (18% standard service GST rate SAC 998729)
+            // Note: Retail invoices are tax-inclusive where subtotal = netAmount, and gst_amount is extracted
             if ($isGst && $netAmount > 0) {
                 $taxableBase = round($netAmount / 1.18, 2);
                 $gstAmount = round($netAmount - $taxableBase, 2);
-                $subtotal = $taxableBase;
+                $subtotal = $netAmount;
             }
 
             $sale = Sale::create([
