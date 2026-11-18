@@ -25,6 +25,7 @@ class Setting extends Model
         'loyalty_redeem_rate',
         'loyalty_expiry_months',
         'job_card_terms',
+        'service_material_cost_percent',
         'two_factor_secret',
         'two_factor_enabled',
         'smtp_host',

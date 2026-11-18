@@ -22,15 +22,54 @@ class ReportController extends Controller
         $today = Carbon::now()->toDateString();
         $month = Carbon::now()->format('Y-m');
 
-        $todaySalesQuery = Sale::whereDate('invoice_date', $today)->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
-        $todaySalesCount = (int) $todaySalesQuery->count();
-        $todaySalesSum = (double) $todaySalesQuery->sum('net_amount');
+        $settings = \App\Models\Setting::first();
+        $materialCostPercent = (double) ($settings->service_material_cost_percent ?? 30.00);
 
-        $monthSalesQuery = Sale::where('invoice_date', 'like', "{$month}%")->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
+        // Fetch sales excluding returns
+        $salesBaseQuery = Sale::whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
+
+        // Identify service billing sales (where notes contain Service & Repair delivery charges or linked to service_jobs)
+        $serviceInvoicesTodayQuery = (clone $salesBaseQuery)
+            ->whereDate('invoice_date', $today)
+            ->where(function($q) {
+                $q->where('notes', 'like', '%Service%')
+                  ->orWhereIn('id', function($sq) {
+                      $sq->select('billing_invoice_id')->from('service_jobs')->whereNotNull('billing_invoice_id');
+                  });
+            });
+
+        $watchSalesTodayQuery = (clone $salesBaseQuery)
+            ->whereDate('invoice_date', $today)
+            ->where(function($q) {
+                $q->where('notes', 'not like', '%Service%')
+                  ->orWhereNull('notes');
+            })
+            ->whereNotIn('id', function($sq) {
+                $sq->select('billing_invoice_id')->from('service_jobs')->whereNotNull('billing_invoice_id');
+            });
+
+        // 1. Today Watch Sales Breakdown
+        $todayWatchSalesCount = (int) $watchSalesTodayQuery->count();
+        $todayWatchSalesSum = (double) $watchSalesTodayQuery->sum('net_amount');
+
+        // 2. Today Service & Repair Breakdown
+        $todayServiceSalesCount = (int) $serviceInvoicesTodayQuery->count();
+        $todayServiceSalesSum = (double) $serviceInvoicesTodayQuery->sum('net_amount');
+
+        // Service profit: Only (100% - materialCostPercent) is profit (e.g. 70% if 30% material)
+        $serviceProfitMarginFactor = max(0, (100.0 - $materialCostPercent) / 100.0);
+        $todayServiceProfit = round($todayServiceSalesSum * $serviceProfitMarginFactor, 2);
+
+        // 3. Combined Total Sales
+        $todaySalesCount = $todayWatchSalesCount + $todayServiceSalesCount;
+        $todaySalesSum = $todayWatchSalesSum + $todayServiceSalesSum;
+
+        // Month & Total Sales
+        $monthSalesQuery = (clone $salesBaseQuery)->where('invoice_date', 'like', "{$month}%");
         $monthSalesCount = (int) $monthSalesQuery->count();
         $monthSalesSum = (double) $monthSalesQuery->sum('net_amount');
 
-        $totalSalesQuery = Sale::whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');});
+        $totalSalesQuery = (clone $salesBaseQuery);
         $totalSalesCount = (int) $totalSalesQuery->count();
         $totalSalesSum = (double) $totalSalesQuery->sum('net_amount');
 
@@ -57,8 +96,12 @@ class ReportController extends Controller
         $profitSnap = null;
         $monthProfitSnap = null;
         $totalProfitSnap = null;
+        $todayWatchProfit = 0.0;
+        $monthWatchProfit = 0.0;
+        $monthServiceProfit = 0.0;
+
         if ($user->role === 'admin' || $user->role === 'manager') {
-            // Helper to calculate Option B True Audited GST Net Profit
+            // Helper to calculate Option B True Audited GST Net Profit for watches
             $calculateAuditedNetProfit = function($salesQuery) {
                 $sales = $salesQuery->with(['items.watch'])->get();
                 $totalNetProfit = 0.0;
@@ -87,19 +130,37 @@ class ReportController extends Controller
                 return round($totalNetProfit, 2);
             };
 
-            $profitSnap = $calculateAuditedNetProfit(
-                Sale::whereDate('invoice_date', $today)
-                    ->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
-            );
+            // Today watch profit
+            $todayWatchProfit = $calculateAuditedNetProfit($watchSalesTodayQuery);
 
-            $monthProfitSnap = $calculateAuditedNetProfit(
-                Sale::where('invoice_date', 'like', "{$month}%")
-                    ->whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
-            );
+            // Month service profit
+            $monthServiceSalesSum = (double) (clone $salesBaseQuery)
+                ->where('invoice_date', 'like', "{$month}%")
+                ->where(function($q) {
+                    $q->where('notes', 'like', '%Service%')
+                      ->orWhereIn('id', function($sq) {
+                          $sq->select('billing_invoice_id')->from('service_jobs')->whereNotNull('billing_invoice_id');
+                      });
+                })->sum('net_amount');
+            $monthServiceProfit = round($monthServiceSalesSum * $serviceProfitMarginFactor, 2);
 
-            $totalProfitSnap = $calculateAuditedNetProfit(
-                Sale::whereNotIn('id', function($q){$q->select('original_sale_id')->from('sales_returns');})
-            );
+            // Month watch profit
+            $monthWatchSalesQuery = (clone $salesBaseQuery)
+                ->where('invoice_date', 'like', "{$month}%")
+                ->where(function($q) {
+                    $q->where('notes', 'not like', '%Service%')
+                      ->orWhereNull('notes');
+                })
+                ->whereNotIn('id', function($sq) {
+                    $sq->select('billing_invoice_id')->from('service_jobs')->whereNotNull('billing_invoice_id');
+                });
+            $monthWatchProfit = $calculateAuditedNetProfit($monthWatchSalesQuery);
+
+            // Combined Today Profit: Watch profit + Service profit
+            $profitSnap = round($todayWatchProfit + $todayServiceProfit, 2);
+            $monthProfitSnap = round($monthWatchProfit + $monthServiceProfit, 2);
+
+            $totalProfitSnap = $calculateAuditedNetProfit(clone $salesBaseQuery);
         }
 
         // Outstanding customer dues
@@ -153,11 +214,34 @@ class ReportController extends Controller
         return response()->json([
             'today_sales_count' => $todaySalesCount,
             'today_sales_sum' => $todaySalesSum,
+            'today_watch_sales_count' => $todayWatchSalesCount,
+            'today_watch_sales_sum' => $todayWatchSalesSum,
+            'today_watch_profit' => $todayWatchProfit,
+            'today_service_sales_count' => $todayServiceSalesCount,
+            'today_service_sales_sum' => $todayServiceSalesSum,
+            'today_service_profit' => $todayServiceProfit,
+            'service_material_cost_percent' => $materialCostPercent,
             'month_sales_count' => $monthSalesCount,
             'month_sales_sum' => $monthSalesSum,
             'total_sales_count' => $totalSalesCount,
             'total_sales_sum' => $totalSalesSum,
             'low_stock_alerts' => $lowStockAlerts,
+            'jobs_due_today' => $jobsDueToday,
+            'jobs_overdue' => $jobsOverdue,
+            'jobs_ready' => $jobsReady,
+            'jobs_active' => $jobsActive,
+            'pending_supplier_payments_count' => $pendingPaymentsCount,
+            'pending_supplier_payments_sum' => $pendingPaymentsSum,
+            'outstanding_dues_total' => $outstandingDuesTotal,
+            'outstanding_dues_count' => $outstandingDuesCount,
+            'upcoming_birthdays' => $upcomingBirthdays,
+            'birthdays_today' => [], // Fallback for older frontend
+            'profit_snapshot' => $profitSnap,
+            'month_profit_snapshot' => $monthProfitSnap,
+            'total_profit_snapshot' => $totalProfitSnap,
+            'recent_activities' => $recentActivities
+        ]);
+    }
             'jobs_due_today' => $jobsDueToday,
             'jobs_overdue' => $jobsOverdue,
             'jobs_ready' => $jobsReady,
@@ -323,7 +407,28 @@ class ReportController extends Controller
 
         $sales = $query->latest()->get();
 
-        $sales->map(function ($s) {
+        $settings = \App\Models\Setting::first();
+        $materialCostPercent = (double) ($settings->service_material_cost_percent ?? 30.00);
+        $serviceProfitFactor = max(0, (100.0 - $materialCostPercent) / 100.0);
+
+        $sales->map(function ($s) use ($serviceProfitFactor, $materialCostPercent) {
+            $isService = (!empty($s->notes) && stripos($s->notes, 'Service') !== false) 
+                || \App\Models\ServiceJob::where('billing_invoice_id', $s->id)->exists();
+
+            if ($isService) {
+                // Service delivery profit calculation: (100% - materialCostPercent) is profit
+                $materialCost = round(((double) $s->net_amount) * ($materialCostPercent / 100.0), 2);
+                $serviceProfit = round(((double) $s->net_amount) * $serviceProfitFactor, 2);
+
+                $s->total_profit = $serviceProfit;
+                $s->total_cost = $materialCost;
+                $s->taxable_cost = $materialCost;
+                $s->output_gst = (double) ($s->gst_amount ?? 0.0);
+                $s->input_gst = 0.00;
+                $s->net_tax_payable = (double) ($s->gst_amount ?? 0.0);
+                return $s;
+            }
+
             $isGst = ($s->invoice_type === 'gst');
             $saleGst = $isGst ? (double) $s->gst_amount : 0.0;
             $taxableSalesRevenue = (double) $s->net_amount - $saleGst;

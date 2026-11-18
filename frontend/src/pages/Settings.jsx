@@ -39,6 +39,7 @@ const Settings = () => {
   // Tax and exchange
   const [exchangeDays, setExchangeDays] = useState(7);
   const [warrantyMonths, setWarrantyMonths] = useState(12);
+  const [serviceMaterialCostPercent, setServiceMaterialCostPercent] = useState(30);
 
   // Loyalty
   const [earnRate, setEarnRate] = useState(1);
@@ -143,6 +144,7 @@ const Settings = () => {
           setJcPrefix(s.job_card_prefix || 'JC');
           setExchangeDays(s.exchange_window_days || 7);
           setWarrantyMonths(s.warranty_period_months || 12);
+          setServiceMaterialCostPercent(s.service_material_cost_percent !== undefined && s.service_material_cost_percent !== null ? Number(s.service_material_cost_percent) : 30);
           setEarnRate(s.loyalty_earn_rate || 1);
           setRedeemRate(s.loyalty_redeem_rate || 1);
           setExpiryMonths(s.loyalty_expiry_months || 12);
@@ -256,6 +258,7 @@ const Settings = () => {
         loyalty_redeem_rate: Number(redeemRate),
         loyalty_expiry_months: Number(expiryMonths),
         job_card_terms: jobCardTerms,
+        service_material_cost_percent: Number(serviceMaterialCostPercent),
         default_gst_type: defaultGstType,
         smtp_host: smtpHost,
         smtp_port: smtpPort,
@@ -746,6 +749,22 @@ const Settings = () => {
                   <label className="form-label">Exchange Window (Days)</label>
                   <input type="number" className="form-control" min="0" value={exchangeDays} onChange={e => setExchangeDays(e.target.value)} />
                   <small style={{ color: 'var(--text-secondary)' }}>Exchange allowed within this many days of sale</small>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: 'var(--primary-gold)', fontWeight: 600 }}>Service Material Cost % (Deduction for Parts)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    min="0" 
+                    max="100" 
+                    step="0.1" 
+                    value={serviceMaterialCostPercent} 
+                    onChange={e => setServiceMaterialCostPercent(e.target.value)} 
+                    style={{ borderColor: 'var(--primary-gold)' }}
+                  />
+                  <small style={{ color: 'var(--text-secondary)' }}>
+                    e.g. 30% material cost leaves 70% as Service Profit on Dashboard
+                  </small>
                 </div>
               </div>
               <div className="form-group" style={{ margin: 0 }}>

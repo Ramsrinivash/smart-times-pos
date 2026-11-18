@@ -87,22 +87,64 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* KPIs Grid — Row 1 */}
+        {/* KPIs Grid — Row 1 (Sales & Profit Segregated) */}
         <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
 
-          {/* Today's Sales */}
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
+          {/* Card 1: Today's Watch Sales */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/sales')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <span className="card-title">Today's Sales</span>
-                <h2 className="card-value">₹{(stats?.today_sales_sum || 0).toLocaleString('en-IN')}</h2>
+                <span className="card-title">Today's Watch Sales</span>
+                <h2 className="card-value">₹{(stats?.today_watch_sales_sum ?? stats?.today_sales_sum ?? 0).toLocaleString('en-IN')}</h2>
               </div>
               <div style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
                 <TrendingUp size={24} />
               </div>
             </div>
             <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{stats?.today_sales_count || 0} invoice(s) generated today</span>
+              <span>{stats?.today_watch_sales_count ?? stats?.today_sales_count ?? 0} watch bill(s) today</span>
+              {(user?.role === 'admin' || user?.role === 'manager') && stats?.today_watch_profit !== undefined && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
+                  Profit: ₹{(stats.today_watch_profit || 0).toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Today's Service & Repair */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/services')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="card-title">Today's Service & Repair</span>
+                <h2 className="card-value" style={{ color: 'var(--info)' }}>₹{(stats?.today_service_sales_sum || 0).toLocaleString('en-IN')}</h2>
+              </div>
+              <div style={{ background: 'var(--info-bg)', color: 'var(--info)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
+                <Wrench size={24} />
+              </div>
+            </div>
+            <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{stats?.today_service_sales_count || 0} repair delivered</span>
+              {(user?.role === 'admin' || user?.role === 'manager') && stats?.today_service_profit !== undefined && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 600 }}>
+                  Profit: ₹{(stats.today_service_profit || 0).toLocaleString('en-IN')} ({100 - (stats?.service_material_cost_percent ?? 30)}%)
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Today's Total Sales (Combined) */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="card-title">Today's Total Sales</span>
+                <h2 className="card-value">₹{(stats?.today_sales_sum || 0).toLocaleString('en-IN')}</h2>
+              </div>
+              <div style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--primary-gold)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
+                <DollarSign size={24} />
+              </div>
+            </div>
+            <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{stats?.today_sales_count || 0} total invoices</span>
               {(stats?.month_sales_sum > 0 || stats?.total_sales_sum > 0) && (
                 <span style={{ fontSize: '0.78rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
                   This Month: ₹{(stats?.month_sales_sum || stats?.total_sales_sum || 0).toLocaleString('en-IN')}
@@ -122,14 +164,16 @@ const Dashboard = () => {
                   </h2>
                 </div>
                 <div style={{ background: 'var(--primary-gold-glow)', color: 'var(--primary-gold)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
-                  <DollarSign size={24} />
+                  <TrendingUp size={24} />
                 </div>
               </div>
-              <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Net revenue minus COGS today</span>
+              <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.75rem' }}>
+                  Watch: ₹{(stats?.today_watch_profit || 0).toLocaleString('en-IN')} • Service: ₹{(stats?.today_service_profit || 0).toLocaleString('en-IN')}
+                </span>
                 {(stats?.month_profit_snapshot !== undefined && stats?.month_profit_snapshot !== null) && (
                   <span style={{ fontSize: '0.78rem', color: 'var(--primary-gold)', fontWeight: 600 }}>
-                    Month Profit: ₹{(stats.month_profit_snapshot).toLocaleString('en-IN')}
+                    Month: ₹{(stats.month_profit_snapshot).toLocaleString('en-IN')}
                   </span>
                 )}
               </div>

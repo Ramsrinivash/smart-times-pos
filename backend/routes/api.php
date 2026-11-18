@@ -252,6 +252,17 @@ Route::get('/migrate-db', function() {
             }
         } catch (\Exception $e) {}
         
+        // Fix 8: Add service_material_cost_percent to settings
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'service_material_cost_percent')) {
+                    \Illuminate\Support\Facades\Schema::table('settings', function ($table) {
+                        $table->decimal('service_material_cost_percent', 5, 2)->default(30.00)->after('job_card_terms');
+                    });
+                }
+            }
+        } catch (\Exception $e) {}
+
         // Seed the migrations table so `artisan migrate` works in the future
         if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
             \Illuminate\Support\Facades\DB::table('migrations')->insertOrIgnore([

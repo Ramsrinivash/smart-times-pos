@@ -52,6 +52,7 @@ class SettingsController extends Controller
             'loyalty_redeem_rate' => 'nullable|integer',
             'loyalty_expiry_months' => 'nullable|integer',
             'job_card_terms' => 'nullable|string',
+            'service_material_cost_percent' => 'nullable|numeric|min:0|max:100',
             'two_factor_secret' => 'nullable|string',
             'two_factor_enabled' => 'nullable|boolean',
             'default_gst_type' => 'nullable|string|in:intra-state,inter-state,dynamic',
@@ -298,15 +299,20 @@ class SettingsController extends Controller
     }
 
     /**
-     * Ensure two_factor columns exist on live server even if artisan migrate was delayed.
+     * Ensure two_factor columns and service_material_cost_percent exist on live server.
      */
     private function ensureTwoFactorColumnsExist()
     {
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'service_material_cost_percent')) {
+                    \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->decimal('service_material_cost_percent', 5, 2)->default(30.00)->after('job_card_terms');
+                    });
+                }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'two_factor_secret')) {
                     \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
-                        $table->string('two_factor_secret')->nullable()->after('job_card_terms');
+                        $table->string('two_factor_secret')->nullable()->after('service_material_cost_percent');
                     });
                 }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'two_factor_enabled')) {
@@ -316,7 +322,7 @@ class SettingsController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            \Log::warning('Could not ensure 2FA columns on settings table: ' . $e->getMessage());
+            \Log::warning('Could not ensure settings columns: ' . $e->getMessage());
         }
     }
 }
