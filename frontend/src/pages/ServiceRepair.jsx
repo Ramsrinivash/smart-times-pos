@@ -26,19 +26,16 @@ const ServiceRepair = () => {
   const [deliveryInvoice, setDeliveryInvoice] = useState(null);
   const [deliveryWhatsAppUrl, setDeliveryWhatsAppUrl] = useState(null);
 
+  // Delivery checkout modal state (replaces multi-step SweetAlert)
+  const [deliveryModalJob, setDeliveryModalJob] = useState(null);
+  const [deliveryActualCost, setDeliveryActualCost] = useState('');
+  const [deliveryPaymentMode, setDeliveryPaymentMode] = useState('cash');
+  const [deliveryInvoiceType, setDeliveryInvoiceType] = useState('non-gst');
+  const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false);
+
   const handleOpenJobCardModal = (job, allJobsList = jobs) => {
-    const safeJobs = Array.isArray(allJobsList) ? allJobsList : [];
-    
-    // Extract date from created_at (YYYY-MM-DD format) for grouping
-    const jobDate = job.created_at ? job.created_at.split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0];
-    
-    // Find sister jobs for same customer on same received date to print together on 1 page
-    const sisterJobs = safeJobs.filter(j => {
-      const jDate = j.created_at ? j.created_at.split('T')[0].split(' ')[0] : null;
-      return (j.customer_id === job.customer_id || (j.customer && job.customer && j.customer.phone === job.customer.phone)) && jDate === jobDate;
-    });
-    
-    setSelectedJobsForCard(sisterJobs.length > 0 ? sisterJobs : [job]);
+    // Open exactly and only the selected Job Card to prevent confusing sister-job merging
+    setSelectedJobsForCard([job]);
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -256,7 +253,7 @@ const ServiceRepair = () => {
       const freshJobs = await api.getServiceJobs();
       setJobs(freshJobs);
       const matched = freshJobs.find(j => j.id === createdJobs[0].id);
-      handleOpenJobCardModal(matched || createdJobs[0], freshJobs);
+      handleOpenJobCardModal(matched || createdJobs[0]);
 
       // Reset form
       setCustName('');
@@ -284,130 +281,11 @@ const ServiceRepair = () => {
   const handleUpdateStatus = async (jobId, nextStatus) => {
     try {
       if (nextStatus === 'delivered') {
-        const { value: inputCost } = await Swal.fire({
-          title: 'Delivering Service',
-          text: 'Enter final service charges to collect from customer (₹):',
-          input: 'number',
-          inputLabel: 'Amount in ₹',
-          inputValue: '0',
-          showCancelButton: true,
-          confirmButtonText: 'Proceed',
-          cancelButtonText: 'Cancel',
-          background: 'var(--surface-color)',
-          color: 'var(--text-primary)',
-          confirmButtonColor: 'var(--primary-gold)',
-          cancelButtonColor: 'var(--border-color)',
-          buttonsStyling: false,
-          width: '360px',
-          customClass: {
-            popup: 'swal2-custom-popup',
-            title: 'swal2-custom-title',
-            htmlContainer: 'swal2-custom-html',
-            confirmButton: 'btn btn-primary swal-btn-margin',
-            cancelButton: 'btn btn-secondary swal-btn-margin',
-            input: 'form-control'
-          }
-        });
-        if (inputCost === undefined || inputCost === null) return;
-        const actualCost = Number(inputCost || 0);
-
-        const payModeChoice = await Swal.fire({
-          title: 'Payment Mode',
-          text: 'How was the payment received?',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'UPI / Card',
-          cancelButtonText: 'Cash',
-          background: 'var(--surface-color)',
-          color: 'var(--text-primary)',
-          confirmButtonColor: 'var(--primary-gold)',
-          cancelButtonColor: 'var(--border-color)',
-          buttonsStyling: false,
-          width: '360px',
-          customClass: {
-            popup: 'swal2-custom-popup',
-            title: 'swal2-custom-title',
-            htmlContainer: 'swal2-custom-html',
-            confirmButton: 'btn btn-primary swal-btn-margin',
-            cancelButton: 'btn btn-secondary swal-btn-margin'
-          }
-        });
-        const payMode = payModeChoice.isConfirmed ? 'upi' : 'cash';
-
-        // Fix #11: Ask invoice type — GST or non-GST
-        const invoiceTypeChoice = await Swal.fire({
-          title: 'Invoice Type',
-          text: 'Does this customer require a GST invoice?',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'GST Invoice',
-          cancelButtonText: 'Non-GST / Plain Bill',
-          background: 'var(--surface-color)',
-          color: 'var(--text-primary)',
-          confirmButtonColor: 'var(--primary-gold)',
-          cancelButtonColor: 'var(--border-color)',
-          buttonsStyling: false,
-          width: '380px',
-          customClass: {
-            popup: 'swal2-custom-popup',
-            title: 'swal2-custom-title',
-            htmlContainer: 'swal2-custom-html',
-            confirmButton: 'btn btn-primary swal-btn-margin',
-            cancelButton: 'btn btn-secondary swal-btn-margin'
-          }
-        });
-        const invoiceType = invoiceTypeChoice.isConfirmed ? 'gst' : 'non-gst';
-
-        const result = await api.addServiceBill(jobId, actualCost, payMode, invoiceType);
-        const invoiceId = result.id || (result.sale ? result.sale.id : result);
-        
-        // Fetch full sale detail for printing and preview
-        let fullSale = null;
-        try {
-          fullSale = await api.getSale(invoiceId);
-        } catch (fetchErr) {
-          fullSale = result.sale || null;
-        }
-
-        // Generate WhatsApp link for the service bill
-        const targetJob = jobs.find(j => j.id === jobId);
-        const custObj = fullSale?.customer || targetJob?.customer || {};
-        const rawCustPhone = (custObj.phone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
-        const phoneFormatted = rawCustPhone.length === 10 ? `91${rawCustPhone}` : rawCustPhone;
-        const watchName = targetJob?.watch_id 
-          ? `${targetJob.watch?.brand || ''} ${targetJob.watch?.model || ''}`.trim()
-          : `${targetJob?.watch_details?.brand || ''} ${targetJob?.watch_details?.model || ''}`.trim();
-
-        const billWaText = `Dear ${custObj.name || 'Valued Customer'}, thank you for choosing *${settings?.store_name || 'Smart Times'}* for your watch service!\n\n📄 *Service Invoice: ${invoiceId}*\n• Job Card: *${jobId}*\n• Watch: ${watchName || 'Watch Service'}\n• Service Issue: "${targetJob?.issue_reported || 'Repair'}"\n\n💰 *Total Paid: ₹${actualCost.toLocaleString('en-IN')}*\nPayment Mode: ${payMode.toUpperCase()} (${invoiceType.toUpperCase()})\nWarranty: 6 Months Service Warranty\n\n🙏 Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
-
-        const billWaUrl = phoneFormatted.length >= 10 
-          ? `https://wa.me/${phoneFormatted}?text=${encodeURIComponent(billWaText)}` 
-          : null;
-
-        setDeliveryWhatsAppUrl(billWaUrl);
-        setDeliveryInvoice(fullSale || {
-          id: invoiceId,
-          invoice_type: invoiceType,
-          invoice_date: new Date().toISOString().split('T')[0],
-          customer: custObj,
-          user: user,
-          subtotal: actualCost,
-          net_amount: actualCost,
-          payment_mode: payMode,
-          items: [{
-            watch_id: targetJob?.watch_id || `SERVICE-${jobId}`,
-            watch: {
-              brand: targetJob?.watch_id ? (targetJob.watch?.brand || 'Watch') : (targetJob?.watch_details?.brand || 'Service'),
-              model: targetJob?.watch_id ? (targetJob.watch?.model || 'Service') : (targetJob?.watch_details?.model || 'Repair Charges'),
-              hsn_code: '998729'
-            },
-            price_sold: actualCost,
-            gst_rate: invoiceType === 'gst' ? 18 : 0,
-            gst_amount: invoiceType === 'gst' ? Math.round((actualCost - (actualCost / 1.18)) * 100) / 100 : 0
-          }]
-        });
-
-        loadData();
+        const target = jobs.find(j => j.id === jobId);
+        setDeliveryModalJob(target || { id: jobId });
+        setDeliveryActualCost(target?.estimated_cost ? String(target.estimated_cost) : '');
+        setDeliveryPaymentMode('cash');
+        setDeliveryInvoiceType('non-gst');
         return;
       }
 
@@ -419,6 +297,75 @@ const ServiceRepair = () => {
       setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: nextStatus } : j));
     } catch (err) {
       alertService.error('Update Failed', err.message || 'Failed to update job status.');
+    }
+  };
+
+  const handleConfirmDelivery = async (e) => {
+    e.preventDefault();
+    if (!deliveryModalJob) return;
+
+    const actualCost = Number(deliveryActualCost || 0);
+    const payMode = deliveryPaymentMode || 'cash';
+    const invoiceType = deliveryInvoiceType || 'non-gst';
+    const jobId = deliveryModalJob.id;
+
+    setIsSubmittingDelivery(true);
+    try {
+      const result = await api.addServiceBill(jobId, actualCost, payMode, invoiceType);
+      const invoiceId = result.id || (result.sale ? result.sale.id : result);
+      
+      // Fetch full sale detail for printing and preview
+      let fullSale = null;
+      try {
+        fullSale = await api.getSale(invoiceId);
+      } catch (fetchErr) {
+        fullSale = result.sale || null;
+      }
+
+      // Generate WhatsApp link for the service bill
+      const targetJob = jobs.find(j => j.id === jobId) || deliveryModalJob;
+      const custObj = fullSale?.customer || targetJob?.customer || {};
+      const rawCustPhone = (custObj.phone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+      const phoneFormatted = rawCustPhone.length === 10 ? `91${rawCustPhone}` : rawCustPhone;
+      const watchName = targetJob?.watch_id 
+        ? `${targetJob.watch?.brand || ''} ${targetJob.watch?.model || ''}`.trim()
+        : `${targetJob?.watch_details?.brand || ''} ${targetJob?.watch_details?.model || ''}`.trim();
+
+      const billWaText = `Dear ${custObj.name || 'Valued Customer'}, thank you for choosing *${settings?.store_name || 'Smart Times'}* for your watch service!\n\n📄 *Service Invoice: ${invoiceId}*\n• Job Card: *${jobId}*\n• Watch: ${watchName || 'Watch Service'}\n• Service Issue: "${targetJob?.issue_reported || 'Repair'}"\n\n💰 *Total Paid: ₹${actualCost.toLocaleString('en-IN')}*\nPayment Mode: ${payMode.toUpperCase()} (${invoiceType.toUpperCase()})\nWarranty: 6 Months Service Warranty\n\n🙏 Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
+
+      const billWaUrl = phoneFormatted.length >= 10 
+        ? `https://wa.me/${phoneFormatted}?text=${encodeURIComponent(billWaText)}` 
+        : null;
+
+      setDeliveryWhatsAppUrl(billWaUrl);
+      setDeliveryInvoice(fullSale || {
+        id: invoiceId,
+        invoice_type: invoiceType,
+        invoice_date: new Date().toISOString().split('T')[0],
+        customer: custObj,
+        user: user,
+        subtotal: actualCost,
+        net_amount: actualCost,
+        payment_mode: payMode,
+        items: [{
+          watch_id: targetJob?.watch_id || `SERVICE-${jobId}`,
+          watch: {
+            brand: targetJob?.watch_id ? (targetJob.watch?.brand || 'Watch') : (targetJob?.watch_details?.brand || 'Service'),
+            model: targetJob?.watch_id ? (targetJob.watch?.model || 'Service') : (targetJob?.watch_details?.model || 'Repair Charges'),
+            hsn_code: '998729'
+          },
+          price_sold: actualCost,
+          gst_rate: invoiceType === 'gst' ? 18 : 0,
+          gst_amount: invoiceType === 'gst' ? Math.round((actualCost - (actualCost / 1.18)) * 100) / 100 : 0
+        }]
+      });
+
+      setDeliveryModalJob(null);
+      loadData();
+    } catch (err) {
+      alertService.error('Delivery Failed', err.message || 'Failed to complete service delivery.');
+    } finally {
+      setIsSubmittingDelivery(false);
     }
   };
 
@@ -1070,6 +1017,131 @@ const ServiceRepair = () => {
                   Confirm & Create Job Card
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Service Delivery & Billing Modal (Clean alignment & Explicit Fields) */}
+        {deliveryModalJob && (
+          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem', zIndex: 1100 }}>
+            <div style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', maxWidth: '440px', width: '100%', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', padding: '1.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle size={20} color="var(--primary-gold)" /> Deliver & Bill Service
+                </h3>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary-gold)', fontSize: '0.9rem' }}>
+                  {deliveryModalJob.id}
+                </span>
+              </div>
+
+              {/* Service Job Summary */}
+              <div style={{ background: 'var(--surface-card)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Customer:</span>
+                  <strong>{deliveryModalJob.customer?.name} ({deliveryModalJob.customer?.phone})</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Watch:</span>
+                  <span>{deliveryModalJob.watch_id ? `${deliveryModalJob.watch?.brand || ''} ${deliveryModalJob.watch?.model || ''}` : `${deliveryModalJob.watch_details?.brand || ''} ${deliveryModalJob.watch_details?.model || ''}`}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Issue:</span>
+                  <span>"{deliveryModalJob.issue_reported}"</span>
+                </div>
+                {deliveryModalJob.estimated_cost && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.35rem', marginTop: '0.2rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Initial Estimate:</span>
+                    <strong style={{ color: 'var(--primary-gold)' }}>₹{Number(deliveryModalJob.estimated_cost).toLocaleString('en-IN')}</strong>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleConfirmDelivery} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Final Service Charges Input */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Amount to Collect from Customer (₹) *</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control"
+                    placeholder="Enter amount in ₹"
+                    value={deliveryActualCost}
+                    onChange={e => setDeliveryActualCost(e.target.value)}
+                    required
+                    autoFocus
+                    style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--primary-gold)' }}
+                  />
+                </div>
+
+                {/* Payment Mode Selection */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Payment Mode *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                    {[
+                      { id: 'cash', label: 'Cash' },
+                      { id: 'upi', label: 'UPI' },
+                      { id: 'card', label: 'Card' }
+                    ].map(mode => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setDeliveryPaymentMode(mode.id)}
+                        className={`btn ${deliveryPaymentMode === mode.id ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Invoice Type Selection */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Invoice Type *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryInvoiceType('non-gst')}
+                      className={`btn ${deliveryInvoiceType === 'non-gst' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      Non-GST / Plain Bill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryInvoiceType('gst')}
+                      className={`btn ${deliveryInvoiceType === 'gst' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      GST Invoice (18%)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryModalJob(null)}
+                    disabled={isSubmittingDelivery}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, padding: '0.65rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDelivery}
+                    className="btn btn-primary"
+                    style={{ flex: 1.5, padding: '0.65rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                  >
+                    {isSubmittingDelivery ? 'Processing...' : 'Confirm & Bill'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
