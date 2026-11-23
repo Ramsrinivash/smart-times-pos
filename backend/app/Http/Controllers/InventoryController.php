@@ -117,6 +117,12 @@ class InventoryController extends Controller
     {
         $watch = Watch::findOrFail($id);
 
+        if ($watch->status === 'sold') {
+            return response()->json([
+                'message' => 'This watch piece has already been sold and its historical price/GST records are locked.'
+            ], 422);
+        }
+
         $request->validate([
             'brand' => 'sometimes|required|string',
             'model' => 'sometimes|required|string',
@@ -178,7 +184,18 @@ class InventoryController extends Controller
         ]);
 
         $watchIds = $request->watch_ids;
-        $watches = Watch::whereIn('id', $watchIds)->get();
+        // CRITICAL BUSINESS RULE: Only modify watches that are in stock / available.
+        // Never overwrite financial & pricing history of already sold watches!
+        $watches = Watch::whereIn('id', $watchIds)
+            ->where('status', '!=', 'sold')
+            ->get();
+
+        if ($watches->isEmpty()) {
+            return response()->json([
+                'message' => 'No in-stock watches available to update. Sold pieces cannot be modified.',
+                'updated_count' => 0
+            ]);
+        }
 
         $affectedPurchaseIds = [];
         foreach ($watches as $w) {
@@ -188,7 +205,7 @@ class InventoryController extends Controller
             }
         }
 
-        // Recalculate total_amount for any affected purchase bills
+        // Recalculate total_amount for any affected purchase bills based on active pieces
         if ($request->has('cost_price') && !empty($affectedPurchaseIds)) {
             foreach ($affectedPurchaseIds as $pId) {
                 $purchase = \App\Models\Purchase::find($pId);
@@ -200,8 +217,8 @@ class InventoryController extends Controller
         }
 
         return response()->json([
-            'message' => 'All watches in group updated successfully',
-            'updated_count' => count($watches)
+            'message' => "Successfully updated {$watches->count()} in-stock watch piece(s). Sold pieces were preserved.",
+            'updated_count' => $watches->count()
         ]);
     }
 }

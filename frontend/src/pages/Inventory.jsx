@@ -157,6 +157,14 @@ const Inventory = () => {
     e.preventDefault();
     if (!editingGroup || !editingGroup.pieces || editingGroup.pieces.length === 0) return;
 
+    // Filter to only in-stock / available watches (never alter sold watch history)
+    const availablePieces = editingGroup.pieces.filter(p => p.status !== 'sold');
+
+    if (availablePieces.length === 0) {
+      alertService.warning('No Stock Available', 'All pieces of this model have already been sold. Sold watch records cannot be edited.');
+      return;
+    }
+
     if (!editFormData.brand.trim() || !editFormData.model.trim()) {
       alertService.error('Required', 'Brand and Model are required.');
       return;
@@ -177,7 +185,7 @@ const Inventory = () => {
 
     setSavingEdit(true);
     try {
-      const watchIds = editingGroup.pieces.map(p => p.id);
+      const watchIds = availablePieces.map(p => p.id);
       const payload = {
         watch_ids: watchIds,
         brand: editFormData.brand.trim(),
@@ -194,8 +202,10 @@ const Inventory = () => {
         hsn_code: editFormData.hsn_code || '9102'
       };
 
-      await api.updateWatchGroup(payload);
-      alertService.success('Inventory Updated', `Updated details for ${payload.brand} ${payload.model} (${watchIds.length} watches).`);
+      const res = await api.updateWatchGroup(payload);
+      const soldCount = editingGroup.pieces.length - availablePieces.length;
+      const note = soldCount > 0 ? ` (${soldCount} sold piece${soldCount > 1 ? 's were' : ' was'} safely preserved)` : '';
+      alertService.success('Inventory Updated', `${res.message || `Updated ${availablePieces.length} in-stock watch(es)`}${note}`);
       setEditingGroup(null);
       await fetchInventory();
     } catch (err) {
@@ -727,10 +737,16 @@ const Inventory = () => {
               }}>
                 <div>
                   <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Edit size={18} color="var(--primary-gold)" /> Edit Model Details (Common for All Pieces)
+                    <Edit size={18} color="var(--primary-gold)" /> Edit Model Details (In-Stock Pieces)
                   </h3>
                   <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    Model: <strong style={{ color: 'var(--primary-gold)' }}>{editingGroup.brand} {editingGroup.model}</strong> • Applies to <strong>{editingGroup.pieces?.length || 0} pieces</strong>
+                    Model: <strong style={{ color: 'var(--primary-gold)' }}>{editingGroup.brand} {editingGroup.model}</strong> • 
+                    Applies only to <strong>{editingGroup.pieces?.filter(p => p.status !== 'sold').length || 0} in-stock pieces</strong>
+                    {editingGroup.pieces?.some(p => p.status === 'sold') && (
+                      <span style={{ color: '#10b981', marginLeft: '0.35rem' }}>
+                        ({editingGroup.pieces.filter(p => p.status === 'sold').length} sold piece{editingGroup.pieces.filter(p => p.status === 'sold').length > 1 ? 's' : ''} protected)
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
@@ -920,7 +936,7 @@ const Inventory = () => {
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                   >
                     <Save size={16} />
-                    {savingEdit ? 'Saving Changes...' : `Update All ${editingGroup.pieces?.length || 0} Pieces`}
+                    {savingEdit ? 'Saving Changes...' : `Update ${editingGroup.pieces?.filter(p => p.status !== 'sold').length || 0} In-Stock Pieces`}
                   </button>
                 </div>
               </form>
