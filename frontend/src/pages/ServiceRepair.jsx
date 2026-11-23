@@ -327,9 +327,13 @@ const ServiceRepair = () => {
       const custObj = fullSale?.customer || targetJob?.customer || {};
       const rawCustPhone = (custObj.phone || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
       const phoneFormatted = rawCustPhone.length === 10 ? `91${rawCustPhone}` : rawCustPhone;
-      const watchName = targetJob?.watch_id 
-        ? `${targetJob.watch?.brand || ''} ${targetJob.watch?.model || ''}`.trim()
-        : `${targetJob?.watch_details?.brand || ''} ${targetJob?.watch_details?.model || ''}`.trim();
+      const watchBrand = targetJob?.watch_id 
+        ? (targetJob.watch?.brand || 'Watch') 
+        : (targetJob?.watch_details?.brand || 'Watch Service');
+      const watchModel = targetJob?.watch_id 
+        ? (targetJob.watch?.model || '') 
+        : (targetJob?.watch_details?.model || '');
+      const watchName = `${watchBrand} ${watchModel}`.trim();
 
       const billWaText = `Dear ${custObj.name || 'Valued Customer'}, thank you for choosing *${settings?.store_name || 'Smart Times'}* for your watch service!\n\n📄 *Service Invoice: ${invoiceId}*\n• Job Card: *${jobId}*\n• Watch: ${watchName || 'Watch Service'}\n• Service Issue: "${targetJob?.issue_reported || 'Repair'}"\n\n💰 *Total Paid: ₹${actualCost.toLocaleString('en-IN')}*\nPayment Mode: ${payMode.toUpperCase()} (${invoiceType.toUpperCase()})\nWarranty: 6 Months Service Warranty\n\n🙏 Visit us again!\n– ${settings?.store_name || 'Smart Times'}, ${settings?.phone || ''}`;
 
@@ -350,9 +354,9 @@ const ServiceRepair = () => {
         items: [{
           watch_id: targetJob?.watch_id || `SERVICE-${jobId}`,
           watch: {
-            brand: targetJob?.watch_id ? (targetJob.watch?.brand || 'Watch') : (targetJob?.watch_details?.brand || 'Service'),
-            model: targetJob?.watch_id ? (targetJob.watch?.model || 'Service') : (targetJob?.watch_details?.model || 'Repair Charges'),
-            hsn_code: '998729'
+            brand: watchBrand,
+            model: watchModel,
+            hsn_code: invoiceType === 'gst' ? '998729' : null
           },
           price_sold: actualCost,
           gst_rate: invoiceType === 'gst' ? 18 : 0,

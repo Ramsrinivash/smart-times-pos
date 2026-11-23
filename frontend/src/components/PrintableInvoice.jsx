@@ -185,13 +185,13 @@ const PrintableInvoice = ({
           {/* Invoice info (right side) */}
           <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
             <div style={{ fontWeight: 800, fontSize: fs.lg, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {t.invoiceTitle}
+              {invoice.invoice_type === 'non-gst' ? 'RETAIL INVOICE' : t.invoiceTitle}
             </div>
             <div style={{ fontWeight: 700, marginTop: '3px', fontSize: fs.base }}>
               Invoice No: <span style={{ fontFamily: 'monospace' }}>{invoice.id}</span>
             </div>
             <div style={{ fontSize: fs.sm, color: '#444' }}>Date: {invoice.invoice_date}</div>
-            {invoice.invoice_type === 'gst' && (
+            {invoice.invoice_type === 'gst' ? (
               <div style={{ marginTop: '4px' }}>
                 <span style={{
                   display: 'inline-block',
@@ -204,6 +204,21 @@ const PrintableInvoice = ({
                   border: '1px solid #a7f3d0',
                 }}>
                   GST Invoice
+                </span>
+              </div>
+            ) : (
+              <div style={{ marginTop: '4px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '1px 6px',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  borderRadius: '3px',
+                  fontSize: fs.sm,
+                  fontWeight: 700,
+                  border: '1px solid #e5e7eb',
+                }}>
+                  Retail Bill (Non-GST)
                 </span>
               </div>
             )}
@@ -291,7 +306,7 @@ const PrintableInvoice = ({
                 )}
                 <td style={{ padding: cellPad, wordBreak: 'break-word', fontSize: fs.sm }}>
                   {item.watch?.brand} {item.watch?.model}
-                  {t.showHsnCode && item.watch?.hsn_code && (
+                  {invoice.invoice_type === 'gst' && t.showHsnCode && item.watch?.hsn_code && (
                     <span style={{ color: '#888', fontSize: fs.sm }}> (HSN: {item.watch.hsn_code})</span>
                   )}
                 </td>

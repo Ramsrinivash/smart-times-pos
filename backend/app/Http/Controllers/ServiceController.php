@@ -184,12 +184,15 @@ class ServiceController extends Controller
                     ]
                 );
 
+                $brandName = !empty($job->watch_details['brand']) ? $job->watch_details['brand'] : 'Watch Service';
+                $modelName = !empty($job->watch_details['model']) ? $job->watch_details['model'] : ('Repair (JC: ' . $job->id . ')');
+
                 \App\Models\Watch::firstOrCreate(
                     ['id' => $watchId],
                     [
                         'purchase_id' => $servicePurchase->id,
-                        'brand' => $job->watch_details['brand'] ?? 'Service Repair',
-                        'model' => ($job->watch_details['model'] ?? 'Job Card ' . $job->id),
+                        'brand' => $brandName,
+                        'model' => $modelName,
                         'category' => 'Service',
                         'gender' => $job->watch_details['gender'] ?? 'Unisex',
                         'movement_type' => 'Service',
@@ -199,7 +202,7 @@ class ServiceController extends Controller
                         'selling_price' => $netAmount,
                         'gst_rate' => $isGst ? 18.00 : 0.00,
                         'status' => 'delivered',
-                        'hsn_code' => '998729'
+                        'hsn_code' => $isGst ? '998729' : null
                     ]
                 );
             }
