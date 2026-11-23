@@ -11,20 +11,15 @@ const getHeaders = () => {
   };
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-// Enabled local mock mode if explicitly set, or default to true on local if server is offline
-const USE_MOCK_ONLY = import.meta.env.VITE_USE_MOCK === 'true' || import.meta.env.VITE_USE_MOCK === true;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.smarttimes.in/api';
+// NEVER fallback to mock data on production - only real API
+const USE_MOCK_ONLY = false;
 
 /**
- * Smart Times POS — Resilient Online & Local Fail-Safe API Engine
- * Runs completely locally with in-browser mock database when VITE_USE_MOCK is true or
- * when the online/local server is unreachable.
+ * Smart Times POS — Real API Client
+ * Always connects to the real cloud database.
  */
 const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
-  if (USE_MOCK_ONLY && mockFallbackFn) {
-    return Promise.resolve(mockFallbackFn());
-  }
-
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = getHeaders();
@@ -53,19 +48,13 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
       throw err;
     }
 
-    // Fall back to local mock database if available
-    if (mockFallbackFn) {
-      console.warn(`[Local Fallback] Server unreachable (${err.message}) for ${endpoint}. Running local database.`);
-      return Promise.resolve(mockFallbackFn());
-    }
-
     const isNetworkError = err.message === 'Failed to fetch' || err.message.includes('NetworkError');
     const isServerError = err.message.includes('API error 5');
 
     if (isNetworkError) {
-      alertService.error('Connection Lost', 'Unable to connect to the server. Running in local mode.');
+      alertService.error('Connection Lost', 'Unable to connect to the cloud database server. Please check your internet.');
     } else if (isServerError || err.message.includes('Maintenance')) {
-      alertService.warning('Server Maintenance', 'The server is currently under maintenance. Please try again later.');
+      alertService.warning('Server Notice', 'Server temporarily unavailable. Please retry in a moment.');
     } else if (err.message.includes('API error 404')) {
       alertService.warning('Not Found', 'The requested resource was not found on the server.');
     } else {
