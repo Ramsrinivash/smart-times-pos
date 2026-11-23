@@ -37,8 +37,14 @@ const requestWithFallback = async (endpoint, options = {}, mockFallbackFn) => {
     }
 
     if (res.status === 401) {
-      const errData = await res.json().catch(() => ({ message: 'Unauthenticated session.' }));
-      throw new Error(errData.message || 'SESSION_EXPIRED');
+      // Clear expired local token and redirect to login gracefully
+      localStorage.removeItem('watch_auth_token');
+      localStorage.removeItem('watch_auth_user');
+      alertService.warning('Session Expired', 'Your session has expired. Please log in again to continue.');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
+      throw new Error('SESSION_EXPIRED');
     }
 
     const errData = await res.json().catch(() => ({ message: 'Server request failed.' }));
