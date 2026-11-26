@@ -13,6 +13,7 @@ const defaultDB = {
     loyalty_earn_rate: 1,   // 1 point per ₹100
     loyalty_redeem_rate: 1, // 1 point = ₹1
     loyalty_expiry_months: 12,
+    max_redeem_points_per_bill: 0, // 0 = no limit, can use all
     warranty_period_months: 12,
     gst_invoice_prefix: 'ST-GST',
     nongst_invoice_prefix: 'ST-RETL',

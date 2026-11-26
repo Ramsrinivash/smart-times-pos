@@ -51,6 +51,7 @@ class SettingsController extends Controller
             'loyalty_earn_rate' => 'nullable|integer',
             'loyalty_redeem_rate' => 'nullable|integer',
             'loyalty_expiry_months' => 'nullable|integer',
+            'max_redeem_points_per_bill' => 'nullable|integer|min:0',
             'job_card_terms' => 'nullable|string',
             'service_material_cost_percent' => 'nullable|numeric|min:0|max:100',
             'two_factor_secret' => 'nullable|string',
@@ -308,6 +309,11 @@ class SettingsController extends Controller
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'service_material_cost_percent')) {
                     \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
                         $table->decimal('service_material_cost_percent', 5, 2)->default(30.00)->after('job_card_terms');
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'max_redeem_points_per_bill')) {
+                    \Illuminate\Support\Facades\Schema::table('settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->integer('max_redeem_points_per_bill')->default(0)->after('loyalty_expiry_months');
                     });
                 }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('settings', 'two_factor_secret')) {

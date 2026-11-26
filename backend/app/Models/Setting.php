@@ -24,6 +24,7 @@ class Setting extends Model
         'loyalty_earn_rate',
         'loyalty_redeem_rate',
         'loyalty_expiry_months',
+        'max_redeem_points_per_bill',
         'job_card_terms',
         'service_material_cost_percent',
         'two_factor_secret',

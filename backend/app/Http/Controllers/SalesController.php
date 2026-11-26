@@ -110,6 +110,15 @@ class SalesController extends Controller
                 if ($customer->points_balance < $pointsRedeemed) {
                     return response()->json(['message' => 'Insufficient reward points.'], 422);
                 }
+
+                // Check dynamic max redeemable points limit from Settings (0 = no limit)
+                $maxRedeemLimit = (int) ($settings->max_redeem_points_per_bill ?? 0);
+                if ($maxRedeemLimit > 0 && $pointsRedeemed > $maxRedeemLimit) {
+                    return response()->json([
+                        'message' => "Maximum allowed loyalty points redemption per bill is {$maxRedeemLimit} points."
+                    ], 422);
+                }
+
                 $pointsValue = (double) $pointsRedeemed; // Configurable redemption rate (1 point = Rs 1)
                 $totalDiscount += $pointsValue;
             }

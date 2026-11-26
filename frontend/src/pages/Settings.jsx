@@ -45,6 +45,7 @@ const Settings = () => {
   const [earnRate, setEarnRate] = useState(1);
   const [redeemRate, setRedeemRate] = useState(1);
   const [expiryMonths, setExpiryMonths] = useState(12);
+  const [maxRedeemPointsPerBill, setMaxRedeemPointsPerBill] = useState(0);
 
   // Job card terms
   const [jobCardTerms, setJobCardTerms] = useState('');
@@ -148,6 +149,7 @@ const Settings = () => {
           setEarnRate(s.loyalty_earn_rate || 1);
           setRedeemRate(s.loyalty_redeem_rate || 1);
           setExpiryMonths(s.loyalty_expiry_months || 12);
+          setMaxRedeemPointsPerBill(s.max_redeem_points_per_bill || 0);
           setJobCardTerms(s.job_card_terms || '');
           setDefaultGstType(s.default_gst_type || 'dynamic');
           setSmtpHost(s.smtp_host || '');
@@ -257,6 +259,7 @@ const Settings = () => {
         loyalty_earn_rate: Number(earnRate),
         loyalty_redeem_rate: Number(redeemRate),
         loyalty_expiry_months: Number(expiryMonths),
+        max_redeem_points_per_bill: Number(maxRedeemPointsPerBill || 0),
         job_card_terms: jobCardTerms,
         service_material_cost_percent: Number(serviceMaterialCostPercent),
         default_gst_type: defaultGstType,
@@ -848,10 +851,25 @@ const Settings = () => {
                   <small style={{ color: 'var(--text-secondary)' }}>₹ value per point (e.g. 1 = ₹1 per point)</small>
                 </div>
               </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Points Expiry Period (Months)</label>
-                <input type="number" className="form-control" min="0" value={expiryMonths} onChange={e => setExpiryMonths(e.target.value)} />
-                <small style={{ color: 'var(--text-secondary)' }}>0 = no expiry. Points earned expire after these many months if not redeemed.</small>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Points Expiry Period (Months)</label>
+                  <input type="number" className="form-control" min="0" value={expiryMonths} onChange={e => setExpiryMonths(e.target.value)} />
+                  <small style={{ color: 'var(--text-secondary)' }}>0 = no expiry. Points expire after these months.</small>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: 'var(--primary-gold)' }}>Max Redeemable Points Per Bill</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    min="0" 
+                    value={maxRedeemPointsPerBill} 
+                    onChange={e => setMaxRedeemPointsPerBill(e.target.value)} 
+                    placeholder="e.g. 500"
+                    style={{ borderColor: 'var(--primary-gold)' }}
+                  />
+                  <small style={{ color: 'var(--text-secondary)' }}>Maximum points a customer can redeem per purchase (0 = no limit, can use all).</small>
+                </div>
               </div>
             </div>
           )}

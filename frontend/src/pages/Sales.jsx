@@ -194,8 +194,12 @@ const Sales = () => {
   const billDiscPct = Number(billDiscountPercent || 0);
   const computedBillDisc = billDiscPct > 0 ? (afterItemDisc * billDiscPct / 100) : billDiscFlat;
   
-  // Redeem points value
-  const pointsToRedeem = Math.min(Number(redeemPoints || 0), loyaltyPoints || 0);
+  // Redeem points value with dynamic setting limit
+  const settingMaxPoints = Number(settings?.max_redeem_points_per_bill || 0);
+  const effectiveMaxPoints = settingMaxPoints > 0 
+    ? Math.min(loyaltyPoints || 0, settingMaxPoints) 
+    : (loyaltyPoints || 0);
+  const pointsToRedeem = Math.min(Number(redeemPoints || 0), effectiveMaxPoints);
   const pointsVal = pointsToRedeem; // 1 point = Rs 1
   
   const totalDiscount = totalItemDiscounts + computedBillDisc + pointsVal;
@@ -601,10 +605,10 @@ const Sales = () => {
                       <button 
                         type="button" 
                         className="btn btn-secondary btn-sm"
-                        onClick={() => setRedeemPoints(String(loyaltyPoints))}
+                        onClick={() => setRedeemPoints(String(effectiveMaxPoints))}
                         style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
                       >
-                        Redeem {loyaltyPoints} pts
+                        Redeem {effectiveMaxPoints} pts
                       </button>
                     )}
                     <span className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
@@ -643,9 +647,9 @@ const Sales = () => {
                         type="button"
                         className="btn btn-secondary btn-sm"
                         style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}
-                        onClick={() => setRedeemPoints(String(loyaltyPoints))}
+                        onClick={() => setRedeemPoints(String(effectiveMaxPoints))}
                       >
-                        Use Max ({loyaltyPoints} pts)
+                        Use Max ({effectiveMaxPoints} pts)
                       </button>
                       {Number(redeemPoints || 0) > 0 && (
                         <button 
@@ -667,11 +671,16 @@ const Sales = () => {
                     placeholder="0" 
                     value={redeemPoints}
                     onChange={(e) => setRedeemPoints(cleanNumberInput(e.target.value))}
-                    max={loyaltyPoints || 0}
+                    max={effectiveMaxPoints || 0}
                   />
                 </div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  1 Point = ₹1.00 Discount. Max redeemable: {loyaltyPoints} pts.
+                  1 Point = ₹1.00 Discount. Max redeemable this bill: <strong>{effectiveMaxPoints} pts</strong>
+                  {settingMaxPoints > 0 && loyaltyPoints > settingMaxPoints && (
+                    <span style={{ color: 'var(--primary-gold)', marginLeft: '0.35rem' }}>
+                      (Policy limit: {settingMaxPoints} pts/bill; total balance: {loyaltyPoints} pts)
+                    </span>
+                  )}
                 </span>
               </div>
 
