@@ -1027,8 +1027,8 @@ const ServiceRepair = () => {
 
         {/* Dedicated Service Delivery & Billing Modal (Clean alignment & Explicit Fields) */}
         {deliveryModalJob && (
-          <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 1rem', zIndex: 1100 }}>
-            <div style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', maxWidth: '440px', width: '100%', margin: '0 auto', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', padding: '1.75rem' }}>
+          <div className="modal-overlay" style={{ zIndex: 1100 }}>
+            <div className="modal-content" style={{ maxWidth: '440px', padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <CheckCircle size={20} color="var(--primary-gold)" /> Deliver & Bill Service

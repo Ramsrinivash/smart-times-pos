@@ -228,7 +228,7 @@ class ServiceController extends Controller
                             'selling_price' => $netAmount,
                             'gst_rate' => $isGst ? 18.00 : 0.00,
                             'status' => 'delivered',
-                            'hsn_code' => $isGst ? '998729' : null
+                            'hsn_code' => '998729'
                         ]
                     );
                 }

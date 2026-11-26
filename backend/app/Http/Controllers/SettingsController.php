@@ -327,6 +327,15 @@ class SettingsController extends Controller
                     });
                 }
             }
+
+            // Also ensure watches.hsn_code can accept NULL or defaults to 998729
+            if (\Illuminate\Support\Facades\Schema::hasTable('watches')) {
+                try {
+                    \DB::statement("ALTER TABLE watches MODIFY COLUMN hsn_code VARCHAR(50) NULL DEFAULT '998729'");
+                } catch (\Exception $ex) {
+                    // Ignored if syntax unsupported
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Could not ensure settings columns: ' . $e->getMessage());
         }
